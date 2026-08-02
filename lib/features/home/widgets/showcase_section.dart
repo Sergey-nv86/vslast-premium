@@ -72,7 +72,7 @@ class ShowcaseSection extends StatelessWidget {
             crossAxisCount: 2,
             crossAxisSpacing: 18,
             mainAxisSpacing: 18,
-            childAspectRatio: 0.68,
+            mainAxisExtent: 355,
           ),
           itemBuilder: (_, index) => products[index],
         ),

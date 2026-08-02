@@ -40,7 +40,7 @@ class ProductCard extends StatelessWidget {
                   top: Radius.circular(26),
                 ),
                 child: SizedBox(
-                  height: 180,
+                  height: 170,
                   width: double.infinity,
                   child: Image.asset(image, fit: BoxFit.cover),
                 ),
