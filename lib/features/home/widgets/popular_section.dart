@@ -1,85 +1,138 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../data/mock_products.dart';
+import '../../../models/product.dart';
+import '../../../screens/product_detail_screen.dart';
+import '../../../theme/app_theme.dart';
 
-import 'product_card.dart';
-
+/// Блок "Популярное". Раньше карточки были декоративными (свои
+/// image/title/price без связи с товаром, без onTap) — отсюда и не
+/// открывалась карточка товара по нажатию. Теперь ссылаемся на реальные
+/// Product из mockProducts — переход на ProductDetailScreen работает, и
+/// цена/фото/название больше не могут разойтись с каталогом.
 class PopularSection extends StatelessWidget {
   const PopularSection({super.key});
 
+  static final List<Product> _items = [
+    mockProducts.firstWhere((p) => p.id == 'eclair_chocolate'),
+    mockProducts.firstWhere((p) => p.id == 'dacquoise'),
+    mockProducts.firstWhere((p) => p.id == 'lemon_basil_tart'),
+    mockProducts.firstWhere((p) => p.id == 'ciabatta'),
+    mockProducts.firstWhere((p) => p.id == 'grain_bun'),
+  ];
+
+  void _openProductDetails(BuildContext context, Product product) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final products = [
-      const ProductCard(
-        image: 'assets/images/cake_signature.jpg',
-        title: 'Фирменный\nфисташковый торт',
-        subtitle: 'Лидер продаж',
-        price: 3900,
-        badge: 'ТОП',
-      ),
-      const ProductCard(
-        image: 'assets/images/bread_country.jpg',
-        title: 'Деревенский хлеб\nна закваске',
-        subtitle: 'Покупают каждый день',
-        price: 450,
-      ),
-      const ProductCard(
-        image: 'assets/images/dessert_tart.jpg',
-        title: 'Тарт\nмалина',
-        subtitle: 'Выбор гостей',
-        price: 590,
-      ),
-      const ProductCard(
-        image: 'assets/images/bread_french.jpg',
-        title: 'Французский\nбагет',
-        subtitle: 'Всегда свежий',
-        price: 320,
-      ),
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 6),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
             children: [
               Text(
                 "Популярное",
-                style: TextStyle(
-                  fontSize: 28,
+                style: GoogleFonts.alice(
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xff2D2621),
+                  color: AppColors.textPrimary,
                 ),
               ),
-              Spacer(),
-              Text(
+              const Spacer(),
+              const Text(
                 "Все",
                 style: TextStyle(
-                  color: Color(0xff7B4A22),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
+                  color: AppColors.linkAccent,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              SizedBox(width: 6),
-              Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xff7B4A22)),
+              const SizedBox(width: 3),
+              const Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.linkAccent),
             ],
           ),
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 8),
 
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: products.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 18,
-            mainAxisSpacing: 18,
-            childAspectRatio: 0.68,
+        SizedBox(
+          height: 114,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: _items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) => _PopularItem(
+              product: _items[index],
+              onTap: () => _openProductDetails(context, _items[index]),
+            ),
           ),
-          itemBuilder: (context, index) => products[index],
         ),
       ],
+    );
+  }
+}
+
+class _PopularItem extends StatelessWidget {
+  final Product product;
+  final VoidCallback onTap;
+
+  const _PopularItem({required this.product, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 76,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: 76,
+                height: 76,
+                child: Image.asset(
+                  product.imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: AppColors.surfaceMuted,
+                    child: const Icon(Icons.bakery_dining_outlined,
+                        size: 22, color: AppColors.textSecondary),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              product.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            Text(
+              product.inStock ? "${product.price} ₽" : "Под заказ",
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

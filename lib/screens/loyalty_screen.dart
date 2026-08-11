@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoyaltyScreen extends StatelessWidget {
   const LoyaltyScreen({super.key});
@@ -37,8 +38,7 @@ class LoyaltyScreen extends StatelessWidget {
                     child: Center(
                       child: Text(
                         "Карта лояльности",
-                        style: const TextStyle(
-                          fontFamily: "PlayfairDisplay",
+                        style: GoogleFonts.alice(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
                           color: brown,
@@ -79,9 +79,15 @@ class LoyaltyScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             "Всласть",
-                            style: TextStyle(fontFamily: "GreatVibes", color: lightGold, fontSize: 30, height: 1),
+                            style: GoogleFonts.alice(
+                              color: lightGold,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              fontStyle: FontStyle.italic,
+                              height: 1,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -101,11 +107,15 @@ class LoyaltyScreen extends StatelessWidget {
                                       style: TextStyle(color: gold, fontSize: 9.5, letterSpacing: 1.2, fontWeight: FontWeight.w600),
                                     ),
                                     const SizedBox(height: 3),
-                                    const Text(
+                                    Text(
                                       "Sergey Kolesnikov",
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(fontFamily: "PlayfairDisplay", color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+                                      style: GoogleFonts.alice(
+                                        color: Colors.white,
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                     const SizedBox(height: 16),
                                     const Text(
@@ -210,9 +220,16 @@ class LoyaltyScreen extends StatelessWidget {
 
               const SizedBox(height: 10),
 
-              const _HistoryTile(title: "Покупка хлеба", date: "Сегодня, 10:30", amount: "+120", positive: true, balance: "1 250"),
+              // Названия обобщены до "Покупка" (без привязки к конкретному
+              // товару) по вашей просьбе. Важное правило для реальных
+              // данных: если покупка оплачивалась (полностью или частично)
+              // бонусами — начисление за эту же покупку не показывается,
+              // т.е. на одну покупку не может быть одновременно и "+" за
+              // начисление, и "−" за списание. Ниже это три разных, не
+              // связанных друг с другом события/даты.
+              const _HistoryTile(title: "Покупка", date: "Сегодня, 10:30", amount: "+120", positive: true, balance: "1 250"),
               const SizedBox(height: 6),
-              const _HistoryTile(title: "Торт «Фисташковый»", date: "Вчера, 16:45", amount: "+350", positive: true, balance: "1 130"),
+              const _HistoryTile(title: "Покупка", date: "Вчера, 16:45", amount: "+350", positive: true, balance: "1 130"),
               const SizedBox(height: 6),
               const _HistoryTile(title: "Оплата бонусами", date: "12 июля, 14:20", amount: "−200", positive: false, balance: "780"),
 
@@ -327,7 +344,7 @@ class _LevelCard extends StatelessWidget {
           const SizedBox(height: 5),
           const Text("Ваш уровень", style: TextStyle(fontSize: 10.5, color: LoyaltyScreen.muted)),
           const SizedBox(height: 2),
-          Text(levelName, style: const TextStyle(fontFamily: "PlayfairDisplay", fontSize: 19, fontWeight: FontWeight.w700, color: LoyaltyScreen.brown)),
+          Text(levelName, style: GoogleFonts.alice(fontSize: 19, fontWeight: FontWeight.w700, color: LoyaltyScreen.brown)),
           const SizedBox(height: 5),
           Text(
             "До следующего уровня\nосталось $remaining бонусов",
@@ -460,7 +477,7 @@ class FullQrScreen extends StatelessWidget {
         backgroundColor: LoyaltyScreen.background,
         centerTitle: true,
         iconTheme: const IconThemeData(color: LoyaltyScreen.brown),
-        title: const Text("Карта лояльности", style: TextStyle(fontFamily: "PlayfairDisplay", color: LoyaltyScreen.brown, fontWeight: FontWeight.w700, fontSize: 20)),
+        title: Text("Карта лояльности", style: GoogleFonts.alice(color: LoyaltyScreen.brown, fontWeight: FontWeight.w700, fontSize: 20)),
       ),
       body: Center(
         child: Column(

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 class ProductCard extends StatelessWidget {
   final String image;
   final String title;
-  final String subtitle;
   final int price;
   final String? badge;
 
@@ -11,7 +10,6 @@ class ProductCard extends StatelessWidget {
     super.key,
     required this.image,
     required this.title,
-    required this.subtitle,
     required this.price,
     this.badge,
   });
@@ -21,26 +19,27 @@ class ProductCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(.05),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Stack(
             children: [
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(26),
+                  top: Radius.circular(16),
                 ),
                 child: SizedBox(
-                  height: 170,
+                  height: 96,
                   width: double.infinity,
                   child: Image.asset(image, fit: BoxFit.cover),
                 ),
@@ -48,23 +47,24 @@ class ProductCard extends StatelessWidget {
 
               if (badge != null)
                 Positioned(
-                  left: 12,
-                  top: 12,
+                  left: 7,
+                  top: 7,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                      horizontal: 7,
+                      vertical: 3,
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0xffD96A28),
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       badge!,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 9,
                         fontWeight: FontWeight.w700,
+                        fontFamily: 'Georgia',
                       ),
                     ),
                   ),
@@ -73,52 +73,46 @@ class ProductCard extends StatelessWidget {
           ),
 
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Text(
-              title,
-              maxLines: 2,
-              style: const TextStyle(
-                fontSize: 18,
-                height: 1.2,
-                fontWeight: FontWeight.w600,
-                color: Color(0xff2D2621),
+            padding: const EdgeInsets.fromLTRB(9, 6, 9, 0),
+            child: SizedBox(
+              height: 22,
+              child: Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  height: 1.05,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xff2D2621),
+                  fontFamily: 'Georgia',
+                ),
               ),
             ),
           ),
 
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-            child: Text(
-              subtitle,
-              style: const TextStyle(fontSize: 14, color: Color(0xff9B948D)),
-            ),
-          ),
-
-          const Spacer(),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 14, 16),
+            padding: const EdgeInsets.fromLTRB(9, 3, 7, 6),
             child: Row(
               children: [
                 Text(
                   "$price ₽",
                   style: const TextStyle(
-                    fontSize: 24,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: Color(0xff2D2621),
+                    fontFamily: 'Georgia',
                   ),
                 ),
-
                 const Spacer(),
-
                 Container(
-                  width: 50,
-                  height: 50,
+                  width: 22,
+                  height: 22,
                   decoration: const BoxDecoration(
                     color: Color(0xff7B4A22),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.add, color: Colors.white, size: 28),
+                  child: const Icon(Icons.add, color: Colors.white, size: 13),
                 ),
               ],
             ),

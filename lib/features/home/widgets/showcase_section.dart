@@ -1,80 +1,103 @@
 import 'package:flutter/material.dart';
-import 'product_card.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../data/mock_products.dart';
+import '../../../models/product.dart';
+import '../../../screens/catalog_screen.dart';
+import '../../../screens/product_detail_screen.dart';
+import '../../../theme/app_theme.dart';
+import '../../../widgets/product_card.dart';
 
+/// Блок "Сегодня на витрине". Занимает всё доступное место между шапкой
+/// и "Популярное" (родитель — Expanded в HomeScreen) и прокручивается
+/// САМ, отдельно от остального экрана — поэтому Главная целиком
+/// помещается на экран, а не растягивается вниз с ростом числа карточек.
+///
+/// Карточки — тот же ProductCard и с тем же размером/стилем, что и в
+/// «Каталоге» (controlScale по умолчанию = 1.0, без увеличения). Список —
+/// все товары в наличии из mockProducts (без лимита — блок сам
+/// прокручивается вертикально, см. комментарий выше).
 class ShowcaseSection extends StatelessWidget {
   const ShowcaseSection({super.key});
 
+  static final List<Product> _highlighted =
+      mockProducts.where((p) => p.inStock).toList();
+
+  static const double _cardTextBlockHeight = 80;
+  static const double _gridSpacing = 10;
+
+  void _openProductDetails(BuildContext context, Product product) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final products = [
-      const ProductCard(
-        image: 'assets/images/bread_country.jpg',
-        title: 'Хлеб деревенский\nна закваске',
-        subtitle: 'Сегодня из печи',
-        price: 450,
-        badge: 'ХИТ',
-      ),
-      const ProductCard(
-        image: 'assets/images/cake_signature.jpg',
-        title: 'Фисташковый\nторт',
-        subtitle: 'Осталось 4',
-        price: 3900,
-      ),
-      const ProductCard(
-        image: 'assets/images/dessert_tart.jpg',
-        title: 'Тарт\nмалина',
-        subtitle: 'Свежий',
-        price: 590,
-      ),
-      const ProductCard(
-        image: 'assets/images/bread_french.jpg',
-        title: 'Французский\nбагет',
-        subtitle: 'Сегодня',
-        price: 320,
-      ),
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Row(
-            children: const [
-              Text(
-                'Сегодня на витрине',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xff2D2621),
-                ),
+        Row(
+          children: [
+            Text(
+              'Сегодня на витрине',
+              style: GoogleFonts.alice(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+                height: 1.1,
               ),
-              Spacer(),
-              Text(
-                'Все',
-                style: TextStyle(
-                  color: Color(0xff7B4A22),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
+            ),
+            const Spacer(),
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CatalogScreen()),
+                );
+              },
+              child: Row(
+                children: [
+                  Text(
+                    'Все',
+                    style: AppTextStyles.rowLabel.copyWith(
+                      color: AppColors.linkAccent,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 10,
+                    color: AppColors.linkAccent,
+                  ),
+                ],
               ),
-              SizedBox(width: 6),
-              Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xff7B4A22)),
-            ],
-          ),
+            ),
+          ],
         ),
-        const SizedBox(height: 20),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: products.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 18,
-            mainAxisSpacing: 18,
-            mainAxisExtent: 355,
+        const SizedBox(height: 8),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = (constraints.maxWidth - _gridSpacing) / 2;
+              return GridView.builder(
+                padding: EdgeInsets.zero,
+                physics: const BouncingScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: _gridSpacing,
+                  crossAxisSpacing: _gridSpacing,
+                  mainAxisExtent: itemWidth + _cardTextBlockHeight,
+                ),
+                itemCount: _highlighted.length,
+                itemBuilder: (context, index) => ProductCard(
+                  product: _highlighted[index],
+                  onOpenDetails: (p) => _openProductDetails(context, p),
+                ),
+              );
+            },
           ),
-          itemBuilder: (_, index) => products[index],
         ),
       ],
     );

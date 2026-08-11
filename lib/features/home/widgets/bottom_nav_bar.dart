@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+/// Раньше иконки/подписи выглядели блёкло — маленький размер, светлый
+/// неактивный цвет, тонкий (не переопределяемый в коде) штрих у самих
+/// SVG-файлов. Здесь: крупнее иконки, темнее неактивный цвет, жирный шрифт
+/// у подписей всегда (не только у активной), плюс лёгкий приём "faux bold" —
+/// иконка отрисовывается двойным слоем со сдвигом на пол-пикселя, что
+/// визуально утолщает тонкий штрих без правки самого SVG-файла.
 class PremiumBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -11,40 +17,33 @@ class PremiumBottomNavBar extends StatelessWidget {
     required this.onTap,
   });
 
+  static const Color _activeColor = Color(0xFF201C1A);
+  static const Color _inactiveColor = Color(0xFF8A8177);
+
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Container(
-        height: 80,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(.08),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
-            ),
-          ],
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      padding: EdgeInsets.only(top: 10, bottom: bottomInset > 0 ? bottomInset : 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDFBF8),
+        border: Border(
+          top: BorderSide(color: Colors.black.withOpacity(.08), width: 1),
         ),
-        child: Row(
-          children: [
-            _item(icon: 'assets/icons/home.svg', label: 'Главная', index: 0),
-
-            _item(icon: 'assets/icons/catalog.svg', label: 'Каталог', index: 1),
-
-            _loyaltyButton(),
-
-            _item(
-              icon: 'assets/icons/favorite.svg',
-              label: 'Избранное',
-              index: 3,
-            ),
-
-            _item(icon: 'assets/icons/add.svg', label: 'Корзина', index: 4),
-          ],
-        ),
+      ),
+      child: Row(
+        children: [
+          _item(icon: 'assets/icons/home.svg', label: 'Главная', index: 0),
+          _item(icon: 'assets/icons/catalog.svg', label: 'Каталог', index: 1),
+          _item(icon: 'assets/icons/premium.svg', label: 'Карта', index: 2),
+          _item(
+            icon: 'assets/icons/favorite.svg',
+            label: 'Избранное',
+            index: 3,
+          ),
+          _item(icon: 'assets/icons/add.svg', label: 'Корзина', index: 4),
+        ],
       ),
     );
   }
@@ -55,107 +54,45 @@ class PremiumBottomNavBar extends StatelessWidget {
     required int index,
   }) {
     final selected = currentIndex == index;
+    final color = selected ? _activeColor : _inactiveColor;
 
     return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
         onTap: () => onTap(index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsets.only(top: 10),
-          decoration: BoxDecoration(
-            color: selected
-                ? const Color(0xFF7B4A22).withOpacity(.10)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Column(
-            children: [
-              SvgPicture.asset(
-                icon,
-                width: 24,
-                height: 24,
-                colorFilter: ColorFilter.mode(
-                  selected ? const Color(0xFF7B4A22) : const Color(0xFF9A948E),
-                  BlendMode.srcIn,
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _boldIcon(icon, color, 23),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                color: color,
               ),
-
-              const SizedBox(height: 5),
-
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected
-                      ? const Color(0xFF7B4A22)
-                      : const Color(0xFF9A948E),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _loyaltyButton() {
-    final selected = currentIndex == 2;
-
+  Widget _boldIcon(String path, Color color, double size) {
+    final colorFilter = ColorFilter.mode(color, BlendMode.srcIn);
     return SizedBox(
-      width: 84,
-      child: GestureDetector(
-        onTap: () => onTap(2),
-        child: Column(
-          children: [
-            Transform.translate(
-              offset: const Offset(0, -10),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF7B4A22),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(
-                        0xFF7B4A22,
-                      ).withOpacity(selected ? .40 : .28),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SvgPicture.asset(
-                    'assets/icons/premium.svg',
-                    colorFilter: const ColorFilter.mode(
-                      Colors.white,
-                      BlendMode.srcIn,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            Transform.translate(
-              offset: const Offset(0, -6),
-              child: Text(
-                'Карта',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected
-                      ? const Color(0xFF7B4A22)
-                      : const Color(0xFF9A948E),
-                ),
-              ),
-            ),
-          ],
-        ),
+      width: size,
+      height: size,
+      child: Stack(
+        children: [
+          SvgPicture.asset(path, width: size, height: size, colorFilter: colorFilter),
+          Positioned(
+            left: 0.6,
+            top: 0.6,
+            child:
+                SvgPicture.asset(path, width: size, height: size, colorFilter: colorFilter),
+          ),
+        ],
       ),
     );
   }
