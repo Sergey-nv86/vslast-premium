@@ -126,29 +126,40 @@ class LoyaltyScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Column(
-                                children: [
-                                  Container(
-                                    width: 80,
-                                    height: 80,
-                                    padding: const EdgeInsets.all(5),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: gold.withOpacity(.5), width: 1),
+                              // Раньше QR на самой карте был не кликабельным —
+                              // открыть его в полный размер можно было только
+                              // через кнопку "Показать QR кассиру" ниже.
+                              // Теперь тап по самому QR тоже открывает FullQrScreen.
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(context,
+                                      MaterialPageRoute(builder: (_) => const FullQrScreen()));
+                                },
+                                behavior: HitTestBehavior.opaque,
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      padding: const EdgeInsets.all(5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: gold.withOpacity(.5), width: 1),
+                                      ),
+                                      child: Image.asset("assets/images/qr_demo.png", fit: BoxFit.contain),
                                     ),
-                                    child: Image.asset("assets/images/qr_demo.png", fit: BoxFit.contain),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  SizedBox(
-                                    width: 80,
-                                    child: Text(
-                                      "Покажите QR\nна кассе",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(color: gold.withOpacity(.9), fontSize: 9, height: 1.25),
+                                    const SizedBox(height: 5),
+                                    SizedBox(
+                                      width: 80,
+                                      child: Text(
+                                        "Покажите QR\nна кассе",
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: gold.withOpacity(.9), fontSize: 9, height: 1.25),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ],
                           ),

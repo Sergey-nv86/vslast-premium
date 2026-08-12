@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../models/user_role.dart';
+import '../features/admin/screens/admin_entry_screen.dart';
 import '../theme/app_theme.dart';
 
 /// Экран «Профиль» — показывается вместо «Вход/Регистрация», когда
@@ -57,7 +59,7 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                auth.displayName?.isNotEmpty == true ? auth.displayName! : 'Гость Всласть',
+                auth.displayName.isNotEmpty ? auth.displayName : 'Гость Всласть',
                 style: AppTextStyles.authHeading,
               ),
               const SizedBox(height: 4),
@@ -65,6 +67,78 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 32),
               // TODO: здесь разместите реальные данные пользователя —
               // телефон, email, адреса доставки, способы оплаты и т.д.
+              if (auth.canAccessAdmin) ...[
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    leading: const CircleAvatar(
+                      backgroundColor: AppColors.surfaceMuted,
+                      child: Icon(
+                        Icons.admin_panel_settings_outlined,
+                        color: AppColors.primaryBrown,
+                      ),
+                    ),
+                    title: Text(
+                      'Администрирование',
+                      style: AppTextStyles.rowLabel.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      auth.role?.title ?? 'Доступ администратора',
+                      style: AppTextStyles.rowLabelMuted,
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.primaryBrown,
+                    ),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AdminEntryScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+              if (!auth.canAccessAdmin) ...[
+                const SizedBox(height: 8),
+              ],
+              // DEV ONLY — удалить после подключения backend auth.
+              if (!auth.canAccessAdmin) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.admin_panel_settings_outlined),
+                    label: const Text('DEV: переключиться на OWNER'),
+                    onPressed: () async {
+                      await context.read<AuthProvider>().switchMockRole(
+                        UserRole.owner,
+                      );
+
+                      if (!context.mounted) return;
+
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AdminEntryScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               const Spacer(),
               SizedBox(
                 width: double.infinity,

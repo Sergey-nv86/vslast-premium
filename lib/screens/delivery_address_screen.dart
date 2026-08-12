@@ -169,6 +169,11 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
     }
   }
 
+  /// Если "Квартира" или "Этаж" не заполнены — раньше адрес подтверждался
+  /// молча (в v1 просто выпадали из строки, потом стали подставлять "нет"
+  /// без спроса). Теперь сначала спрашиваем: возможно, это забывчивость,
+  /// а не частный дом без квартиры. Пользователь сам решает — заполнить
+  /// или продолжить без этих полей.
   void _confirm() {
     final street = _addressController.text.trim();
     if (street.isEmpty) {
@@ -177,11 +182,61 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
     }
     final apartment = _apartmentController.text.trim();
     final floor = _floorController.text.trim();
+
+    if (apartment.isEmpty || floor.isEmpty) {
+      _confirmMissingDetails();
+      return;
+    }
+    _finishConfirm();
+  }
+
+  Future<void> _confirmMissingDetails() async {
+    // Разворачиваем секцию, чтобы поля "Квартира"/"Этаж" были видны на
+    // экране, пока показан диалог — человеку не придётся её искать.
+    if (!_detailsExpanded) setState(() => _detailsExpanded = true);
+
+    final proceedWithoutFilling = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Квартира и этаж не указаны'),
+        content: const Text(
+          'Если это частный дом или доставка без квартиры/этажа — можно '
+          'продолжить без них. Если нет — лучше заполнить, чтобы курьеру '
+          'было проще вас найти.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Заполнить'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Продолжить без них'),
+          ),
+        ],
+      ),
+    );
+
+    if (proceedWithoutFilling == true && mounted) {
+      _finishConfirm();
+    }
+    // false/null (закрыли диалог, нажали "Заполнить" или свайпнули) —
+    // просто остаёмся на экране, секция с полями уже развёрнута.
+  }
+
+  void _finishConfirm() {
+    final street = _addressController.text.trim();
+    final apartment = _apartmentController.text.trim();
+    final floor = _floorController.text.trim();
     final comment = _commentController.text.trim();
 
-    final parts = <String>[street];
-    if (apartment.isNotEmpty) parts.add('кв. $apartment');
-    if (floor.isNotEmpty) parts.add('этаж $floor');
+    // Оба поля всегда попадают в итоговый адрес: если человек осознанно
+    // продолжил без них (см. _confirmMissingDetails), подставляем "нет",
+    // а не тихо опускаем — курьер должен видеть, что это не пропуск.
+    final apartmentText = apartment.isEmpty ? 'нет' : apartment;
+    final floorText = floor.isEmpty ? 'нет' : floor;
+
+    final parts = <String>[street, 'кв. $apartmentText', 'этаж $floorText'];
     var result = parts.join(', ');
     if (comment.isNotEmpty) result = '$result ($comment)';
 

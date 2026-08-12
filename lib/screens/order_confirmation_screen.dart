@@ -6,6 +6,7 @@ import '../providers/tab_navigation_controller.dart';
 import '../theme/app_theme.dart';
 import '../utils/date_format.dart';
 import '../widgets/receipt_item_tile.dart';
+import 'orders_screen.dart';
 
 /// Экран «Подтверждение заказа». Полностью работает от переданного
 /// в конструктор [order] — снимка заказа, зафиксированного в момент
@@ -16,15 +17,18 @@ class OrderConfirmationScreen extends StatelessWidget {
 
   const OrderConfirmationScreen({super.key, required this.order});
 
-  /// Возврат сразу на "Главную", а не на ту вкладку, с которой начался
-  /// заказ ("Каталог") — после оформления корзина уже очищена,
-  /// возвращаться в чекаут смысла нет. Простого popUntil(isFirst)
-  /// недостаточно: он вернёт на MainScreen, но активная вкладка там
-  /// останется прежней (IndexedStack не сбрасывается сам по себе) —
-  /// поэтому сначала явно переключаем вкладку.
-  void _goToCatalog(BuildContext context) {
-    context.read<TabNavigationController>().goToCatalog();
+  /// И стрелка "назад", и кнопка "Перейти в мои заказы" ведут на экран
+  /// «Мои заказы» — раньше обе уводили в «Каталог», хотя корзина уже
+  /// очищена и возвращаться в чекаут смысла нет. Сначала сбрасываем стек
+  /// до MainScreen и переключаем активную вкладку на "Главная" (иначе
+  /// IndexedStack оставит прежнюю вкладку), затем поверх пушим "Мои заказы" —
+  /// так системное "назад" с этого экрана корректно вернёт на Главную.
+  void _goToOrders(BuildContext context) {
+    context.read<TabNavigationController>().goToHome();
     Navigator.of(context).popUntil((route) => route.isFirst);
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const OrdersScreen()),
+    );
   }
 
   @override
@@ -41,7 +45,7 @@ class OrderConfirmationScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     GestureDetector(
-                      onTap: () => _goToCatalog(context),
+                      onTap: () => _goToOrders(context),
                       behavior: HitTestBehavior.opaque,
                       child: Container(
                         width: 44,
@@ -184,10 +188,7 @@ class OrderConfirmationScreen extends StatelessWidget {
                 child: SizedBox(
                   width: double.infinity,
                   child: GestureDetector(
-                    onTap: () {
-                      context.read<TabNavigationController>().goToCatalog();
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                    },
+                    onTap: () => _goToOrders(context),
                     behavior: HitTestBehavior.opaque,
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 17),

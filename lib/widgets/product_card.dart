@@ -209,20 +209,23 @@ class _FavoriteButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Раньше сердечко сидело в белом круглом "пятне" и слишком перетягивало
+    // внимание на фото товара. Теперь — просто иконка (чуть крупнее и с
+    // мягкой тенью вместо подложки), она остаётся читаемой на любом фоне,
+    // но не выглядит отдельным элементом интерфейса.
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
+      child: SizedBox(
         width: 24,
         height: 24,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
         child: Icon(
           isFavorite ? Icons.favorite : Icons.favorite_border,
-          size: 13,
-          color: isFavorite ? AppColors.badgePromo : AppColors.primaryBrown,
+          size: 18,
+          color: isFavorite ? AppColors.badgePromo : Colors.white,
+          shadows: const [
+            Shadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 1)),
+          ],
         ),
       ),
     );
