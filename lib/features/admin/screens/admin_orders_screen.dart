@@ -5,6 +5,22 @@ import 'admin_order_detail_screen.dart';
 
 enum AdminOrderFilter { all, newOrders, preorder, inProgress, ready }
 
+/// Одна позиция в составе заказа — то, чего раньше не хватало на экране
+/// «Заказ #...»: было видно сумму, но не сам список товаров.
+class AdminOrderItem {
+  final String name;
+  final int quantity;
+  final double price;
+
+  const AdminOrderItem({
+    required this.name,
+    required this.quantity,
+    required this.price,
+  });
+
+  double get lineTotal => price * quantity;
+}
+
 class AdminOrder {
   final String number;
   final String customer;
@@ -13,6 +29,7 @@ class AdminOrder {
   final String status;
   final double total;
   final bool isPreorder;
+  final List<AdminOrderItem> items;
 
   const AdminOrder({
     required this.number,
@@ -22,15 +39,79 @@ class AdminOrder {
     required this.status,
     required this.total,
     this.isPreorder = false,
+    this.items = const [],
   });
 }
 
 const _demoOrders = <AdminOrder>[
-  AdminOrder(number: '#1047', customer: 'Анна Петрова', time: 'сегодня, 05:21', type: 'Доставка', status: 'Новый', total: 4850),
-  AdminOrder(number: '#1046', customer: 'Михаил Иванов', time: 'сегодня, 05:08', type: 'Самовывоз · 09:30', status: 'Предзаказ', total: 7200, isPreorder: true),
-  AdminOrder(number: '#1045', customer: 'Елена Смирнова', time: 'сегодня, 04:56', type: 'Доставка', status: 'В работе', total: 3150),
-  AdminOrder(number: '#1044', customer: 'Ольга Кузнецова', time: 'сегодня, 04:42', type: 'Самовывоз · 08:45', status: 'Готов', total: 5400),
-  AdminOrder(number: '#1043', customer: 'Александр Соколов', time: 'сегодня, 04:17', type: 'Доставка', status: 'В работе', total: 2680),
+  AdminOrder(
+    number: '#1047',
+    customer: 'Анна Петрова',
+    time: 'сегодня, 05:21',
+    type: 'Доставка',
+    status: 'Новый',
+    total: 4850,
+    items: [
+      AdminOrderItem(name: 'Хлеб деревенский на закваске', quantity: 2, price: 390),
+      AdminOrderItem(name: 'Багет классический', quantity: 1, price: 220),
+      AdminOrderItem(name: 'Круассан сливочный', quantity: 3, price: 290),
+      AdminOrderItem(name: 'Тарт лимон-безе', quantity: 2, price: 380),
+    ],
+  ),
+  AdminOrder(
+    number: '#1046',
+    customer: 'Михаил Иванов',
+    time: 'сегодня, 05:08',
+    type: 'Самовывоз · 09:30',
+    status: 'Предзаказ',
+    total: 7200,
+    isPreorder: true,
+    items: [
+      AdminOrderItem(name: 'Наполеон', quantity: 2, price: 1450),
+      AdminOrderItem(name: 'Чизкейк с вишней', quantity: 1, price: 1250),
+      AdminOrderItem(name: 'Булочка зерновая', quantity: 6, price: 210),
+      AdminOrderItem(name: 'Бриошь', quantity: 4, price: 290),
+    ],
+  ),
+  AdminOrder(
+    number: '#1045',
+    customer: 'Елена Смирнова',
+    time: 'сегодня, 04:56',
+    type: 'Доставка',
+    status: 'В работе',
+    total: 3150,
+    items: [
+      AdminOrderItem(name: 'Чиабатта', quantity: 3, price: 450),
+      AdminOrderItem(name: 'Эклер шоколадный', quantity: 3, price: 210),
+      AdminOrderItem(name: 'Дакуаз', quantity: 2, price: 260),
+    ],
+  ),
+  AdminOrder(
+    number: '#1044',
+    customer: 'Ольга Кузнецова',
+    time: 'сегодня, 04:42',
+    type: 'Самовывоз · 08:45',
+    status: 'Готов',
+    total: 5400,
+    items: [
+      AdminOrderItem(name: 'Хлеб деревенский на закваске', quantity: 4, price: 390),
+      AdminOrderItem(name: 'Тарт лимон-безе', quantity: 2, price: 320),
+      AdminOrderItem(name: 'Багет классический', quantity: 5, price: 220),
+    ],
+  ),
+  AdminOrder(
+    number: '#1043',
+    customer: 'Александр Соколов',
+    time: 'сегодня, 04:17',
+    type: 'Доставка',
+    status: 'В работе',
+    total: 2680,
+    items: [
+      AdminOrderItem(name: 'Песочное пирожное', quantity: 4, price: 250),
+      AdminOrderItem(name: 'Круассан сливочный', quantity: 3, price: 290),
+      AdminOrderItem(name: 'Багет классический', quantity: 2, price: 220),
+    ],
+  ),
 ];
 
 class AdminOrdersScreen extends StatefulWidget {

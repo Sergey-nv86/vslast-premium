@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'admin_demand_without_stock_screen.dart';
 import 'admin_orders_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -26,12 +27,21 @@ class AdminDashboardScreen extends StatelessWidget {
             Text('Администратор · Нижневартовск', style: TextStyle(fontSize: 13, color: muted)),
           ],
         ),
-        actions: const [
+        actions: [
           Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              backgroundColor: Color(0xFFE8D8C8),
-              child: Icon(Icons.person_outline, color: brown),
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              // Раньше эта иконка ничего не делала (просто аватар без onTap).
+              // По просьбе — тап открывает "Заказы".
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AdminOrdersScreen()),
+                );
+              },
+              child: const CircleAvatar(
+                backgroundColor: Color(0xFFE8D8C8),
+                child: Icon(Icons.person_outline, color: brown),
+              ),
             ),
           ),
         ],
@@ -92,26 +102,35 @@ class AdminDashboardScreen extends StatelessWidget {
             ],
           )),
           const SizedBox(height: 20),
-          _Card(
-            color: const Color(0xFFFFF8F1),
-            child: const Row(children: [
-              CircleAvatar(
-                backgroundColor: Color(0xFFF4E2D2),
-                child: Icon(Icons.priority_high_rounded, color: Color(0xFF9A4D20)),
-              ),
-              SizedBox(width: 12),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Спрос без наличия', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: dark)),
-                  SizedBox(height: 5),
-                  Text('14 товаров ожидают клиенты', style: TextStyle(fontSize: 13, color: muted)),
-                  SizedBox(height: 3),
-                  Text('18 450 ₽ потенциального спроса', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: brown)),
-                ],
-              )),
-              Icon(Icons.chevron_right_rounded, color: brown),
-            ]),
+          // Раньше карточка была некликабельной. Теперь открывает список
+          // товаров без остатка, на которые есть спрос (избранное/предзаказ).
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AdminDemandWithoutStockScreen()),
+              );
+            },
+            child: _Card(
+              color: const Color(0xFFFFF8F1),
+              child: const Row(children: [
+                CircleAvatar(
+                  backgroundColor: Color(0xFFF4E2D2),
+                  child: Icon(Icons.priority_high_rounded, color: Color(0xFF9A4D20)),
+                ),
+                SizedBox(width: 12),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Спрос без наличия', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: dark)),
+                    SizedBox(height: 5),
+                    Text('14 товаров ожидают клиенты', style: TextStyle(fontSize: 13, color: muted)),
+                    SizedBox(height: 3),
+                    Text('18 450 ₽ потенциального спроса', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: brown)),
+                  ],
+                )),
+                Icon(Icons.chevron_right_rounded, color: brown),
+              ]),
+            ),
           ),
           const SizedBox(height: 20),
           const _Title('Последние заказы'),
