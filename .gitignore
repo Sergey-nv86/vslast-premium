@@ -43,3 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Наши рабочие артефакты — не часть приложения, не коммитим
+*.zip
+*.tar.gz
+*.backup_*
+/_lib/
+/lib_backup*/
+/backup/
+/temp_ios/
