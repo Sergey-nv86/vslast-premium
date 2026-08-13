@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
@@ -251,28 +252,38 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
         children: [
           // Карта — почти на весь экран, под статус-баром и под нижней
           // панелью тоже (так же, как в вашем референсе).
-          Positioned.fill(
-            child: YandexMap(
-              onMapCreated: _onMapCreated,
-              onCameraPositionChanged: (position, reason, finished) {
-                _onCameraChanged(position, finished);
-              },
-            ),
-          ),
-
-          // Закреплённый по центру экрана пин — карта двигается под ним,
-          // сам он никогда не смещается.
-          const IgnorePointer(
-            child: Align(
-              alignment: Alignment.center,
-              child: Padding(
-                // Небольшой сдвиг вверх, чтобы остриё пина указывало точно
-                // в оптический центр, а не сама иконка целиком.
-                padding: EdgeInsets.only(bottom: 36),
-                child: Icon(Icons.location_on, size: 44, color: AppColors.primaryBrown),
+          //
+          // yandex_mapkit — нативный плагин (обёртка над Yandex MapKit SDK
+          // для iOS/Android), у него в принципе нет реализации под Flutter
+          // Web — это не вопрос ключа/токена, виджет карты там просто не
+          // существует. Поэтому на вебе вместо карты — понятная заглушка,
+          // а адрес по-прежнему можно ввести вручную в поле ниже (та же
+          // логика, что уже работает, если не настроен ключ геокодера).
+          if (!kIsWeb) ...[
+            Positioned.fill(
+              child: YandexMap(
+                onMapCreated: _onMapCreated,
+                onCameraPositionChanged: (position, reason, finished) {
+                  _onCameraChanged(position, finished);
+                },
               ),
             ),
-          ),
+
+            // Закреплённый по центру экрана пин — карта двигается под ним,
+            // сам он никогда не смещается.
+            const IgnorePointer(
+              child: Align(
+                alignment: Alignment.center,
+                child: Padding(
+                  // Небольшой сдвиг вверх, чтобы остриё пина указывало точно
+                  // в оптический центр, а не сама иконка целиком.
+                  padding: EdgeInsets.only(bottom: 36),
+                  child: Icon(Icons.location_on, size: 44, color: AppColors.primaryBrown),
+                ),
+              ),
+            ),
+          ] else
+            const Positioned.fill(child: _WebMapFallback()),
 
           SafeArea(
             child: Padding(
@@ -318,28 +329,31 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
           ),
 
           // Зум +/- и "моё местоположение" — колонка плавающих кнопок
-          // справа над картой. Отступ снизу подобран под компактную
-          // нижнюю панель (см. _panelEstimatedHeight ниже) — если панель
-          // разворачивается (показаны доп.поля), кнопки всё равно на
-          // безопасной высоте, т.к. панель в развёрнутом виде скроллится
-          // сама внутри себя, а не растёт поверх кнопок.
-          Positioned(
-            right: 16,
-            bottom: 190,
-            child: Column(
-              children: [
-                _MapRoundButton(icon: Icons.add, onTap: () => _zoomBy(1)),
-                const SizedBox(height: 8),
-                _MapRoundButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
-                const SizedBox(height: 16),
-                _MapRoundButton(
-                  icon: Icons.my_location,
-                  onTap: _isLocating ? null : _useCurrentLocation,
-                  loading: _isLocating,
-                ),
-              ],
+          // справа над картой. На вебе карты нет (см. выше), поэтому и
+          // кнопки, управляющие именно ей, не показываем.
+          // Отступ снизу подобран под компактную нижнюю панель (см.
+          // _panelEstimatedHeight ниже) — если панель разворачивается
+          // (показаны доп.поля), кнопки всё равно на безопасной высоте,
+          // т.к. панель в развёрнутом виде скроллится сама внутри себя,
+          // а не растёт поверх кнопок.
+          if (!kIsWeb)
+            Positioned(
+              right: 16,
+              bottom: 190,
+              child: Column(
+                children: [
+                  _MapRoundButton(icon: Icons.add, onTap: () => _zoomBy(1)),
+                  const SizedBox(height: 8),
+                  _MapRoundButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
+                  const SizedBox(height: 16),
+                  _MapRoundButton(
+                    icon: Icons.my_location,
+                    onTap: _isLocating ? null : _useCurrentLocation,
+                    loading: _isLocating,
+                  ),
+                ],
+              ),
             ),
-          ),
 
           // Нижняя панель — компактная по умолчанию (адрес + кнопка),
           // квартира/этаж/комментарий скрыты за раскрывашкой "Добавить
@@ -576,6 +590,41 @@ class _MapRoundButton extends StatelessWidget {
                     strokeWidth: 2, color: AppColors.primaryBrown),
               )
             : Icon(icon, size: 20, color: AppColors.primaryBrown),
+      ),
+    );
+  }
+}
+
+/// Заглушка вместо карты в веб-сборке (PWA). yandex_mapkit не имеет
+/// реализации под Flutter Web в принципе — сюда не поможет никакой ключ,
+/// это ограничение платформы у самого пакета, а не проблема конфигурации.
+/// Адрес при этом всё равно можно ввести вручную в поле ниже на экране.
+class _WebMapFallback extends StatelessWidget {
+  const _WebMapFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.surfaceMuted,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.map_outlined, size: 40, color: AppColors.textSecondary),
+          const SizedBox(height: 12),
+          Text(
+            'Карта пока недоступна в браузерной версии',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.rowLabel.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Введите адрес вручную в поле ниже — курьер получит его так же, как и с карты.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.rowLabelMuted,
+          ),
+        ],
       ),
     );
   }
