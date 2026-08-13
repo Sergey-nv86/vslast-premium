@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'admin_demand_without_stock_screen.dart';
 import 'admin_orders_screen.dart';
+import 'admin_products_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -26,12 +28,23 @@ class AdminDashboardScreen extends StatelessWidget {
             Text('Администратор · Нижневартовск', style: TextStyle(fontSize: 13, color: muted)),
           ],
         ),
-        actions: const [
+        actions: [
           Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              backgroundColor: Color(0xFFE8D8C8),
-              child: Icon(Icons.person_outline, color: brown),
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              // Временный хук: пока в навигации нет отдельного таба
+              // "Товары", открываем экран отсюда. Раньше эта иконка
+              // открывала "Заказы" — теперь это делает карточка-метрика
+              // "Заказы" в блоке "Сегодня" (см. выше), а иконка свободна.
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AdminProductsScreen()),
+                );
+              },
+              child: const CircleAvatar(
+                backgroundColor: Color(0xFFE8D8C8),
+                child: Icon(Icons.person_outline, color: brown),
+              ),
             ),
           ),
         ],
@@ -41,10 +54,23 @@ class AdminDashboardScreen extends StatelessWidget {
         children: [
           const Text('Сегодня', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: muted)),
           const SizedBox(height: 14),
-          Row(children: const [
-            Expanded(child: _Metric('Выручка', '184 500 ₽', Icons.trending_up_rounded)),
-            SizedBox(width: 10),
-            Expanded(child: _Metric('Заказы', '47', Icons.receipt_long_outlined)),
+          Row(children: [
+            const Expanded(child: _Metric('Выручка', '184 500 ₽', Icons.trending_up_rounded)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _Metric(
+                'Заказы',
+                '47',
+                Icons.receipt_long_outlined,
+                // Раньше "Заказы" открывались тапом по иконке профиля —
+                // перенесли на саму карточку метрики "Заказы", это логичнее.
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AdminOrdersScreen()),
+                  );
+                },
+              ),
+            ),
           ]),
           const SizedBox(height: 10),
           Row(children: const [
@@ -92,26 +118,35 @@ class AdminDashboardScreen extends StatelessWidget {
             ],
           )),
           const SizedBox(height: 20),
-          _Card(
-            color: const Color(0xFFFFF8F1),
-            child: const Row(children: [
-              CircleAvatar(
-                backgroundColor: Color(0xFFF4E2D2),
-                child: Icon(Icons.priority_high_rounded, color: Color(0xFF9A4D20)),
-              ),
-              SizedBox(width: 12),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Спрос без наличия', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: dark)),
-                  SizedBox(height: 5),
-                  Text('14 товаров ожидают клиенты', style: TextStyle(fontSize: 13, color: muted)),
-                  SizedBox(height: 3),
-                  Text('18 450 ₽ потенциального спроса', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: brown)),
-                ],
-              )),
-              Icon(Icons.chevron_right_rounded, color: brown),
-            ]),
+          // Раньше карточка была некликабельной. Теперь открывает список
+          // товаров без остатка, на которые есть спрос (избранное/предзаказ).
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AdminDemandWithoutStockScreen()),
+              );
+            },
+            child: _Card(
+              color: const Color(0xFFFFF8F1),
+              child: const Row(children: [
+                CircleAvatar(
+                  backgroundColor: Color(0xFFF4E2D2),
+                  child: Icon(Icons.priority_high_rounded, color: Color(0xFF9A4D20)),
+                ),
+                SizedBox(width: 12),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Спрос без наличия', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: dark)),
+                    SizedBox(height: 5),
+                    Text('14 товаров ожидают клиенты', style: TextStyle(fontSize: 13, color: muted)),
+                    SizedBox(height: 3),
+                    Text('18 450 ₽ потенциального спроса', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: brown)),
+                  ],
+                )),
+                Icon(Icons.chevron_right_rounded, color: brown),
+              ]),
+            ),
           ),
           const SizedBox(height: 20),
           const _Title('Последние заказы'),
@@ -128,21 +163,26 @@ class AdminDashboardScreen extends StatelessWidget {
 class _Metric extends StatelessWidget {
   final String title, value;
   final IconData icon;
-  const _Metric(this.title, this.value, this.icon);
+  final VoidCallback? onTap;
+  const _Metric(this.title, this.value, this.icon, {this.onTap});
 
   @override
-  Widget build(BuildContext context) => _Card(
-    child: SizedBox(
-      height: 88,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, size: 19, color: AdminDashboardScreen.brown),
-        const Spacer(),
-        Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AdminDashboardScreen.muted)),
-        const SizedBox(height: 4),
-        FittedBox(alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: AdminDashboardScreen.dark))),
-      ]),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final card = _Card(
+      child: SizedBox(
+        height: 88,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, size: 19, color: AdminDashboardScreen.brown),
+          const Spacer(),
+          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AdminDashboardScreen.muted)),
+          const SizedBox(height: 4),
+          FittedBox(alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: AdminDashboardScreen.dark))),
+        ]),
+      ),
+    );
+    if (onTap == null) return card;
+    return GestureDetector(onTap: onTap, behavior: HitTestBehavior.opaque, child: card);
+  }
 }
 
 class _Title extends StatelessWidget {
