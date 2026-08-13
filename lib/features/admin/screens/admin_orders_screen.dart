@@ -9,11 +9,13 @@ enum AdminOrderFilter { all, newOrders, preorder, inProgress, ready }
 /// «Заказ #...»: было видно сумму, но не сам список товаров.
 class AdminOrderItem {
   final String name;
+  final String weight;
   final int quantity;
   final double price;
 
   const AdminOrderItem({
     required this.name,
+    this.weight = '',
     required this.quantity,
     required this.price,
   });
@@ -24,92 +26,133 @@ class AdminOrderItem {
 class AdminOrder {
   final String number;
   final String customer;
+  final String phone;
+  final String customerType;
+  final int customerOrderCount;
   final String time;
   final String type;
+  final String receiveTimeDetail;
+  final String pickupAddressTitle;
+  final String pickupAddressSubtitle;
   final String status;
   final double total;
+  final double discount;
+  final String? comment;
   final bool isPreorder;
   final List<AdminOrderItem> items;
 
   const AdminOrder({
     required this.number,
     required this.customer,
+    this.phone = '',
+    this.customerType = 'Клиент',
+    this.customerOrderCount = 1,
     required this.time,
     required this.type,
+    this.receiveTimeDetail = '',
+    this.pickupAddressTitle = 'Всласть, ул. Ленина, 18',
+    this.pickupAddressSubtitle = 'Пекарня-кондитерская «Всласть»',
     required this.status,
     required this.total,
+    this.discount = 0,
+    this.comment,
     this.isPreorder = false,
     this.items = const [],
   });
+
+  double get itemsTotal => items.fold(0, (sum, i) => sum + i.lineTotal);
+  int get itemsCount => items.fold(0, (sum, i) => sum + i.quantity);
 }
 
 const _demoOrders = <AdminOrder>[
   AdminOrder(
     number: '#1047',
     customer: 'Анна Петрова',
+    phone: '+7 900 123-45-67',
+    customerType: 'Постоянный клиент',
+    customerOrderCount: 9,
     time: 'сегодня, 05:21',
     type: 'Доставка',
+    receiveTimeDetail: 'Сегодня, доставка к 18:00',
     status: 'Новый',
     total: 4850,
+    discount: 100,
+    comment: 'Пожалуйста, положите приборы. Упакуйте торт отдельно.',
     items: [
-      AdminOrderItem(name: 'Хлеб деревенский на закваске', quantity: 2, price: 390),
-      AdminOrderItem(name: 'Багет классический', quantity: 1, price: 220),
-      AdminOrderItem(name: 'Круассан сливочный', quantity: 3, price: 290),
-      AdminOrderItem(name: 'Тарт лимон-безе', quantity: 2, price: 380),
+      AdminOrderItem(name: 'Хлеб деревенский на закваске', weight: '750 г', quantity: 2, price: 390),
+      AdminOrderItem(name: 'Багет классический', weight: '300 г', quantity: 1, price: 220),
+      AdminOrderItem(name: 'Круассан сливочный', weight: '85 г', quantity: 3, price: 290),
+      AdminOrderItem(name: 'Тарт лимон-безе', weight: '120 г', quantity: 2, price: 380),
     ],
   ),
   AdminOrder(
     number: '#1046',
     customer: 'Михаил Иванов',
+    phone: '+7 912 345-67-89',
+    customerType: 'Постоянный клиент',
+    customerOrderCount: 12,
     time: 'сегодня, 05:08',
     type: 'Самовывоз · 09:30',
+    receiveTimeDetail: 'Сегодня, с 09:30 до 10:00',
     status: 'Предзаказ',
     total: 7200,
     isPreorder: true,
     items: [
-      AdminOrderItem(name: 'Наполеон', quantity: 2, price: 1450),
-      AdminOrderItem(name: 'Чизкейк с вишней', quantity: 1, price: 1250),
-      AdminOrderItem(name: 'Булочка зерновая', quantity: 6, price: 210),
-      AdminOrderItem(name: 'Бриошь', quantity: 4, price: 290),
+      AdminOrderItem(name: 'Наполеон', weight: '120 г', quantity: 2, price: 1450),
+      AdminOrderItem(name: 'Чизкейк с вишней', weight: '150 г', quantity: 1, price: 1250),
+      AdminOrderItem(name: 'Булочка зерновая', weight: '90 г', quantity: 6, price: 210),
+      AdminOrderItem(name: 'Бриошь', weight: '100 г', quantity: 4, price: 290),
     ],
   ),
   AdminOrder(
     number: '#1045',
     customer: 'Елена Смирнова',
+    phone: '+7 922 555-11-22',
+    customerType: 'Новый клиент',
+    customerOrderCount: 1,
     time: 'сегодня, 04:56',
     type: 'Доставка',
+    receiveTimeDetail: 'Сегодня, доставка к 16:30',
     status: 'В работе',
     total: 3150,
     items: [
-      AdminOrderItem(name: 'Чиабатта', quantity: 3, price: 450),
-      AdminOrderItem(name: 'Эклер шоколадный', quantity: 3, price: 210),
-      AdminOrderItem(name: 'Дакуаз', quantity: 2, price: 260),
+      AdminOrderItem(name: 'Чиабатта', weight: '300 г', quantity: 3, price: 450),
+      AdminOrderItem(name: 'Эклер шоколадный', weight: '75 г', quantity: 3, price: 210),
+      AdminOrderItem(name: 'Дакуаз', weight: '90 г', quantity: 2, price: 260),
     ],
   ),
   AdminOrder(
     number: '#1044',
     customer: 'Ольга Кузнецова',
+    phone: '+7 902 888-33-44',
+    customerType: 'Постоянный клиент',
+    customerOrderCount: 5,
     time: 'сегодня, 04:42',
     type: 'Самовывоз · 08:45',
+    receiveTimeDetail: 'Сегодня, с 08:45 до 09:15',
     status: 'Готов',
     total: 5400,
     items: [
-      AdminOrderItem(name: 'Хлеб деревенский на закваске', quantity: 4, price: 390),
-      AdminOrderItem(name: 'Тарт лимон-безе', quantity: 2, price: 320),
-      AdminOrderItem(name: 'Багет классический', quantity: 5, price: 220),
+      AdminOrderItem(name: 'Хлеб деревенский на закваске', weight: '750 г', quantity: 4, price: 390),
+      AdminOrderItem(name: 'Тарт лимон-безе', weight: '120 г', quantity: 2, price: 320),
+      AdminOrderItem(name: 'Багет классический', weight: '300 г', quantity: 5, price: 220),
     ],
   ),
   AdminOrder(
     number: '#1043',
     customer: 'Александр Соколов',
+    phone: '+7 999 777-22-11',
+    customerType: 'Клиент',
+    customerOrderCount: 2,
     time: 'сегодня, 04:17',
     type: 'Доставка',
+    receiveTimeDetail: 'Сегодня, доставка к 15:00',
     status: 'В работе',
     total: 2680,
     items: [
-      AdminOrderItem(name: 'Песочное пирожное', quantity: 4, price: 250),
-      AdminOrderItem(name: 'Круассан сливочный', quantity: 3, price: 290),
-      AdminOrderItem(name: 'Багет классический', quantity: 2, price: 220),
+      AdminOrderItem(name: 'Песочное пирожное', weight: '80 г', quantity: 4, price: 250),
+      AdminOrderItem(name: 'Круассан сливочный', weight: '85 г', quantity: 3, price: 290),
+      AdminOrderItem(name: 'Багет классический', weight: '300 г', quantity: 2, price: 220),
     ],
   ),
 ];
