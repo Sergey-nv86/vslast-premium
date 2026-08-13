@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import '../../../data/mock_products.dart';
 import '../../../models/product.dart';
 import '../../../theme/app_theme.dart';
-import '../../../utils/toast.dart';
+import '../models/admin_product_meta.dart';
+import 'admin_product_edit_screen.dart';
 
 /// Экран «Товары» админ-панели. Пока временно открывается тапом по значку
 /// в правом верхнем углу Dashboard (см. admin_dashboard_screen.dart) — до
 /// появления отдельной вкладки в нижней навигации.
 ///
-/// Переиспользует существующую модель Product и mockProducts (те же
-/// данные, что видит клиент в «Каталоге»), а не заводит отдельную
-/// admin-модель — так список товаров не может разъехаться с тем, что
-/// реально показывается покупателю.
+/// Список товаров изначально берётся из mockProducts (тот же каталог, что
+/// видит клиент), но дальше живёт как ЛОКАЛЬНОЕ состояние этого экрана —
+/// добавление/редактирование/удаление товара из админки меняет именно
+/// его, а не общий mockProducts (тот остаётся источником "как сейчас
+/// выглядит витрина для покупателя", пока нет настоящего бэкенда).
 class AdminProductsScreen extends StatefulWidget {
   const AdminProductsScreen({super.key});
 
@@ -23,15 +25,20 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   String _query = '';
   ProductCategory? _category; // null = "Все товары"
 
-  /// Переключатель "в наличии" — локальное состояние экрана поверх
-  /// mockProducts (который сам по себе неизменяемый источник данных,
-  /// общий с клиентским приложением). В реальном приложении это будет
-  /// запись в БД/API, а не переопределение на клиенте.
-  final Map<String, bool> _stockOverrides = {};
+  late List<Product> _products;
+  late Map<String, AdminProductMeta> _metas;
 
-  bool _inStock(Product p) => _stockOverrides[p.id] ?? p.inStock;
+  @override
+  void initState() {
+    super.initState();
+    _products = List.of(mockProducts);
+    _metas = {
+      for (int i = 0; i < mockProducts.length; i++)
+        mockProducts[i].id: AdminProductMeta.demoSeed(mockProducts[i], i),
+    };
+  }
 
-  List<Product> get _filtered => mockProducts.where((p) {
+  List<Product> get _filtered => _products.where((p) {
     final matchesCategory = _category == null || p.category == _category;
     final q = _query.trim().toLowerCase();
     final matchesQuery = q.isEmpty || p.name.toLowerCase().contains(q);
@@ -39,8 +46,70 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   }).toList();
 
   int _countFor(ProductCategory? category) => category == null
-      ? mockProducts.length
-      : mockProducts.where((p) => p.category == category).length;
+      ? _products.length
+      : _products.where((p) => p.category == category).length;
+
+  /// Product — immutable и без copyWith, поэтому для точечного изменения
+  /// одного поля (быстрый переключатель "в наличии" в строке списка,
+  /// без открытия полной формы редактирования) собираем новый экземпляр
+  /// вручную, перенося остальные поля как есть.
+  Product _withInStock(Product p, bool inStock) => Product(
+    id: p.id,
+    name: p.name,
+    price: p.price,
+    imageUrl: p.imageUrl,
+    category: p.category,
+    badge: p.badge,
+    inStock: inStock,
+    isWeighed: p.isWeighed,
+    rating: p.rating,
+    reviewsCount: p.reviewsCount,
+    weightLabel: p.weightLabel,
+    description: p.description,
+    caloriesPer100g: p.caloriesPer100g,
+    proteinPer100g: p.proteinPer100g,
+    fatPer100g: p.fatPer100g,
+    carbsPer100g: p.carbsPer100g,
+    composition: p.composition,
+    galleryImages: p.galleryImages,
+  );
+
+  void _toggleStock(Product product, bool value) {
+    setState(() {
+      final index = _products.indexWhere((p) => p.id == product.id);
+      if (index != -1) _products[index] = _withInStock(product, value);
+    });
+  }
+
+  Future<void> _openAdd() async {
+    final result = await Navigator.of(context).push<AdminProductEditResult>(
+      MaterialPageRoute(builder: (_) => const AdminProductEditScreen()),
+    );
+    if (result == null || result.deleted) return;
+    setState(() {
+      _products.insert(0, result.product!);
+      _metas[result.product!.id] = result.meta!;
+    });
+  }
+
+  Future<void> _openEdit(Product product) async {
+    final result = await Navigator.of(context).push<AdminProductEditResult>(
+      MaterialPageRoute(
+        builder: (_) => AdminProductEditScreen(product: product, meta: _metas[product.id]),
+      ),
+    );
+    if (result == null) return;
+    setState(() {
+      if (result.deleted) {
+        _products.removeWhere((p) => p.id == product.id);
+        _metas.remove(product.id);
+      } else {
+        final index = _products.indexWhere((p) => p.id == product.id);
+        if (index != -1) _products[index] = result.product!;
+        _metas[result.product!.id] = result.meta!;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,9 +131,9 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                   final product = items[i];
                   return _ProductRow(
                     product: product,
-                    inStock: _inStock(product),
-                    onToggleStock: (value) => setState(() => _stockOverrides[product.id] = value),
+                    onToggleStock: (value) => _toggleStock(product, value),
                     onMore: () => _showMoreSheet(context, product),
+                    onTap: () => _openEdit(product),
                   );
                 },
               ),
@@ -96,7 +165,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         const SizedBox(width: 14),
         Expanded(child: Text('Товары', style: AppTextStyles.screenTitle)),
         GestureDetector(
-          onTap: () => FadeToast.show(context, 'Добавление товара — скоро', icon: Icons.add),
+          onTap: _openAdd,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
@@ -169,7 +238,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   Widget _footer(int shown) => Padding(
     padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
     child: Text(
-      'Показано товаров: $shown из ${mockProducts.length}',
+      'Показано товаров: $shown из ${_products.length}',
       style: AppTextStyles.rowLabelMuted,
     ),
   );
@@ -188,10 +257,10 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
             children: [
               Text(product.name, style: AppTextStyles.rowLabel.copyWith(fontWeight: FontWeight.w700, fontSize: 16)),
               const SizedBox(height: 16),
-              _sheetAction(context, Icons.edit_outlined, 'Редактировать товар'),
-              _sheetAction(context, Icons.attach_money_outlined, 'Изменить цену'),
-              _sheetAction(context, Icons.category_outlined, 'Изменить категорию'),
-              const SizedBox(height: 8),
+              _sheetAction(context, Icons.edit_outlined, 'Редактировать товар', () {
+                Navigator.of(context).pop();
+                _openEdit(product);
+              }),
             ],
           ),
         ),
@@ -199,11 +268,8 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     );
   }
 
-  Widget _sheetAction(BuildContext context, IconData icon, String label) => InkWell(
-    onTap: () {
-      Navigator.of(context).pop();
-      FadeToast.show(context, '$label — скоро', icon: icon);
-    },
+  Widget _sheetAction(BuildContext context, IconData icon, String label, VoidCallback onTap) => InkWell(
+    onTap: onTap,
     borderRadius: BorderRadius.circular(14),
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -220,80 +286,84 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
 
 class _ProductRow extends StatelessWidget {
   final Product product;
-  final bool inStock;
   final ValueChanged<bool> onToggleStock;
   final VoidCallback onMore;
+  final VoidCallback onTap;
 
   const _ProductRow({
     required this.product,
-    required this.inStock,
     required this.onToggleStock,
     required this.onMore,
+    required this.onTap,
   });
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: AppColors.divider),
-    ),
-    child: Row(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.asset(
-            product.imageUrl,
-            width: 56,
-            height: 56,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    behavior: HitTestBehavior.opaque,
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset(
+              product.imageUrl,
               width: 56,
               height: 56,
-              color: AppColors.surfaceMuted,
-              alignment: Alignment.center,
-              child: const Icon(Icons.bakery_dining_outlined, color: AppColors.primaryBrown),
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 56,
+                height: 56,
+                color: AppColors.surfaceMuted,
+                alignment: Alignment.center,
+                child: const Icon(Icons.bakery_dining_outlined, color: AppColors.primaryBrown),
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                product.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.rowLabel.copyWith(fontWeight: FontWeight.w700, fontSize: 14),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                '${product.category.label} · ${product.weightLabel}',
-                style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 12),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${product.price} ₽',
-                style: AppTextStyles.rowLabel.copyWith(fontWeight: FontWeight.w700, fontSize: 14),
-              ),
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.rowLabel.copyWith(fontWeight: FontWeight.w700, fontSize: 14),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${product.category.label} · ${product.weightLabel}',
+                  style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${product.price} ₽',
+                  style: AppTextStyles.rowLabel.copyWith(fontWeight: FontWeight.w700, fontSize: 14),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 4),
-        Switch(
-          value: inStock,
-          onChanged: onToggleStock,
-          activeTrackColor: AppColors.primaryBrown,
-        ),
-        IconButton(
-          onPressed: onMore,
-          icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-        ),
-      ],
+          const SizedBox(width: 4),
+          Switch(
+            value: product.inStock,
+            onChanged: onToggleStock,
+            activeTrackColor: AppColors.primaryBrown,
+          ),
+          IconButton(
+            onPressed: onMore,
+            icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+        ],
+      ),
     ),
   );
 }
