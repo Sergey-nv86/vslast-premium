@@ -1,29 +1,36 @@
 import '../../../models/product.dart';
 
-enum PromotionPricingType {
-  specialPrice,
-  discountPercent,
-}
+enum PromotionType { collection, discount, specialPrice, bundle }
 
-extension PromotionPricingTypeX on PromotionPricingType {
+extension PromotionTypeX on PromotionType {
   String get label {
     switch (this) {
-      case PromotionPricingType.specialPrice:
-        return 'Специальная цена';
-      case PromotionPricingType.discountPercent:
-        return 'Скидка от обычной цены';
+      case PromotionType.collection:
+        return 'Подборка';
+      case PromotionType.discount:
+        return 'Скидка';
+      case PromotionType.specialPrice:
+        return 'Спеццена';
+      case PromotionType.bundle:
+        return 'Набор / комбо';
     }
   }
 }
 
 class PromotionProduct {
   final String productId;
+  final int quantity;
   final int? specialPrice;
 
-  const PromotionProduct({required this.productId, this.specialPrice});
+  const PromotionProduct({
+    required this.productId,
+    this.quantity = 1,
+    this.specialPrice,
+  });
 
-  PromotionProduct copyWith({int? specialPrice}) => PromotionProduct(
+  PromotionProduct copyWith({int? quantity, int? specialPrice}) => PromotionProduct(
         productId: productId,
+        quantity: quantity ?? this.quantity,
         specialPrice: specialPrice ?? this.specialPrice,
       );
 }
@@ -34,10 +41,14 @@ class Promotion {
   final String description;
   final String? bannerAsset;
   final List<int>? bannerBytes;
-  final PromotionPricingType pricingType;
+  final PromotionType type;
   final int? discountPercent;
+  final int? offerPrice;
   final List<PromotionProduct> products;
   final bool isAvailable;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -47,10 +58,14 @@ class Promotion {
     this.description = '',
     this.bannerAsset,
     this.bannerBytes,
-    this.pricingType = PromotionPricingType.discountPercent,
+    this.type = PromotionType.collection,
     this.discountPercent,
+    this.offerPrice,
     this.products = const [],
     this.isAvailable = false,
+    this.startDate,
+    this.endDate,
+    this.sortOrder = 0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -60,25 +75,31 @@ class Promotion {
     String? description,
     String? bannerAsset,
     List<int>? bannerBytes,
-    PromotionPricingType? pricingType,
+    PromotionType? type,
     int? discountPercent,
+    int? offerPrice,
     List<PromotionProduct>? products,
     bool? isAvailable,
-  }) {
-    return Promotion(
-      id: id,
-      title: title ?? this.title,
-      description: description ?? this.description,
-      bannerAsset: bannerAsset ?? this.bannerAsset,
-      bannerBytes: bannerBytes ?? this.bannerBytes,
-      pricingType: pricingType ?? this.pricingType,
-      discountPercent: discountPercent ?? this.discountPercent,
-      products: products ?? this.products,
-      isAvailable: isAvailable ?? this.isAvailable,
-      createdAt: createdAt,
-      updatedAt: DateTime.now(),
-    );
-  }
+    DateTime? startDate,
+    DateTime? endDate,
+    int? sortOrder,
+  }) => Promotion(
+        id: id,
+        title: title ?? this.title,
+        description: description ?? this.description,
+        bannerAsset: bannerAsset ?? this.bannerAsset,
+        bannerBytes: bannerBytes ?? this.bannerBytes,
+        type: type ?? this.type,
+        discountPercent: discountPercent ?? this.discountPercent,
+        offerPrice: offerPrice ?? this.offerPrice,
+        products: products ?? this.products,
+        isAvailable: isAvailable ?? this.isAvailable,
+        startDate: startDate ?? this.startDate,
+        endDate: endDate ?? this.endDate,
+        sortOrder: sortOrder ?? this.sortOrder,
+        createdAt: createdAt,
+        updatedAt: DateTime.now(),
+      );
 
   Product? resolveProduct(List<Product> catalog, String productId) {
     for (final product in catalog) {
@@ -88,10 +109,22 @@ class Promotion {
   }
 
   int finalPrice(Product product, PromotionProduct item) {
-    if (pricingType == PromotionPricingType.specialPrice && item.specialPrice != null) {
-      return item.specialPrice!;
+    switch (type) {
+      case PromotionType.collection:
+        return product.price;
+      case PromotionType.specialPrice:
+        return item.specialPrice ?? product.price;
+      case PromotionType.discount:
+        final discount = discountPercent ?? 0;
+        return (product.price * (100 - discount) / 100).round();
+      case PromotionType.bundle:
+        return offerPrice ?? product.price;
     }
-    final discount = discountPercent ?? 0;
-    return (product.price * (100 - discount) / 100).round();
+  }
+
+  bool get isScheduledOut {
+    final now = DateTime.now();
+    return (startDate != null && now.isBefore(startDate!)) ||
+        (endDate != null && now.isAfter(endDate!));
   }
 }
