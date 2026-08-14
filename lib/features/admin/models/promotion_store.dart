@@ -14,8 +14,8 @@ class PromotionStore {
       pricingType: PromotionPricingType.discountPercent,
       discountPercent: 10,
       products: const [
-        PromotionProduct(productId: 'cake_signature'),
-        PromotionProduct(productId: 'dessert_eclair'),
+        PromotionProduct(productId: 'napoleon_cake'),
+        PromotionProduct(productId: 'eclair_chocolate'),
       ],
       isAvailable: true,
       createdAt: DateTime(2026, 8, 1),
@@ -29,7 +29,7 @@ class PromotionStore {
       pricingType: PromotionPricingType.discountPercent,
       discountPercent: 15,
       products: const [
-        PromotionProduct(productId: 'bread_chiabatta'),
+        PromotionProduct(productId: 'ciabatta'),
       ],
       isAvailable: true,
       createdAt: DateTime(2026, 8, 10),
