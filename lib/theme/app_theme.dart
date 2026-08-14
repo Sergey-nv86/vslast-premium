@@ -92,14 +92,14 @@ class AppTextStyles {
   );
 
   static TextStyle productName = GoogleFonts.jost(
-    fontSize: 13,
-    fontWeight: FontWeight.w400,
+    fontSize: 15,
+    fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,
     height: 1.15,
   );
 
   static TextStyle productPrice = GoogleFonts.jost(
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: FontWeight.w700,
     color: AppColors.textPrimary,
   );

@@ -20,7 +20,7 @@ class FavoriteScreen extends StatelessWidget {
     );
   }
 
-  static const double _cardTextBlockHeight = 80;
+  static const double _cardTextBlockHeight = 84;
   static const double _gridSpacing = 10;
   static const int _crossAxisCount = 3;
 

@@ -91,7 +91,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   /// + строка цены/кнопки. Считается явно, а не через childAspectRatio,
   /// чтобы карточка никогда не переполнялась (RenderFlex overflow) —
   /// независимо от плотности пикселей и мелких отличий шрифта на устройстве.
-  static const double _cardTextBlockHeight = 80;
+  static const double _cardTextBlockHeight = 84;
   static const double _gridCrossAxisSpacing = 10;
   static const double _gridMainAxisSpacing = 10;
   static const int _gridCrossAxisCount = 3;
