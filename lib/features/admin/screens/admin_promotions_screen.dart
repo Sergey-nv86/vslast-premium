@@ -19,13 +19,10 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
   String query = '';
 
   List<Promotion> get items {
-    final normalizedQuery = query.trim().toLowerCase();
-    if (normalizedQuery.isEmpty) {
-      return store.items;
-    }
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return store.items;
     return store.items
-        .where((promotion) =>
-            promotion.title.toLowerCase().contains(normalizedQuery))
+        .where((p) => p.title.toLowerCase().contains(q))
         .toList();
   }
 
@@ -36,10 +33,8 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
         builder: (_) => const AdminPromotionEditScreen(),
       ),
     );
-
-    if (promotion != null && mounted) {
-      setState(() => store.add(promotion));
-    }
+    if (!mounted || promotion == null) return;
+    setState(() => store.add(promotion));
   }
 
   Future<void> _edit(Promotion promotion) async {
@@ -49,41 +44,38 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
         builder: (_) => AdminPromotionEditScreen(promotion: promotion),
       ),
     );
-
-    if (result != null && mounted) {
-      setState(() => store.update(result));
-    }
+    if (!mounted || result == null) return;
+    setState(() => store.update(result));
   }
 
-  Future<void> _remove(Promotion promotion) async {
-    final confirmed = await showDialog<bool>(
+  void _remove(Promotion promotion) {
+    showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: const Text('Удалить предложение?'),
         content: Text('«${promotion.title}» будет удалено.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.pop(context),
             child: const Text('Отмена'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: () {
+              store.remove(promotion.id);
+              Navigator.pop(context);
+              setState(() {});
+            },
             child: const Text('Удалить'),
           ),
         ],
       ),
     );
-
-    if (confirmed == true && mounted) {
-      setState(() => store.remove(promotion.id));
-    }
   }
 
   void _duplicate(Promotion promotion) {
-    final now = DateTime.now();
     store.add(
       Promotion(
-        id: 'promo-${now.microsecondsSinceEpoch}',
+        id: 'promo-${DateTime.now().microsecondsSinceEpoch}',
         title: '${promotion.title} — копия',
         description: promotion.description,
         bannerAsset: promotion.bannerAsset,
@@ -92,8 +84,8 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
         discountPercent: promotion.discountPercent,
         products: promotion.products,
         isAvailable: false,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       ),
     );
     setState(() {});
@@ -103,7 +95,7 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
-      builder: (sheetContext) => SafeArea(
+      builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -117,7 +109,7 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Редактировать'),
               onTap: () {
-                Navigator.pop(sheetContext);
+                Navigator.pop(context);
                 _edit(promotion);
               },
             ),
@@ -125,7 +117,7 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
               leading: const Icon(Icons.copy_outlined),
               title: const Text('Дублировать'),
               onTap: () {
-                Navigator.pop(sheetContext);
+                Navigator.pop(context);
                 _duplicate(promotion);
               },
             ),
@@ -142,18 +134,15 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
               ),
               onTap: () {
                 store.setAvailability(promotion.id, !promotion.isAvailable);
-                Navigator.pop(sheetContext);
+                Navigator.pop(context);
                 setState(() {});
               },
             ),
             ListTile(
-              leading: const Icon(
-                Icons.delete_outline,
-                color: Colors.redAccent,
-              ),
+              leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
               title: const Text('Удалить'),
               onTap: () {
-                Navigator.pop(sheetContext);
+                Navigator.pop(context);
                 _remove(promotion);
               },
             ),
@@ -192,7 +181,7 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
                       ),
                     ),
                     const SizedBox(width: 14),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Акции и спецпредложения',
                         style: AppTextStyles.screenTitle,
@@ -266,13 +255,12 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
                 sliver: SliverList.separated(
                   itemCount: items.length,
-                  separatorBuilder: (_, index) =>
-                      const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
+                  separatorBuilder: (_, index) => const SizedBox(height: 10),
+                  itemBuilder: (_, index) {
                     final promotion = items[index];
                     return _PromotionRow(
                       promotion: promotion,
-                      onToggle: (value) {
+                      toggle: (value) {
                         store.setAvailability(promotion.id, value);
                         setState(() {});
                       },
@@ -291,60 +279,53 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
 
 class _PromotionRow extends StatelessWidget {
   final Promotion promotion;
-  final ValueChanged<bool> onToggle;
+  final ValueChanged<bool> toggle;
   final VoidCallback onTap;
   final VoidCallback onMore;
 
   const _PromotionRow({
     required this.promotion,
-    required this.onToggle,
+    required this.toggle,
     required this.onTap,
     required this.onMore,
   });
 
-  String _productsLabel(int count) {
-    final lastDigit = count % 10;
-    final lastTwoDigits = count % 100;
-    if (lastDigit == 1 && lastTwoDigits != 11) {
-      return 'товар';
-    }
-    if ([2, 3, 4].contains(lastDigit) &&
-        ![12, 13, 14].contains(lastTwoDigits)) {
-      return 'товара';
-    }
-    return 'товаров';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final Widget image = promotion.bannerBytes != null
-        ? Image.memory(
-            Uint8List.fromList(promotion.bannerBytes!),
-            width: 94,
-            height: 70,
-            fit: BoxFit.cover,
-          )
-        : promotion.bannerAsset != null
-            ? Image.asset(
-                promotion.bannerAsset!,
-                width: 94,
-                height: 70,
-                fit: BoxFit.cover,
-              )
-            : Container(
-                width: 94,
-                height: 70,
-                color: AppColors.surfaceMuted,
-                child: const Icon(
-                  Icons.image_outlined,
-                  color: AppColors.primaryBrown,
-                ),
-              );
+    final Widget image;
+    if (promotion.bannerBytes != null) {
+      image = Image.memory(
+        Uint8List.fromList(promotion.bannerBytes!),
+        width: 94,
+        height: 70,
+        fit: BoxFit.cover,
+      );
+    } else if (promotion.bannerAsset != null) {
+      image = Image.asset(
+        promotion.bannerAsset!,
+        width: 94,
+        height: 70,
+        fit: BoxFit.cover,
+      );
+    } else {
+      image = Container(
+        width: 94,
+        height: 70,
+        color: AppColors.surfaceMuted,
+        child: const Icon(
+          Icons.image_outlined,
+          color: AppColors.primaryBrown,
+        ),
+      );
+    }
 
-    final productCount = promotion.products.length;
-    final priceText = promotion.pricingType == PromotionPricingType.discountPercent
-        ? '−${promotion.discountPercent ?? 0}%'
-        : 'спеццена';
+    final count = promotion.products.length;
+    final word = count % 10 == 1 && count % 100 != 11
+        ? 'товар'
+        : ([2, 3, 4].contains(count % 10) &&
+                ![12, 13, 14].contains(count % 100)
+            ? 'товара'
+            : 'товаров');
 
     return GestureDetector(
       onTap: onTap,
@@ -378,7 +359,7 @@ class _PromotionRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$productCount ${_productsLabel(productCount)} · $priceText',
+                    '$count $word · ${promotion.pricingType == PromotionPricingType.discountPercent ? '−${promotion.discountPercent ?? 0}%' : 'спеццена'}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -402,7 +383,7 @@ class _PromotionRow extends StatelessWidget {
             ),
             Switch(
               value: promotion.isAvailable,
-              onChanged: onToggle,
+              onChanged: toggle,
               activeTrackColor: AppColors.primaryBrown,
             ),
             IconButton(
