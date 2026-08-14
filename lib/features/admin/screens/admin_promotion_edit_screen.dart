@@ -8,11 +8,6 @@ import '../../../models/product.dart';
 import '../../../theme/app_theme.dart';
 import '../models/promotion.dart';
 
-/// Редактор акции / спецпредложения.
-///
-/// Экран намеренно сделан компактным: на мобильной ширине секции не
-/// превращаются в большие карточки, а тип предложения выбирается в одном
-/// адаптивном сегменте.
 class AdminPromotionEditScreen extends StatefulWidget {
   final Promotion? promotion;
 
@@ -42,21 +37,16 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
     super.initState();
     final p = widget.promotion;
     if (p == null) return;
-
     _title.text = p.title;
     _description.text = p.description;
     _discount.text = p.discountPercent?.toString() ?? '';
     _offerPrice.text = p.offerPrice?.toString() ?? '';
     _type = p.type;
     _bannerAsset = p.bannerAsset;
-    if (p.bannerBytes != null) {
-      _bannerBytes = Uint8List.fromList(p.bannerBytes!);
-    }
-    _selectedIds.addAll(p.products.map((item) => item.productId));
-    for (final item in p.products) {
-      if (item.specialPrice != null) {
-        _specialPrices[item.productId] = item.specialPrice!;
-      }
+    if (p.bannerBytes != null) _bannerBytes = Uint8List.fromList(p.bannerBytes!);
+    _selectedIds.addAll(p.products.map((e) => e.productId));
+    for (final e in p.products) {
+      if (e.specialPrice != null) _specialPrices[e.productId] = e.specialPrice!;
     }
     _startDate = p.startDate;
     _endDate = p.endDate;
@@ -113,12 +103,7 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
                     }),
                     secondary: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.asset(
-                        product.imageUrl,
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.cover,
-                      ),
+                      child: Image.asset(product.imageUrl, width: 48, height: 48, fit: BoxFit.cover),
                     ),
                     title: Text(product.name),
                     subtitle: Text('${product.price} ₽ · ${product.category.label}'),
@@ -127,10 +112,7 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Отмена'),
-              ),
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
               FilledButton(
                 onPressed: () => Navigator.pop(context, selected),
                 child: const Text('Добавить выбранные'),
@@ -140,7 +122,6 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
         );
       },
     );
-
     if (result == null) return;
     setState(() {
       _selectedIds
@@ -169,30 +150,21 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
 
   void _save() {
     final title = _title.text.trim();
-    if (title.isEmpty) {
-      return _message('Введите название предложения');
-    }
-    if (_selectedIds.isEmpty) {
-      return _message('Добавьте хотя бы один товар');
-    }
-    if (_bannerBytes == null && _bannerAsset == null) {
-      return _message('Загрузите баннер');
-    }
+    if (title.isEmpty) return _message('Введите название предложения');
+    if (_selectedIds.isEmpty) return _message('Добавьте хотя бы один товар');
+    if (_bannerBytes == null && _bannerAsset == null) return _message('Загрузите баннер');
     if (_startDate != null && _endDate != null && _endDate!.isBefore(_startDate!)) {
       return _message('Дата окончания не может быть раньше даты начала');
     }
 
     final discount = int.tryParse(_discount.text.trim());
-    if (_type == PromotionType.discount &&
-        (discount == null || discount < 1 || discount > 99)) {
+    if (_type == PromotionType.discount && (discount == null || discount < 1 || discount > 99)) {
       return _message('Скидка должна быть от 1 до 99%');
     }
-
     final offerPrice = int.tryParse(_offerPrice.text.trim());
     if (_type == PromotionType.bundle && (offerPrice == null || offerPrice <= 0)) {
       return _message('Укажите цену набора');
     }
-
     if (_type == PromotionType.specialPrice) {
       for (final id in _selectedIds) {
         final price = _specialPrices[id];
@@ -203,14 +175,11 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
     }
 
     final products = _selectedIds
-        .map(
-          (id) => PromotionProduct(
-            productId: id,
-            specialPrice: _type == PromotionType.specialPrice ? _specialPrices[id] : null,
-          ),
-        )
+        .map((id) => PromotionProduct(
+              productId: id,
+              specialPrice: _type == PromotionType.specialPrice ? _specialPrices[id] : null,
+            ))
         .toList();
-
     final old = widget.promotion;
     final promotion = Promotion(
       id: old?.id ?? 'promo-${DateTime.now().microsecondsSinceEpoch}',
@@ -229,20 +198,16 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
       createdAt: old?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
-
     Navigator.of(context).pop(promotion);
   }
 
   void _message(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.promotion != null;
-
+    final editing = widget.promotion != null;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -253,15 +218,14 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
         leading: IconButton(
           onPressed: () => Navigator.maybePop(context),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          color: AppColors.textPrimary,
         ),
         title: Text(
-          isEditing ? 'Редактирование предложения' : 'Акция / спецпредложение',
+          editing ? 'Редактирование предложения' : 'Акция / спецпредложение',
           style: AppTextStyles.screenTitleSmall.copyWith(fontSize: 22),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, thickness: 1, color: Color(0xFFB8ADA0)),
+          child: Divider(height: 1, color: Color(0xFFB8ADA0)),
         ),
       ),
       body: SafeArea(
@@ -270,7 +234,7 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
           padding: const EdgeInsets.fromLTRB(20, 22, 20, 34),
           children: [
             _fieldLabel('Название'),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             _UnderlineField(
               controller: _title,
               hintText: 'Например, Скоро в школу',
@@ -278,7 +242,7 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
             ),
             const SizedBox(height: 18),
             _fieldLabel('Описание'),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             _UnderlineField(
               controller: _description,
               hintText: 'Короткое описание для клиента',
@@ -286,48 +250,25 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
               textStyle: const TextStyle(fontSize: 18, height: 1.3),
             ),
             const SizedBox(height: 18),
-            _BannerPicker(
-              asset: _bannerAsset,
-              bytes: _bannerBytes,
-              onPick: _pickBanner,
-            ),
+            _BannerPicker(asset: _bannerAsset, bytes: _bannerBytes, onPick: _pickBanner),
             const SizedBox(height: 24),
             _sectionTitle('Тип предложения'),
             const SizedBox(height: 10),
-            _PromotionTypeSelector(
-              value: _type,
-              onChanged: (value) => setState(() => _type = value),
-            ),
+            _PromotionTypeSelector(value: _type, onChanged: (value) => setState(() => _type = value)),
             const SizedBox(height: 14),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 160),
-              child: _typeSpecificField(),
-            ),
+            AnimatedSwitcher(duration: const Duration(milliseconds: 160), child: _typeSpecificField()),
             const SizedBox(height: 24),
             _sectionTitle('Период показа'),
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(
-                  child: _DateField(
-                    label: 'Начало',
-                    date: _startDate,
-                    onTap: () => _pickDate(start: true),
-                  ),
-                ),
+                Expanded(child: _DateField(label: 'Начало', date: _startDate, onTap: () => _pickDate(start: true))),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: _DateField(
-                    label: 'Окончание',
-                    date: _endDate,
-                    onTap: () => _pickDate(start: false),
-                  ),
-                ),
+                Expanded(child: _DateField(label: 'Окончание', date: _endDate, onTap: () => _pickDate(start: false))),
               ],
             ),
             const SizedBox(height: 24),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(child: _sectionTitle('Товары предложения')),
                 TextButton.icon(
@@ -343,10 +284,7 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            if (_selectedIds.isEmpty)
-              _emptyProducts()
-            else
-              ..._selectedIds.map(_productRow),
+            if (_selectedIds.isEmpty) _emptyProducts() else ..._selectedIds.map(_productRow),
             const SizedBox(height: 22),
             SizedBox(
               height: 52,
@@ -355,14 +293,9 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primaryBrown,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                 ),
-                child: const Text(
-                  'Записать',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
+                child: const Text('Записать', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               ),
             ),
           ],
@@ -384,8 +317,8 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
           keyboardType: TextInputType.number,
         );
       case PromotionType.specialPrice:
-        return _InfoBox(
-          key: const ValueKey('special'),
+        return const _InfoBox(
+          key: ValueKey('special'),
           text: 'Спеццена задаётся отдельно для каждого выбранного товара ниже.',
         );
       case PromotionType.bundle:
@@ -399,59 +332,41 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
     }
   }
 
-  Widget _sectionTitle(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.alice(
-        fontSize: 21,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary,
-      ),
-    );
-  }
+  Widget _sectionTitle(String text) => Text(
+        text,
+        style: AppTextStyles.screenTitleSmall.copyWith(fontSize: 21),
+      );
 
-  Widget _fieldLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-        color: AppColors.textSecondary,
-      ),
-    );
-  }
+  Widget _fieldLabel(String text) => const TextStyle().let((_) => Text(
+        text,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+      ));
 
-  Widget _emptyProducts() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: const Column(
-        children: [
-          Icon(Icons.inventory_2_outlined, size: 30, color: AppColors.textSecondary),
-          SizedBox(height: 7),
-          Text(
-            'Товары ещё не выбраны',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-          ),
-          SizedBox(height: 3),
-          Text(
-            'Добавьте товары, которые должны попасть в предложение.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _emptyProducts() => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: const Column(
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 30, color: AppColors.textSecondary),
+            SizedBox(height: 7),
+            Text('Товары ещё не выбраны', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            SizedBox(height: 3),
+            Text(
+              'Добавьте товары, которые должны попасть в предложение.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
+          ],
+        ),
+      );
 
   Widget _productRow(String id) {
     final product = mockProducts.firstWhere((p) => p.id == id);
     final special = _specialPrices[id];
-
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
@@ -464,29 +379,18 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              product.imageUrl,
-              width: 72,
-              height: 72,
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset(product.imageUrl, width: 72, height: 72, fit: BoxFit.cover),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   product.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 1.15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+                  style: const TextStyle(fontSize: 16, height: 1.15, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 6),
                 if (_type == PromotionType.specialPrice)
@@ -494,28 +398,12 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
                 else if (_type == PromotionType.discount)
                   Text(
                     '${product.price} ₽ → ${_discountedPrice(product)} ₽',
-                    style: const TextStyle(
-                      color: AppColors.primaryBrown,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(color: AppColors.primaryBrown, fontSize: 14, fontWeight: FontWeight.w600),
                   )
                 else if (_type == PromotionType.bundle)
-                  Text(
-                    '${product.price} ₽ · в наборе',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  )
+                  Text('${product.price} ₽ · в наборе', style: const TextStyle(color: AppColors.textSecondary, fontSize: 14))
                 else
-                  Text(
-                    '${product.price} ₽',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
+                  Text('${product.price} ₽', style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
               ],
             ),
           ),
@@ -526,48 +414,38 @@ class _AdminPromotionEditScreenState extends State<AdminPromotionEditScreen> {
             }),
             icon: const Icon(Icons.delete_outline_rounded, size: 23),
             color: AppColors.textSecondary,
-            tooltip: 'Удалить',
           ),
         ],
       ),
     );
   }
 
-  Widget _specialPriceEditor(Product product, int? special) {
-    return Row(
-      children: [
-        Text(
-          '${product.price} ₽',
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-            decoration: TextDecoration.lineThrough,
+  Widget _specialPriceEditor(Product product, int? special) => Row(
+        children: [
+          Text(
+            '${product.price} ₽',
+            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, decoration: TextDecoration.lineThrough),
           ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 106,
-          height: 38,
-          child: TextFormField(
-            initialValue: special?.toString(),
-            keyboardType: TextInputType.number,
-            onChanged: (value) => _specialPrices[product.id] = int.tryParse(value) ?? 0,
-            decoration: InputDecoration(
-              isDense: true,
-              labelText: 'Спеццена',
-              suffixText: '₽',
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.divider),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 106,
+            height: 38,
+            child: TextFormField(
+              initialValue: special?.toString(),
+              keyboardType: TextInputType.number,
+              onChanged: (value) => _specialPrices[product.id] = int.tryParse(value) ?? 0,
+              decoration: InputDecoration(
+                isDense: true,
+                labelText: 'Спеццена',
+                suffixText: '₽',
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
               ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
-        ),
-      ],
-    );
-  }
+        ],
+      );
 
   int _discountedPrice(Product product) {
     final discount = int.tryParse(_discount.text) ?? 0;
@@ -589,25 +467,19 @@ class _UnderlineField extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      style: textStyle.copyWith(color: AppColors.textPrimary),
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: textStyle.copyWith(color: AppColors.textSecondary),
-        isDense: true,
-        contentPadding: const EdgeInsets.only(top: 2, bottom: 9),
-        enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFFB8ADA0)),
+  Widget build(BuildContext context) => TextField(
+        controller: controller,
+        maxLines: maxLines,
+        style: textStyle.copyWith(color: AppColors.textPrimary),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: textStyle.copyWith(color: AppColors.textSecondary),
+          isDense: true,
+          contentPadding: const EdgeInsets.only(top: 2, bottom: 9),
+          enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFB8ADA0))),
+          focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryBrown, width: 1.4)),
         ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: AppColors.primaryBrown, width: 1.4),
-        ),
-      ),
-    );
-  }
+      );
 }
 
 class _CompactInput extends StatelessWidget {
@@ -625,28 +497,20 @@ class _CompactInput extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        suffixText: suffix,
-        isDense: true,
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.divider),
+  Widget build(BuildContext context) => TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          suffixText: suffix,
+          isDense: true,
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.divider)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.divider)),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.divider),
-        ),
-      ),
-    );
-  }
+      );
 }
 
 class _InfoBox extends StatelessWidget {
@@ -655,28 +519,18 @@ class _InfoBox extends StatelessWidget {
   const _InfoBox({super.key, required this.text});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline_rounded, size: 19, color: AppColors.textSecondary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 13, height: 1.3, color: AppColors.textSecondary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(color: AppColors.surfaceMuted, borderRadius: BorderRadius.circular(14)),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.info_outline_rounded, size: 19, color: AppColors.textSecondary),
+            const SizedBox(width: 8),
+            Expanded(child: Text(text, style: const TextStyle(fontSize: 13, height: 1.3, color: AppColors.textSecondary))),
+          ],
+        ),
+      );
 }
 
 class _DateField extends StatelessWidget {
@@ -684,112 +538,86 @@ class _DateField extends StatelessWidget {
   final DateTime? date;
   final VoidCallback onTap;
 
-  const _DateField({
-    required this.label,
-    required this.date,
-    required this.onTap,
-  });
+  const _DateField({required this.label, required this.date, required this.onTap});
 
-  String _dateText() {
-    if (date == null) return 'Не задано';
-    return '${date!.day.toString().padLeft(2, '0')}.${date!.month.toString().padLeft(2, '0')}.${date!.year}';
-  }
+  String get _dateText => date == null
+      ? 'Не задано'
+      : '${date!.day.toString().padLeft(2, '0')}.${date!.month.toString().padLeft(2, '0')}.${date!.year}';
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(32),
-        child: Container(
-          height: 72,
-          padding: const EdgeInsets.symmetric(horizontal: 15),
-          decoration: BoxDecoration(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: const Color(0xFF9E9388), width: 1.2),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.calendar_today_outlined, size: 20, color: AppColors.primaryBrown),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _dateText(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-                    ),
-                  ],
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(32),
+          child: Container(
+            height: 72,
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: const Color(0xFF9E9388), width: 1.2),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today_outlined, size: 20, color: AppColors.primaryBrown),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                      const SizedBox(height: 2),
+                      Text(_dateText, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _PromotionTypeSelector extends StatelessWidget {
   final PromotionType value;
   final ValueChanged<PromotionType> onChanged;
 
-  const _PromotionTypeSelector({
-    required this.value,
-    required this.onChanged,
-  });
+  const _PromotionTypeSelector({required this.value, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 64,
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: const Color(0xFF9E9388), width: 1.2),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Row(
-        children: PromotionType.values.map((type) {
-          final selected = type == value;
-          final isLast = type == PromotionType.values.last;
-          return Expanded(
-            child: Material(
-              color: selected ? const Color(0xFFFFD8C6) : Colors.transparent,
-              child: InkWell(
-                onTap: () => onChanged(type),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: isLast
-                        ? null
-                        : const Border(
-                            right: BorderSide(color: Color(0xFF9E9388), width: 1.0),
-                          ),
+  Widget build(BuildContext context) => Container(
+        height: 64,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: const Color(0xFF9E9388), width: 1.2),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Row(
+          children: PromotionType.values.map((type) {
+            final selected = type == value;
+            final isLast = type == PromotionType.values.last;
+            return Expanded(
+              child: Material(
+                color: selected ? const Color(0xFFFFD8C6) : Colors.transparent,
+                child: InkWell(
+                  onTap: () => onChanged(type),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: isLast ? null : const Border(right: BorderSide(color: Color(0xFF9E9388))),
+                    ),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: _label(type, selected),
                   ),
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  child: _segmentLabel(type, selected),
                 ),
               ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
+            );
+          }).toList(),
+        ),
+      );
 
-  Widget _segmentLabel(PromotionType type, bool selected) {
+  Widget _label(PromotionType type, bool selected) {
     String first;
     String? second;
     switch (type) {
@@ -807,19 +635,16 @@ class _PromotionTypeSelector extends StatelessWidget {
         second = 'комбо';
         break;
     }
-
     final style = TextStyle(
       fontSize: 14,
       height: 1.05,
       fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
       color: AppColors.textPrimary,
     );
-
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (selected)
-          const Icon(Icons.check_rounded, size: 14, color: AppColors.primaryBrown),
+        if (selected) const Icon(Icons.check_rounded, size: 14),
         Text(first, textAlign: TextAlign.center, style: style),
         if (second != null) Text(second, textAlign: TextAlign.center, style: style),
       ],
@@ -832,16 +657,11 @@ class _BannerPicker extends StatelessWidget {
   final Uint8List? bytes;
   final VoidCallback onPick;
 
-  const _BannerPicker({
-    this.asset,
-    this.bytes,
-    required this.onPick,
-  });
+  const _BannerPicker({this.asset, this.bytes, required this.onPick});
 
   @override
   Widget build(BuildContext context) {
     final hasImage = bytes != null || asset != null;
-
     final image = bytes != null
         ? Image.memory(bytes!, fit: BoxFit.cover, width: double.infinity, height: 120)
         : asset != null
@@ -859,14 +679,10 @@ class _BannerPicker extends StatelessWidget {
                   ],
                 ),
               );
-
     return Column(
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: image,
-        ),
-        const SizedBox(height: 7),
+        ClipRRect(borderRadius: BorderRadius.circular(16), child: image),
+        const SizedBox(height: 5),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
@@ -883,4 +699,8 @@ class _BannerPicker extends StatelessWidget {
       ],
     );
   }
+}
+
+extension _TextStyleWidget on TextStyle {
+  Widget let(Widget Function(TextStyle value) builder) => builder(this);
 }
