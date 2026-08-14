@@ -15,13 +15,12 @@ import '../widgets/home_filter_sheet.dart';
 import '../widgets/home_header.dart';
 import '../widgets/popular_section.dart';
 
-/// Главная — единый CustomScrollView (раньше "Популярное" и витрина были
-/// раздельными: одна часть экрана не прокручивалась, другая скроллилась
-/// внутри своего Expanded). Так был устроен и референс, который прислали
-/// на проверку: "Популярное" уезжает вверх вместе с шапкой, а панель
-/// "Фильтр" + категории — единственное, что прилипает к верху экрана
-/// (SliverPersistentHeader, pinned: true), заняв ровно то место, откуда
-/// уехало "Популярное".
+/// Главная — единый CustomScrollView под шапкой (HomeHeader вынесен
+/// отдельно и всегда на месте, не часть скролла). "Популярное" уезжает
+/// вверх вместе с остальным контентом, а панель "Фильтр" + категории —
+/// единственное, что прилипает к верху этой области (SliverPersistentHeader,
+/// pinned: true), заняв ровно то место, откуда уехало "Популярное". Так
+/// был устроен и референс, который прислали на проверку.
 ///
 /// Товары сгруппированы по категориям (заголовок раздела + сетка 2
 /// колонки). Scroll-spy работает в обе стороны: при прокрутке активный
@@ -167,83 +166,104 @@ class _HomeScreenState extends State<HomeScreen> {
       bottom: false,
       child: Stack(
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final itemWidth =
-                  (constraints.maxWidth - _horizontalPadding * 2 - _gridSpacing) / 2;
-              return CustomScrollView(
-                key: _viewportKey,
-                controller: _scrollController,
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  const SliverToBoxAdapter(child: HomeHeader()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: _horizontalPadding),
-                      child: PopularSection(),
-                    ),
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _CategoryBarDelegate(
-                      height: _pinnedBarHeight,
-                      child: _filterAndCategoryBar(categories),
-                    ),
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                  if (categories.isEmpty)
-                    SliverFillRemaining(hasScrollBody: false, child: _emptyState())
-                  else ...[
-                    for (final category in categories) ...[
-                      SliverToBoxAdapter(
-                        key: _sectionKeys[category],
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            _horizontalPadding, 4, _horizontalPadding, 8,
-                          ),
-                          child: Text(
-                            category.label,
-                            style: GoogleFonts.alice(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
+          Column(
+            children: [
+              // HomeHeader теперь ВСЕГДА на месте — не часть скролла.
+              // Раньше он был первым sliver'ом внутри CustomScrollView и
+              // уезжал вверх вместе с "Популярное"; при прокрутке до конца
+              // прилипшая панель категорий утыкалась прямо в статус-бар,
+              // потому что ничего больше не резервировало это место сверху.
+              // Теперь прокручивается только область НИЖЕ шапки (Expanded).
+              const HomeHeader(),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final itemWidth =
+                        (constraints.maxWidth - _horizontalPadding * 2 - _gridSpacing) / 2;
+                    return CustomScrollView(
+                      key: _viewportKey,
+                      controller: _scrollController,
+                      physics: const BouncingScrollPhysics(),
+                      // Без большого cacheExtent Flutter лениво строит только
+                      // sliver-элементы рядом с видимой областью — тап по
+                      // ещё не проскроленной категории не находил её
+                      // GlobalKey/RenderBox (оба ещё не существовали) и
+                      // молча ничего не делал. Запаса с лихвой хватает на
+                      // весь список демо-товаров; при заметном росте
+                      // каталога лучше считать смещения разделов
+                      // аналитически, а не увеличивать это число дальше.
+                      cacheExtent: 4000,
+                      slivers: [
+                        const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                        const SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: _horizontalPadding),
+                            child: PopularSection(),
                           ),
                         ),
-                      ),
-                      Builder(builder: (context) {
-                        final products = _productsFor(category);
-                        return SliverPadding(
-                          padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
-                          sliver: SliverGrid(
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: _gridSpacing,
-                              crossAxisSpacing: _gridSpacing,
-                              mainAxisExtent: itemWidth + _cardTextBlockHeight,
-                            ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) => ProductCard(
-                                product: products[index],
-                                onOpenDetails: (p) => _openProductDetails(context, p),
-                              ),
-                              childCount: products.length,
-                            ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _CategoryBarDelegate(
+                            height: _pinnedBarHeight,
+                            child: _filterAndCategoryBar(categories),
                           ),
-                        );
-                      }),
-                      const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                    ],
-                    // Запас снизу — под плавающую плашку "Перейти в корзину"
-                    // и нижнюю навигацию, чтобы последний ряд карточек не
-                    // оказался под ними.
-                    const SliverToBoxAdapter(child: SizedBox(height: 90)),
-                  ],
-                ],
-              );
-            },
+                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                        if (categories.isEmpty)
+                          SliverFillRemaining(hasScrollBody: false, child: _emptyState())
+                        else ...[
+                          for (final category in categories) ...[
+                            SliverToBoxAdapter(
+                              key: _sectionKeys[category],
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  _horizontalPadding, 4, _horizontalPadding, 8,
+                                ),
+                                child: Text(
+                                  category.label,
+                                  style: GoogleFonts.alice(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Builder(builder: (context) {
+                              final products = _productsFor(category);
+                              return SliverPadding(
+                                padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
+                                sliver: SliverGrid(
+                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: _gridSpacing,
+                                    crossAxisSpacing: _gridSpacing,
+                                    mainAxisExtent: itemWidth + _cardTextBlockHeight,
+                                  ),
+                                  delegate: SliverChildBuilderDelegate(
+                                    (context, index) => ProductCard(
+                                      product: products[index],
+                                      onOpenDetails: (p) => _openProductDetails(context, p),
+                                    ),
+                                    childCount: products.length,
+                                  ),
+                                ),
+                              );
+                            }),
+                            const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                          ],
+                          // Запас снизу — под плавающую плашку "Перейти в
+                          // корзину" и нижнюю навигацию, чтобы последний
+                          // ряд карточек не оказался под ними.
+                          const SliverToBoxAdapter(child: SizedBox(height: 90)),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
           if (!cart.isEmpty)
             Positioned(

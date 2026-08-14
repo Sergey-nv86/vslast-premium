@@ -62,7 +62,7 @@ class PopularSection extends StatelessWidget {
         const SizedBox(height: 8),
 
         SizedBox(
-          height: 114,
+          height: 128,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -91,15 +91,15 @@ class _PopularItem extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 76,
+        width: 84,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: SizedBox(
-                width: 76,
-                height: 76,
+                width: 84,
+                height: 84,
                 child: Image.asset(
                   product.imageUrl,
                   fit: BoxFit.cover,
@@ -111,13 +111,13 @@ class _PopularItem extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 6),
             Text(
               product.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 10.5,
+                fontSize: 12.5,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
@@ -125,7 +125,7 @@ class _PopularItem extends StatelessWidget {
             Text(
               product.inStock ? "${product.price} ₽" : "Под заказ",
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textSecondary,
               ),

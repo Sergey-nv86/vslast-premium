@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../features/home/screens/home_screen.dart';
+import '../features/promotions/screens/promotions_screen.dart';
 import '../providers/tab_navigation_controller.dart';
 import 'catalog_screen.dart';
 import 'loyalty_screen.dart';
-import 'favorite_screen.dart';
 import 'cart_screen.dart';
 
 import '../features/home/widgets/bottom_nav_bar.dart';
@@ -30,7 +30,7 @@ class MainScreen extends StatelessWidget {
           HomeScreen(),
           CatalogScreen(),
           LoyaltyScreen(),
-          FavoriteScreen(),
+          PromotionsScreen(),
           CartScreen(),
         ],
       ),
