@@ -38,8 +38,8 @@ class PremiumBottomNavBar extends StatelessWidget {
           _item(icon: 'assets/icons/catalog.svg', label: 'Каталог', index: 1),
           _item(icon: 'assets/icons/premium.svg', label: 'Карта', index: 2),
           _item(
-            icon: 'assets/icons/favorite.svg',
-            label: 'Избранное',
+            icon: 'assets/icons/discount.svg',
+            label: 'Акции',
             index: 3,
           ),
           _item(icon: 'assets/icons/add.svg', label: 'Корзина', index: 4),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../data/mock_orders.dart';
-import '../models/order_list_item.dart';
 import '../theme/app_theme.dart';
 import '../widgets/order_history_card.dart';
 

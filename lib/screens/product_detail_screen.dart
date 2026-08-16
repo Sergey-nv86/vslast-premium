@@ -6,6 +6,7 @@ import '../providers/favorites_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/toast.dart';
 import 'preorder_screen.dart';
+import 'reviews_screen.dart';
 
 /// Экран «Карточка товара». Открывается с любой карточки товара в
 /// приложении (Каталог, Избранное, «Сегодня на витрине»...) — передайте
@@ -58,7 +59,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     favorites.toggle(product);
                     FadeToast.show(
                       context,
-                      wasFavorite ? 'Удалено из избранного' : 'Добавлено в избранное',
+                      wasFavorite
+                          ? 'Удалено из избранного'
+                          : 'Добавлено в избранное',
                     );
                   },
                 ),
@@ -68,22 +71,50 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   transform: Matrix4.translationValues(0, -24, 0),
                   decoration: const BoxDecoration(
                     color: AppColors.background,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
                   ),
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 140),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (product.badge != null) _BadgeRow(badge: product.badge!),
+                      if (product.badge != null)
+                        _BadgeRow(badge: product.badge!),
                       if (product.badge != null) const SizedBox(height: 14),
 
-                      Text(product.name, style: AppTextStyles.productDetailTitle),
+                      Text(
+                        product.name,
+                        style: AppTextStyles.productDetailTitle,
+                      ),
                       const SizedBox(height: 10),
 
                       if (product.rating != null) ...[
-                        _RatingRow(
-                          rating: product.rating!,
-                          reviewsCount: product.reviewsCount,
+                        InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ReviewsScreen(
+                                  productName: product.name,
+                                 productPrice: formatPrice(product.price),
+                                 productImage: product.imageUrl,
+                                  rating: product.rating!,
+                                  reviewCount: product.reviewsCount ?? 0,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 4,
+                              horizontal: 2,
+                            ),
+                            child: _RatingRow(
+                              rating: product.rating!,
+                              reviewsCount: product.reviewsCount,
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -92,17 +123,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.baseline,
                         textBaseline: TextBaseline.alphabetic,
                         children: [
-                          Text(formatPrice(product.price),
-                              style: AppTextStyles.productDetailPrice),
+                          Text(
+                            formatPrice(product.price),
+                            style: AppTextStyles.productDetailPrice,
+                          ),
                           const SizedBox(width: 8),
-                          Text('за ${product.weightLabel}',
-                              style: AppTextStyles.rowLabelMuted),
+                          Text(
+                            'за ${product.weightLabel}',
+                            style: AppTextStyles.rowLabelMuted,
+                          ),
                         ],
                       ),
 
                       if (product.description != null) ...[
                         const SizedBox(height: 16),
-                        Text(product.description!, style: AppTextStyles.descriptionText),
+                        Text(
+                          product.description!,
+                          style: AppTextStyles.descriptionText,
+                        ),
                       ],
 
                       if (product.hasNutritionInfo) ...[
@@ -198,8 +236,11 @@ class _GalleryHeader extends StatelessWidget {
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => Container(
                 color: AppColors.surfaceMuted,
-                child: const Icon(Icons.bakery_dining_outlined,
-                    size: 48, color: AppColors.textSecondary),
+                child: const Icon(
+                  Icons.bakery_dining_outlined,
+                  size: 48,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ),
@@ -213,7 +254,9 @@ class _GalleryHeader extends StatelessWidget {
             top: top + 12,
             child: _RoundSquareButton(
               icon: isFavorite ? Icons.favorite : Icons.favorite_border,
-              iconColor: isFavorite ? AppColors.badgePromo : AppColors.primaryBrown,
+              iconColor: isFavorite
+                  ? AppColors.badgePromo
+                  : AppColors.primaryBrown,
               onTap: onToggleFavorite,
             ),
           ),
@@ -222,7 +265,10 @@ class _GalleryHeader extends StatelessWidget {
               right: 16,
               bottom: 24,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.92),
                   borderRadius: BorderRadius.circular(14),
@@ -230,10 +276,16 @@ class _GalleryHeader extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.image_outlined, size: 15, color: AppColors.primaryBrown),
+                    const Icon(
+                      Icons.image_outlined,
+                      size: 15,
+                      color: AppColors.primaryBrown,
+                    ),
                     const SizedBox(width: 5),
-                    Text('${currentIndex + 1} / ${images.length}',
-                        style: AppTextStyles.rowValue),
+                    Text(
+                      '${currentIndex + 1} / ${images.length}',
+                      style: AppTextStyles.rowValue,
+                    ),
                   ],
                 ),
               ),
@@ -267,7 +319,11 @@ class _RoundSquareButton extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           boxShadow: const [
-            BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 3)),
+            BoxShadow(
+              color: AppColors.shadow,
+              blurRadius: 10,
+              offset: Offset(0, 3),
+            ),
           ],
         ),
         child: Icon(icon, size: 20, color: iconColor),
@@ -306,11 +362,19 @@ class _BadgeRow extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (badge == ProductBadge.hit) ...[
-                const Icon(Icons.local_fire_department, size: 13, color: Colors.white),
+                const Icon(
+                  Icons.local_fire_department,
+                  size: 13,
+                  color: Colors.white,
+                ),
                 const SizedBox(width: 4),
               ],
-              Text(badge.label,
-                  style: AppTextStyles.statusPillLabel.copyWith(color: Colors.white)),
+              Text(
+                badge.label,
+                style: AppTextStyles.statusPillLabel.copyWith(
+                  color: Colors.white,
+                ),
+              ),
             ],
           ),
         ),
@@ -329,7 +393,11 @@ class _RatingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(Icons.star_rounded, size: 18, color: AppColors.accentGradientEnd),
+        const Icon(
+          Icons.star_rounded,
+          size: 18,
+          color: AppColors.accentGradientEnd,
+        ),
         const SizedBox(width: 4),
         Text(rating.toStringAsFixed(1), style: AppTextStyles.ratingValue),
         if (reviewsCount != null) ...[
@@ -361,7 +429,10 @@ class _NutritionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('КБЖУ на 100 г', style: AppTextStyles.sectionLabel.copyWith(fontSize: 14)),
+          Text(
+            'КБЖУ на 100 г',
+            style: AppTextStyles.sectionLabel.copyWith(fontSize: 14),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -415,7 +486,11 @@ class _NutritionItem extends StatelessWidget {
   final String label;
   final String value;
 
-  const _NutritionItem({required this.icon, required this.label, required this.value});
+  const _NutritionItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -433,10 +508,12 @@ class _NutritionItem extends StatelessWidget {
               Icon(icon, size: 13, color: AppColors.primaryBrown),
               const SizedBox(width: 4),
               Flexible(
-                child: Text(label,
-                    style: AppTextStyles.nutritionLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                child: Text(
+                  label,
+                  style: AppTextStyles.nutritionLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -453,7 +530,11 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoRow({required this.icon, required this.label, required this.value});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -480,9 +561,15 @@ class _InfoRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: AppTextStyles.sectionLabel.copyWith(fontSize: 14)),
+                Text(
+                  label,
+                  style: AppTextStyles.sectionLabel.copyWith(fontSize: 14),
+                ),
                 const SizedBox(height: 3),
-                Text(value, style: AppTextStyles.rowLabelMuted.copyWith(height: 1.4)),
+                Text(
+                  value,
+                  style: AppTextStyles.rowLabelMuted.copyWith(height: 1.4),
+                ),
               ],
             ),
           ),
@@ -519,7 +606,9 @@ class _BottomActionBar extends StatelessWidget {
             child: GestureDetector(
               onTap: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => PreorderScreen(product: product)),
+                  MaterialPageRoute(
+                    builder: (_) => PreorderScreen(product: product),
+                  ),
                 );
               },
               behavior: HitTestBehavior.opaque,
@@ -527,7 +616,10 @@ class _BottomActionBar extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppColors.accentGradientStart, AppColors.accentGradientEnd],
+                    colors: [
+                      AppColors.accentGradientStart,
+                      AppColors.accentGradientEnd,
+                    ],
                   ),
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -536,9 +628,13 @@ class _BottomActionBar extends StatelessWidget {
                   children: [
                     Text('Предзаказ', style: AppTextStyles.cartBarButton),
                     const SizedBox(height: 2),
-                    Text('Товара временно нет в наличии',
-                        style: AppTextStyles.rowLabelMuted.copyWith(
-                            color: Colors.white.withOpacity(0.9), fontSize: 11)),
+                    Text(
+                      'Товара временно нет в наличии',
+                      style: AppTextStyles.rowLabelMuted.copyWith(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -553,18 +649,28 @@ class _BottomActionBar extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.accentGradientEnd, width: 1.2),
+                border: Border.all(
+                  color: AppColors.accentGradientEnd,
+                  width: 1.2,
+                ),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.notifications_none,
-                      size: 18, color: AppColors.accentGradientEnd),
+                  const Icon(
+                    Icons.notifications_none,
+                    size: 18,
+                    color: AppColors.accentGradientEnd,
+                  ),
                   const SizedBox(height: 2),
-                  Text('Уведомить\nо наличии',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.rowValue
-                          .copyWith(color: AppColors.accentGradientEnd, fontSize: 11)),
+                  Text(
+                    'Уведомить\nо наличии',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.rowValue.copyWith(
+                      color: AppColors.accentGradientEnd,
+                      fontSize: 11,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -586,10 +692,16 @@ class _BottomActionBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.shopping_bag_outlined, size: 18, color: Colors.white),
+              const Icon(
+                Icons.shopping_bag_outlined,
+                size: 18,
+                color: Colors.white,
+              ),
               const SizedBox(width: 8),
-              Text('Добавить в корзину · ${formatPrice(product.price)}',
-                  style: AppTextStyles.cartBarButton),
+              Text(
+                'Добавить в корзину · ${formatPrice(product.price)}',
+                style: AppTextStyles.cartBarButton,
+              ),
             ],
           ),
         ),
@@ -604,11 +716,21 @@ class _BottomActionBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text('В корзине', style: AppTextStyles.cartBarButton.copyWith(fontSize: 14)),
+          Text(
+            'В корзине',
+            style: AppTextStyles.cartBarButton.copyWith(fontSize: 14),
+          ),
           const Spacer(),
-          _StepperControl(onDecrement: onDecrement, onIncrement: onIncrement, quantity: quantity),
+          _StepperControl(
+            onDecrement: onDecrement,
+            onIncrement: onIncrement,
+            quantity: quantity,
+          ),
           const SizedBox(width: 14),
-          Text(formatPrice(product.price * quantity), style: AppTextStyles.cartBarButton),
+          Text(
+            formatPrice(product.price * quantity),
+            style: AppTextStyles.cartBarButton,
+          ),
         ],
       ),
     );
@@ -634,9 +756,11 @@ class _StepperControl extends StatelessWidget {
         _button(Icons.remove, onDecrement),
         SizedBox(
           width: 28,
-          child: Text('$quantity',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.cartBarButton.copyWith(fontSize: 15)),
+          child: Text(
+            '$quantity',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.cartBarButton.copyWith(fontSize: 15),
+          ),
         ),
         _button(Icons.add, onIncrement),
       ],

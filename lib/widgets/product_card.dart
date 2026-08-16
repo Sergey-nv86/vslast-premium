@@ -14,8 +14,7 @@ class ProductCard extends StatelessWidget {
   final ValueChanged<Product> onOpenDetails;
 
   /// Масштаб степпера количества (кнопка "+" / "−N+"). По умолчанию 1.0 —
-  /// как в «Каталоге» и «Избранном». На Главной, в блоке «Сегодня на
-  /// витрине», используется 1.7 — там по вашей просьбе кнопки крупнее.
+  /// используется одинаково на Главной, в «Каталоге» и в «Избранном».
   final double controlScale;
 
   const ProductCard({
@@ -46,23 +45,22 @@ class ProductCard extends StatelessWidget {
     // увеличенный степпер не обрезался фиксированной высотой строки.
     final priceRowHeight = controlScale <= 1.0 ? 26.0 : 26.0 * controlScale + 6.0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: AppColors.shadow, blurRadius: 8, offset: Offset(0, 3)),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Изображение + бейдж + избранное. Только эта область открывает
-          // карточку товара, чтобы не конфликтовать с нажатием на сердечко.
-          GestureDetector(
-            onTap: () => onOpenDetails(product),
-            behavior: HitTestBehavior.opaque,
+    // Карточка больше не в белой "плашке" с тенью — фото (со скруглёнными
+    // углами) и текст лежат прямо на фоне экрана, как в референсе.
+    // Высота текстового блока ниже подобрана под увеличенный шрифт
+    // (см. AppTextStyles.productName/productPrice) — при дальнейшем
+    // изменении шрифтов не забудьте обновить _cardTextBlockHeight в
+    // showcase_section.dart и catalog_screen.dart (см. комментарий там же).
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Изображение + бейдж + избранное. Только эта область открывает
+        // карточку товара, чтобы не конфликтовать с нажатием на сердечко.
+        GestureDetector(
+          onTap: () => onOpenDetails(product),
+          behavior: HitTestBehavior.opaque,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
             child: AspectRatio(
               aspectRatio: 1,
               child: Stack(
@@ -113,90 +111,91 @@ class ProductCard extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            // Внимание: сумма высот этого блока (паддинги + название + цена)
-            // рассчитана под _cardTextBlockHeight = 80 в catalog_screen.dart.
-            // При изменении паддингов/шрифтов здесь — обновите константу там же.
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                GestureDetector(
-                  onTap: () => onOpenDetails(product),
-                  behavior: HitTestBehavior.opaque,
-                  child: SizedBox(
-                    height: 30,
-                    child: Text(
-                      product.name,
-                      style: AppTextStyles.productName,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+        ),
+        Padding(
+          // Внимание: сумма высот этого блока (паддинги + название + цена)
+          // рассчитана под _cardTextBlockHeight в showcase_section.dart,
+          // catalog_screen.dart и favorite_screen.dart. При изменении
+          // паддингов/шрифтов здесь — обновите константу везде.
+          padding: const EdgeInsets.fromLTRB(2, 8, 2, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: () => onOpenDetails(product),
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  height: 36,
+                  child: Text(
+                    product.name,
+                    style: AppTextStyles.productName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(height: 4),
-                SizedBox(
-                  height: priceRowHeight,
-                  child: !product.inStock
-                      ? SizedBox(
-                          width: double.infinity,
-                          child: _PreorderButton(
-                            controlScale: controlScale,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => PreorderScreen(product: product),
+              ),
+              const SizedBox(height: 5),
+              SizedBox(
+                height: priceRowHeight,
+                child: !product.inStock
+                    ? SizedBox(
+                        width: double.infinity,
+                        child: _PreorderButton(
+                          controlScale: controlScale,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => PreorderScreen(product: product),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    : quantity == 0
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  formatPrice(product.price),
+                                  style: AppTextStyles.productPrice,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              );
-                            },
+                              ),
+                              _RoundIconButton(
+                                icon: Icons.add,
+                                controlScale: controlScale,
+                                onTap: () => cart.add(product),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  formatPrice(product.price),
+                                  style: AppTextStyles.productPrice,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              _QuantityStepper(
+                                quantity: quantity,
+                                controlScale: controlScale,
+                                onDecrement: () => cart.decrement(product),
+                                onIncrement: () => cart.increment(product),
+                              ),
+                            ],
                           ),
-                        )
-                      : quantity == 0
-                          ? Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    formatPrice(product.price),
-                                    style: AppTextStyles.productPrice,
-                                    maxLines: 1,
-                                    softWrap: false,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                _RoundIconButton(
-                                  icon: Icons.add,
-                                  controlScale: controlScale,
-                                  onTap: () => cart.add(product),
-                                ),
-                              ],
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    formatPrice(product.price),
-                                    style: AppTextStyles.productPrice,
-                                    maxLines: 1,
-                                    softWrap: false,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                _QuantityStepper(
-                                  quantity: quantity,
-                                  controlScale: controlScale,
-                                  onDecrement: () => cart.decrement(product),
-                                  onIncrement: () => cart.increment(product),
-                                ),
-                              ],
-                            ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

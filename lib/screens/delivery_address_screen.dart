@@ -10,24 +10,20 @@ import '../providers/location_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/toast.dart';
 import '../utils/yandex_geocoder.dart';
+import '../web/yandex_map_web_stub.dart'
+    if (dart.library.html) '../web/yandex_map_web.dart';
 
-/// Экран ввода адреса доставки в фирменном стиле Всласть — карта Яндекса
-/// почти на весь экран, пин закреплён по центру экрана, карта двигается
-/// под ним (стандартный паттерн "перетащи карту, чтобы поставить точку",
-/// как в Яндекс.Еде/Delivery-приложениях).
-///
-/// При открытии карта всегда встаёт на город, выбранный в профиле —
-/// геолокация пользователя используется ТОЛЬКО по явному нажатию на
-/// кнопку "моё местоположение", не автоматически при входе на экран (в
-/// доставке за пределы одного города смысла нет, а случайная геопозиция
-/// при открытии только путает).
 class DeliveryAddressScreen extends StatefulWidget {
   final String? initialAddress;
 
-  const DeliveryAddressScreen({super.key, this.initialAddress});
+  const DeliveryAddressScreen({
+    super.key,
+    this.initialAddress,
+  });
 
   @override
-  State<DeliveryAddressScreen> createState() => _DeliveryAddressScreenState();
+  State<DeliveryAddressScreen> createState() =>
+      _DeliveryAddressScreenState();
 }
 
 class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
@@ -35,18 +31,27 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
   static const double _maxZoom = 19;
 
   YandexMapController? _mapController;
+
   late final TextEditingController _addressController =
       TextEditingController(text: widget.initialAddress);
-  final TextEditingController _apartmentController = TextEditingController();
-  final TextEditingController _floorController = TextEditingController();
-  final TextEditingController _commentController = TextEditingController();
+
+  final TextEditingController _apartmentController =
+      TextEditingController();
+  final TextEditingController _floorController =
+      TextEditingController();
+  final TextEditingController _commentController =
+      TextEditingController();
 
   Point? _selectedPoint;
+
   double _currentZoom = 15;
+
   bool _isLocating = false;
   bool _isGeocoding = false;
   bool _detailsExpanded = false;
+
   Timer? _geocodeDebounce;
+  bool _geocodeFailureShown = false;
 
   @override
   void dispose() {
@@ -60,45 +65,100 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
 
   Future<void> _onMapCreated(YandexMapController controller) async {
     _mapController = controller;
-    final city = context.read<LocationProvider>().cityCenter;
-    final point = Point(latitude: city.$1, longitude: city.$2);
-    await controller.moveCamera(
-      CameraUpdate.newCameraPosition(CameraPosition(target: point, zoom: _currentZoom)),
-    );
-    setState(() => _selectedPoint = point);
-  }
 
-  /// Вызывается, когда камера сдвинулась (перетаскивание, зум, программное
-  /// перемещение) — держим зум и центр карты в актуальном состоянии.
-  void _onCameraChanged(CameraPosition position, bool finished) {
-    _currentZoom = position.zoom;
-    if (!finished) return;
-    setState(() => _selectedPoint = position.target);
-    _geocodeDebounce?.cancel();
-    _geocodeDebounce = Timer(const Duration(milliseconds: 350), () {
-      _reverseGeocode(position.target);
+    final city = context.read<LocationProvider>().cityCenter;
+    final point = Point(
+      latitude: city.$1,
+      longitude: city.$2,
+    );
+
+    await controller.moveCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: point,
+          zoom: _currentZoom,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _selectedPoint = point;
     });
   }
 
-  bool _geocodeFailureShown = false;
+  void _onNativeCameraChanged(
+    CameraPosition position,
+    bool finished,
+  ) {
+    _currentZoom = position.zoom;
+
+    if (!finished) return;
+
+    setState(() {
+      _selectedPoint = position.target;
+    });
+
+    _geocodeDebounce?.cancel();
+
+    _geocodeDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _reverseGeocode(position.target),
+    );
+  }
+
+  void _onWebCameraChanged(Map<String, double> data) {
+    final latitude = data['latitude'];
+    final longitude = data['longitude'];
+    final zoom = data['zoom'];
+
+    if (latitude == null || longitude == null) return;
+
+    _currentZoom = zoom ?? _currentZoom;
+
+    final point = Point(
+      latitude: latitude,
+      longitude: longitude,
+    );
+
+    setState(() {
+      _selectedPoint = point;
+    });
+
+    _geocodeDebounce?.cancel();
+
+    _geocodeDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _reverseGeocode(point),
+    );
+  }
 
   Future<void> _reverseGeocode(Point point) async {
-    setState(() => _isGeocoding = true);
+    if (!mounted) return;
+
+    setState(() {
+      _isGeocoding = true;
+    });
+
     final address = await YandexGeocoder.reverseGeocode(
       point.latitude,
       point.longitude,
     );
+
     if (!mounted) return;
+
     setState(() {
       _isGeocoding = false;
-      // Геокодер не настроен/недоступен — оставляем то, что человек уже
-      // ввёл руками, ничего не затираем пустотой.
-      if (address != null) _addressController.text = address;
+
+      if (address != null && address.trim().isNotEmpty) {
+        _addressController.text = address;
+      }
     });
-    // Показываем один раз за визит на экран, а не при каждом движении
-    // карты — иначе будет спамить тостами при активном скролле.
+
     if (address == null && !_geocodeFailureShown) {
       _geocodeFailureShown = true;
+
       if (!YandexGeocoder.isConfigured) {
         FadeToast.show(
           context,
@@ -116,71 +176,142 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
   }
 
   Future<void> _zoomBy(double delta) async {
+    if (kIsWeb) return;
+
     final target = _selectedPoint;
+
     if (target == null || _mapController == null) return;
-    final newZoom = (_currentZoom + delta).clamp(_minZoom, _maxZoom);
+
+    final newZoom =
+        (_currentZoom + delta).clamp(_minZoom, _maxZoom);
+
     await _mapController!.moveCamera(
-      CameraUpdate.newCameraPosition(CameraPosition(target: target, zoom: newZoom)),
-      animation: const MapAnimation(type: MapAnimationType.smooth, duration: 0.2),
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: target,
+          zoom: newZoom,
+        ),
+      ),
+      animation: const MapAnimation(
+        type: MapAnimationType.smooth,
+        duration: 0.2,
+      ),
     );
-    setState(() => _currentZoom = newZoom);
+
+    if (!mounted) return;
+
+    setState(() {
+      _currentZoom = newZoom;
+    });
   }
 
   Future<void> _useCurrentLocation() async {
-    setState(() => _isLocating = true);
+    setState(() {
+      _isLocating = true;
+    });
+
     try {
       var permission = await Geolocator.checkPermission();
+
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
+
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         if (mounted) {
-          FadeToast.show(context, 'Нужен доступ к геолокации в настройках',
-              icon: Icons.location_disabled);
+          FadeToast.show(
+            context,
+            'Нужен доступ к геолокации в настройках',
+            icon: Icons.location_disabled,
+          );
         }
         return;
       }
 
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      final serviceEnabled =
+          await Geolocator.isLocationServiceEnabled();
+
       if (!serviceEnabled) {
         if (mounted) {
-          FadeToast.show(context, 'Включите геолокацию на устройстве',
-              icon: Icons.location_disabled);
+          FadeToast.show(
+            context,
+            'Включите геолокацию на устройстве',
+            icon: Icons.location_disabled,
+          );
         }
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition(
+      final position =
+          await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-      ).timeout(const Duration(seconds: 8));
-      final point = Point(latitude: position.latitude, longitude: position.longitude);
-      await _mapController?.moveCamera(
-        CameraUpdate.newCameraPosition(CameraPosition(target: point, zoom: 16)),
-        animation: const MapAnimation(type: MapAnimationType.smooth, duration: 0.4),
+      ).timeout(
+        const Duration(seconds: 8),
       );
-      _onCameraChanged(CameraPosition(target: point, zoom: 16), true);
+
+      final point = Point(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+
+      if (kIsWeb) {
+        _onWebCameraChanged({
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+          'zoom': 16,
+        });
+      } else {
+        await _mapController?.moveCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: point,
+              zoom: 16,
+            ),
+          ),
+          animation: const MapAnimation(
+            type: MapAnimationType.smooth,
+            duration: 0.4,
+          ),
+        );
+
+        _onNativeCameraChanged(
+          CameraPosition(
+            target: point,
+            zoom: 16,
+          ),
+          true,
+        );
+      }
     } catch (_) {
       if (mounted) {
-        FadeToast.show(context, 'Не удалось определить местоположение',
-            icon: Icons.error_outline);
+        FadeToast.show(
+          context,
+          'Не удалось определить местоположение',
+          icon: Icons.error_outline,
+        );
       }
     } finally {
-      if (mounted) setState(() => _isLocating = false);
+      if (mounted) {
+        setState(() {
+          _isLocating = false;
+        });
+      }
     }
   }
 
-  /// Если "Квартира" или "Этаж" не заполнены — раньше адрес подтверждался
-  /// молча (в v1 просто выпадали из строки, потом стали подставлять "нет"
-  /// без спроса). Теперь сначала спрашиваем: возможно, это забывчивость,
-  /// а не частный дом без квартиры. Пользователь сам решает — заполнить
-  /// или продолжить без этих полей.
   void _confirm() {
     final street = _addressController.text.trim();
+
     if (street.isEmpty) {
-      FadeToast.show(context, 'Укажите адрес доставки', icon: Icons.error_outline);
+      FadeToast.show(
+        context,
+        'Укажите адрес доставки',
+        icon: Icons.error_outline,
+      );
       return;
     }
+
     final apartment = _apartmentController.text.trim();
     final floor = _floorController.text.trim();
 
@@ -188,30 +319,39 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
       _confirmMissingDetails();
       return;
     }
+
     _finishConfirm();
   }
 
   Future<void> _confirmMissingDetails() async {
-    // Разворачиваем секцию, чтобы поля "Квартира"/"Этаж" были видны на
-    // экране, пока показан диалог — человеку не придётся её искать.
-    if (!_detailsExpanded) setState(() => _detailsExpanded = true);
+    if (!_detailsExpanded) {
+      setState(() {
+        _detailsExpanded = true;
+      });
+    }
 
-    final proceedWithoutFilling = await showDialog<bool>(
+    final proceedWithoutFilling =
+        await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Квартира и этаж не указаны'),
+        title: const Text(
+          'Квартира и этаж не указаны',
+        ),
         content: const Text(
-          'Если это частный дом или доставка без квартиры/этажа — можно '
-          'продолжить без них. Если нет — лучше заполнить, чтобы курьеру '
+          'Если это частный дом или доставка без '
+          'квартиры/этажа — можно продолжить без них. '
+          'Если нет — лучше заполнить, чтобы курьеру '
           'было проще вас найти.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
+            onPressed: () =>
+                Navigator.of(ctx).pop(false),
             child: const Text('Заполнить'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
+            onPressed: () =>
+                Navigator.of(ctx).pop(true),
             child: const Text('Продолжить без них'),
           ),
         ],
@@ -221,8 +361,6 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
     if (proceedWithoutFilling == true && mounted) {
       _finishConfirm();
     }
-    // false/null (закрыли диалог, нажали "Заполнить" или свайпнули) —
-    // просто остаёмся на экране, секция с полями уже развёрнута.
   }
 
   void _finishConfirm() {
@@ -231,67 +369,85 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
     final floor = _floorController.text.trim();
     final comment = _commentController.text.trim();
 
-    // Оба поля всегда попадают в итоговый адрес: если человек осознанно
-    // продолжил без них (см. _confirmMissingDetails), подставляем "нет",
-    // а не тихо опускаем — курьер должен видеть, что это не пропуск.
-    final apartmentText = apartment.isEmpty ? 'нет' : apartment;
-    final floorText = floor.isEmpty ? 'нет' : floor;
+    final apartmentText =
+        apartment.isEmpty ? 'нет' : apartment;
 
-    final parts = <String>[street, 'кв. $apartmentText', 'этаж $floorText'];
+    final floorText =
+        floor.isEmpty ? 'нет' : floor;
+
+    final parts = <String>[
+      street,
+      'кв. $apartmentText',
+      'этаж $floorText',
+    ];
+
     var result = parts.join(', ');
-    if (comment.isNotEmpty) result = '$result ($comment)';
+
+    if (comment.isNotEmpty) {
+      result = '$result ($comment)';
+    }
 
     Navigator.of(context).pop(result);
   }
 
   @override
   Widget build(BuildContext context) {
+    final city =
+        context.watch<LocationProvider>().cityCenter;
+
+    final initialLatitude = city.$1;
+    final initialLongitude = city.$2;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Карта — почти на весь экран, под статус-баром и под нижней
-          // панелью тоже (так же, как в вашем референсе).
-          //
-          // yandex_mapkit — нативный плагин (обёртка над Yandex MapKit SDK
-          // для iOS/Android), у него в принципе нет реализации под Flutter
-          // Web — это не вопрос ключа/токена, виджет карты там просто не
-          // существует. Поэтому на вебе вместо карты — понятная заглушка,
-          // а адрес по-прежнему можно ввести вручную в поле ниже (та же
-          // логика, что уже работает, если не настроен ключ геокодера).
-          if (!kIsWeb) ...[
+          if (kIsWeb)
+            Positioned.fill(
+              child: YandexWebMap(
+                latitude: initialLatitude,
+                longitude: initialLongitude,
+                zoom: _currentZoom,
+                onCameraChanged: _onWebCameraChanged,
+              ),
+            )
+          else
             Positioned.fill(
               child: YandexMap(
                 onMapCreated: _onMapCreated,
-                onCameraPositionChanged: (position, reason, finished) {
-                  _onCameraChanged(position, finished);
+                onCameraPositionChanged:
+                    (position, reason, finished) {
+                  _onNativeCameraChanged(
+                    position,
+                    finished,
+                  );
                 },
               ),
             ),
 
-            // Закреплённый по центру экрана пин — карта двигается под ним,
-            // сам он никогда не смещается.
-            const IgnorePointer(
-              child: Align(
-                alignment: Alignment.center,
-                child: Padding(
-                  // Небольшой сдвиг вверх, чтобы остриё пина указывало точно
-                  // в оптический центр, а не сама иконка целиком.
-                  padding: EdgeInsets.only(bottom: 36),
-                  child: Icon(Icons.location_on, size: 44, color: AppColors.primaryBrown),
+          const IgnorePointer(
+            child: Align(
+              alignment: Alignment.center,
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 36),
+                child: Icon(
+                  Icons.location_on,
+                  size: 44,
+                  color: AppColors.primaryBrown,
                 ),
               ),
             ),
-          ] else
-            const Positioned.fill(child: _WebMapFallback()),
+          ),
 
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              padding:
+                  const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.of(context).maybePop(),
+                    onTap: () =>
+                        Navigator.of(context).maybePop(),
                     behavior: HitTestBehavior.opaque,
                     child: Container(
                       width: 44,
@@ -301,26 +457,44 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                         shape: BoxShape.circle,
                         boxShadow: const [
                           BoxShadow(
-                              color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 3)),
+                            color: AppColors.shadow,
+                            blurRadius: 10,
+                            offset: Offset(0, 3),
+                          ),
                         ],
                       ),
-                      child: const Icon(Icons.chevron_left,
-                          size: 24, color: AppColors.primaryBrown),
+                      child: const Icon(
+                        Icons.chevron_left,
+                        size: 24,
+                        color: AppColors.primaryBrown,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding:
+                          const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius:
+                            BorderRadius.circular(18),
                         boxShadow: const [
                           BoxShadow(
-                              color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 3)),
+                            color: AppColors.shadow,
+                            blurRadius: 10,
+                            offset: Offset(0, 3),
+                          ),
                         ],
                       ),
-                      child: Text('Адрес доставки', style: AppTextStyles.screenTitleSmall),
+                      child: Text(
+                        'Адрес доставки',
+                        style:
+                            AppTextStyles.screenTitleSmall,
+                      ),
                     ),
                   ),
                 ],
@@ -328,36 +502,33 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
             ),
           ),
 
-          // Зум +/- и "моё местоположение" — колонка плавающих кнопок
-          // справа над картой. На вебе карты нет (см. выше), поэтому и
-          // кнопки, управляющие именно ей, не показываем.
-          // Отступ снизу подобран под компактную нижнюю панель (см.
-          // _panelEstimatedHeight ниже) — если панель разворачивается
-          // (показаны доп.поля), кнопки всё равно на безопасной высоте,
-          // т.к. панель в развёрнутом виде скроллится сама внутри себя,
-          // а не растёт поверх кнопок.
           if (!kIsWeb)
             Positioned(
               right: 16,
               bottom: 190,
               child: Column(
                 children: [
-                  _MapRoundButton(icon: Icons.add, onTap: () => _zoomBy(1)),
+                  _MapRoundButton(
+                    icon: Icons.add,
+                    onTap: () => _zoomBy(1),
+                  ),
                   const SizedBox(height: 8),
-                  _MapRoundButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
+                  _MapRoundButton(
+                    icon: Icons.remove,
+                    onTap: () => _zoomBy(-1),
+                  ),
                   const SizedBox(height: 16),
                   _MapRoundButton(
                     icon: Icons.my_location,
-                    onTap: _isLocating ? null : _useCurrentLocation,
+                    onTap: _isLocating
+                        ? null
+                        : _useCurrentLocation,
                     loading: _isLocating,
                   ),
                 ],
               ),
             ),
 
-          // Нижняя панель — компактная по умолчанию (адрес + кнопка),
-          // квартира/этаж/комментарий скрыты за раскрывашкой "Добавить
-          // детали", чтобы не занимать пол-экрана, когда не нужны.
           Positioned(
             left: 0,
             right: 0,
@@ -366,31 +537,55 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
               top: false,
               child: Container(
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.42,
+                  maxHeight:
+                      MediaQuery.of(context).size.height *
+                          0.42,
                 ),
                 decoration: const BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  borderRadius:
+                      BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
                   boxShadow: [
-                    BoxShadow(color: AppColors.shadow, blurRadius: 16, offset: Offset(0, -4)),
+                    BoxShadow(
+                      color: AppColors.shadow,
+                      blurRadius: 16,
+                      offset: Offset(0, -4),
+                    ),
                   ],
                 ),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                  padding:
+                      const EdgeInsets.fromLTRB(
+                    20,
+                    14,
+                    20,
+                    16,
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Text('Улица, дом', style: AppTextStyles.fieldLabel),
+                          Text(
+                            'Улица, дом',
+                            style:
+                                AppTextStyles.fieldLabel,
+                          ),
                           if (_isGeocoding) ...[
                             const SizedBox(width: 8),
                             const SizedBox(
                               width: 12,
                               height: 12,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 1.6, color: AppColors.textSecondary),
+                              child:
+                                  CircularProgressIndicator(
+                                strokeWidth: 1.6,
+                                color:
+                                    AppColors.textSecondary,
+                              ),
                             ),
                           ],
                         ],
@@ -398,44 +593,75 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                       const SizedBox(height: 6),
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceMuted,
-                          borderRadius: BorderRadius.circular(14),
+                          color:
+                              AppColors.surfaceMuted,
+                          borderRadius:
+                              BorderRadius.circular(14),
                         ),
                         child: TextField(
-                          controller: _addressController,
-                          style: AppTextStyles.rowLabel,
-                          decoration: InputDecoration(
-                            hintText: 'Определяется по карте — или введите вручную',
-                            hintStyle: AppTextStyles.searchHint,
-                            border: InputBorder.none,
+                          controller:
+                              _addressController,
+                          style:
+                              AppTextStyles.rowLabel,
+                          decoration:
+                              InputDecoration(
+                            hintText:
+                                'Определяется по карте — или введите вручную',
+                            hintStyle:
+                                AppTextStyles.searchHint,
+                            border:
+                                InputBorder.none,
                             isDense: true,
                             contentPadding:
-                                const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                            prefixIcon: const Icon(Icons.location_on_outlined,
-                                size: 18, color: AppColors.textSecondary),
+                                const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 12,
+                            ),
+                            prefixIcon:
+                                const Icon(
+                              Icons
+                                  .location_on_outlined,
+                              size: 18,
+                              color: AppColors
+                                  .textSecondary,
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 4),
                       GestureDetector(
-                        onTap: () => setState(() => _detailsExpanded = !_detailsExpanded),
-                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          setState(() {
+                            _detailsExpanded =
+                                !_detailsExpanded;
+                          });
+                        },
+                        behavior:
+                            HitTestBehavior.opaque,
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding:
+                              const EdgeInsets.symmetric(
+                            vertical: 8,
+                          ),
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                            mainAxisSize:
+                                MainAxisSize.min,
                             children: [
                               Icon(
                                 _detailsExpanded
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
+                                    ? Icons
+                                        .keyboard_arrow_up
+                                    : Icons
+                                        .keyboard_arrow_down,
                                 size: 18,
-                                color: AppColors.linkAccent,
+                                color:
+                                    AppColors.linkAccent,
                               ),
                               const SizedBox(width: 2),
                               Text(
                                 'Квартира, этаж, комментарий курьеру',
-                                style: AppTextStyles.linkText,
+                                style:
+                                    AppTextStyles.linkText,
                               ),
                             ],
                           ),
@@ -444,14 +670,17 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                       if (_detailsExpanded) ...[
                         const SizedBox(height: 4),
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               child: _SmallField(
                                 label: 'Квартира',
                                 hint: 'Например: 45',
-                                controller: _apartmentController,
-                                keyboardType: TextInputType.text,
+                                controller:
+                                    _apartmentController,
+                                keyboardType:
+                                    TextInputType.text,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -459,30 +688,47 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                               child: _SmallField(
                                 label: 'Этаж',
                                 hint: 'Например: 3',
-                                controller: _floorController,
-                                keyboardType: TextInputType.number,
+                                controller:
+                                    _floorController,
+                                keyboardType:
+                                    TextInputType.number,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 10),
-                        Text('Комментарий курьеру', style: AppTextStyles.fieldLabel),
+                        Text(
+                          'Комментарий курьеру',
+                          style:
+                              AppTextStyles.fieldLabel,
+                        ),
                         const SizedBox(height: 6),
                         Container(
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceMuted,
-                            borderRadius: BorderRadius.circular(14),
+                            color:
+                                AppColors.surfaceMuted,
+                            borderRadius:
+                                BorderRadius.circular(14),
                           ),
                           child: TextField(
-                            controller: _commentController,
+                            controller:
+                                _commentController,
                             maxLines: 2,
-                            style: AppTextStyles.rowLabel,
-                            decoration: InputDecoration(
-                              hintText: 'Например: домофон 45К',
-                              hintStyle: AppTextStyles.searchHint,
-                              border: InputBorder.none,
+                            style:
+                                AppTextStyles.rowLabel,
+                            decoration:
+                                InputDecoration(
+                              hintText:
+                                  'Например: домофон 45К',
+                              hintStyle:
+                                  AppTextStyles.searchHint,
+                              border:
+                                  InputBorder.none,
                               contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                  const EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 12,
+                              ),
                             ),
                           ),
                         ),
@@ -493,16 +739,27 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                         width: double.infinity,
                         child: GestureDetector(
                           onTap: _confirm,
-                          behavior: HitTestBehavior.opaque,
+                          behavior:
+                              HitTestBehavior.opaque,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 15),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryBrown,
-                              borderRadius: BorderRadius.circular(24),
+                            padding:
+                                const EdgeInsets.symmetric(
+                              vertical: 15,
                             ),
-                            alignment: Alignment.center,
-                            child: Text('Подтвердить адрес',
-                                style: AppTextStyles.cartBarButton),
+                            decoration:
+                                BoxDecoration(
+                              color:
+                                  AppColors.primaryBrown,
+                              borderRadius:
+                                  BorderRadius.circular(24),
+                            ),
+                            alignment:
+                                Alignment.center,
+                            child: Text(
+                              'Подтвердить адрес',
+                              style: AppTextStyles
+                                  .cartBarButton,
+                            ),
                           ),
                         ),
                       ),
@@ -534,14 +791,19 @@ class _SmallField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.fieldLabel),
+        Text(
+          label,
+          style: AppTextStyles.fieldLabel,
+        ),
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
             color: AppColors.surfaceMuted,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius:
+                BorderRadius.circular(14),
           ),
           child: TextField(
             controller: controller,
@@ -549,10 +811,15 @@ class _SmallField extends StatelessWidget {
             style: AppTextStyles.rowLabel,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: AppTextStyles.searchHint,
+              hintStyle:
+                  AppTextStyles.searchHint,
               border: InputBorder.none,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(
+                vertical: 12,
+                horizontal: 12,
+              ),
             ),
           ),
         ),
@@ -566,7 +833,11 @@ class _MapRoundButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool loading;
 
-  const _MapRoundButton({required this.icon, required this.onTap, this.loading = false});
+  const _MapRoundButton({
+    required this.icon,
+    required this.onTap,
+    this.loading = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -580,51 +851,29 @@ class _MapRoundButton extends StatelessWidget {
           color: Colors.white,
           shape: BoxShape.circle,
           boxShadow: const [
-            BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 3)),
+            BoxShadow(
+              color: AppColors.shadow,
+              blurRadius: 10,
+              offset: Offset(0, 3),
+            ),
           ],
         ),
         child: loading
             ? const Padding(
                 padding: EdgeInsets.all(13),
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primaryBrown),
+                child:
+                    CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color:
+                      AppColors.primaryBrown,
+                ),
               )
-            : Icon(icon, size: 20, color: AppColors.primaryBrown),
-      ),
-    );
-  }
-}
-
-/// Заглушка вместо карты в веб-сборке (PWA). yandex_mapkit не имеет
-/// реализации под Flutter Web в принципе — сюда не поможет никакой ключ,
-/// это ограничение платформы у самого пакета, а не проблема конфигурации.
-/// Адрес при этом всё равно можно ввести вручную в поле ниже на экране.
-class _WebMapFallback extends StatelessWidget {
-  const _WebMapFallback();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.surfaceMuted,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.map_outlined, size: 40, color: AppColors.textSecondary),
-          const SizedBox(height: 12),
-          Text(
-            'Карта пока недоступна в браузерной версии',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.rowLabel.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Введите адрес вручную в поле ниже — курьер получит его так же, как и с карты.',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.rowLabelMuted,
-          ),
-        ],
+            : Icon(
+                icon,
+                size: 20,
+                color:
+                    AppColors.primaryBrown,
+              ),
       ),
     );
   }
