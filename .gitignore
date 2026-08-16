@@ -52,3 +52,13 @@ app.*.map.json
 /lib_backup*/
 /backup/
 /temp_ios/
+
+# Firebase Functions dependencies
+functions/node_modules/
+
+# Temporary migration / patch scripts
+apply_*.sh
+
+# Local backup copies
+*.bak
+*.bak_*

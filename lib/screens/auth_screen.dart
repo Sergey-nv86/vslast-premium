@@ -7,7 +7,6 @@ import '../theme/app_theme.dart';
 import '../utils/date_format.dart';
 import '../utils/phone_formatter.dart';
 import '../widgets/labeled_text_field.dart';
-import 'phone_verification_screen.dart';
 
 enum AuthMode { login, register }
 
@@ -87,13 +86,15 @@ class _AuthScreenState extends State<AuthScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: LocationProvider.availableCities
-              .map((city) => ListTile(
-                    title: Text(city, style: AppTextStyles.rowLabel),
-                    trailing: city == _selectedCity
-                        ? const Icon(Icons.check, color: AppColors.primaryBrown)
-                        : null,
-                    onTap: () => Navigator.pop(context, city),
-                  ))
+              .map(
+                (city) => ListTile(
+                  title: Text(city, style: AppTextStyles.rowLabel),
+                  trailing: city == _selectedCity
+                      ? const Icon(Icons.check, color: AppColors.primaryBrown)
+                      : null,
+                  onTap: () => Navigator.pop(context, city),
+                ),
+              )
               .toList(),
         ),
       ),
@@ -114,7 +115,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _submitLogin() {
     // TODO: подключить реальную авторизацию (логин/телефон + пароль).
-    context.read<AuthProvider>().markLoggedIn(displayName: _loginController.text);
+    context.read<AuthProvider>().markLoggedIn(
+      displayName: _loginController.text,
+    );
     context.read<LocationProvider>().setCity(_selectedCity);
     Navigator.of(context).maybePop();
   }
@@ -123,22 +126,47 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Подтвердите согласие на обработку персональных данных'),
+          content: Text(
+            'Подтвердите согласие на обработку персональных данных',
+          ),
         ),
       );
       return;
     }
-    // TODO: подключить реальную регистрацию и валидацию полей.
-    // Подтверждение номера — отдельным экраном (Telegram → MAX → SMS),
-    // AuthProvider.markLoggedIn() вызывается уже там, после верного кода.
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => PhoneVerificationScreen(
-          phoneNumber: _phoneController.text.trim(),
-          displayName: _firstNameController.text,
+
+    final firstName = _firstNameController.text.trim();
+    final phone = _phoneController.text.trim();
+    final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
+
+    if (firstName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Введите имя'),
         ),
-      ),
+      );
+      return;
+    }
+
+    if (phoneDigits.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Введите корректный номер телефона'),
+        ),
+      );
+      return;
+    }
+
+    // Временно считаем номер телефона подтверждённым.
+    // Реальное OTP-подтверждение через Telegram / MAX / SMS
+    // подключим отдельным этапом позже.
+
+    context.read<AuthProvider>().markLoggedIn(
+      displayName: firstName,
     );
+
+    context.read<LocationProvider>().setCity(_selectedCity);
+
+    Navigator.of(context).maybePop();
   }
 
   @override
@@ -162,7 +190,11 @@ class _AuthScreenState extends State<AuthScreen> {
                     shape: BoxShape.circle,
                     border: Border.all(color: AppColors.divider, width: 1),
                   ),
-                  child: const Icon(Icons.close, size: 20, color: AppColors.primaryBrown),
+                  child: const Icon(
+                    Icons.close,
+                    size: 20,
+                    color: AppColors.primaryBrown,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -177,15 +209,23 @@ class _AuthScreenState extends State<AuthScreen> {
                     color: AppColors.surfaceMuted,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(Icons.image_outlined,
-                      size: 36, color: AppColors.textSecondary),
+                  child: const Icon(
+                    Icons.image_outlined,
+                    size: 36,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
-              _ModeSwitch(mode: _mode, onChanged: (m) => setState(() => _mode = m)),
+              _ModeSwitch(
+                mode: _mode,
+                onChanged: (m) => setState(() => _mode = m),
+              ),
               const SizedBox(height: 24),
               Text(
-                _mode == AuthMode.login ? 'Добро пожаловать!' : 'Создайте аккаунт',
+                _mode == AuthMode.login
+                    ? 'Добро пожаловать!'
+                    : 'Создайте аккаунт',
                 style: AppTextStyles.authHeading,
               ),
               const SizedBox(height: 6),
@@ -196,7 +236,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 style: AppTextStyles.rowLabelMuted,
               ),
               const SizedBox(height: 22),
-              if (_mode == AuthMode.login) _buildLoginForm() else _buildRegisterForm(),
+              if (_mode == AuthMode.login)
+                _buildLoginForm()
+              else
+                _buildRegisterForm(),
               const SizedBox(height: 24),
               ClipRRect(
                 borderRadius: BorderRadius.circular(24),
@@ -213,8 +256,11 @@ class _AuthScreenState extends State<AuthScreen> {
                       color: AppColors.surfaceMuted,
                       borderRadius: BorderRadius.circular(24),
                     ),
-                    child: const Icon(Icons.image_outlined,
-                        size: 40, color: AppColors.textSecondary),
+                    child: const Icon(
+                      Icons.image_outlined,
+                      size: 40,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ),
@@ -244,11 +290,14 @@ class _AuthScreenState extends State<AuthScreen> {
           controller: _passwordController,
           trailing: IconButton(
             icon: Icon(
-              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              _obscurePassword
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
               size: 20,
               color: AppColors.textSecondary,
             ),
-            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            onPressed: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
           ),
         ),
         const SizedBox(height: 8),
@@ -299,7 +348,9 @@ class _AuthScreenState extends State<AuthScreen> {
               alignment: Alignment.center,
               child: Text(
                 'Регистрация нового пользователя',
-                style: AppTextStyles.rowLabel.copyWith(color: AppColors.primaryBrown),
+                style: AppTextStyles.rowLabel.copyWith(
+                  color: AppColors.primaryBrown,
+                ),
               ),
             ),
           ),
@@ -327,11 +378,14 @@ class _AuthScreenState extends State<AuthScreen> {
           controller: _regPasswordController,
           trailing: IconButton(
             icon: Icon(
-              _obscureRegPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              _obscureRegPassword
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
               size: 20,
               color: AppColors.textSecondary,
             ),
-            onPressed: () => setState(() => _obscureRegPassword = !_obscureRegPassword),
+            onPressed: () =>
+                setState(() => _obscureRegPassword = !_obscureRegPassword),
           ),
         ),
         const SizedBox(height: 16),
@@ -349,8 +403,9 @@ class _AuthScreenState extends State<AuthScreen> {
               size: 20,
               color: AppColors.textSecondary,
             ),
-            onPressed: () =>
-                setState(() => _obscureRegPasswordConfirm = !_obscureRegPasswordConfirm),
+            onPressed: () => setState(
+              () => _obscureRegPasswordConfirm = !_obscureRegPasswordConfirm,
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -407,9 +462,12 @@ class _AuthScreenState extends State<AuthScreen> {
           children: [
             Checkbox(
               value: _agreedToTerms,
-              onChanged: (value) => setState(() => _agreedToTerms = value ?? false),
+              onChanged: (value) =>
+                  setState(() => _agreedToTerms = value ?? false),
               activeColor: AppColors.primaryBrown,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
             ),
             Expanded(
               child: Padding(
@@ -419,7 +477,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     style: AppTextStyles.checkboxText,
                     children: [
                       const TextSpan(
-                        text: 'Я соглашаюсь на обработку персональных данных '
+                        text:
+                            'Я соглашаюсь на обработку персональных данных '
                             'и принимаю условия ',
                       ),
                       TextSpan(
@@ -479,8 +538,9 @@ class _ModeSwitch extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           label,
-          style: AppTextStyles.categoryChip
-              .copyWith(color: selected ? Colors.white : AppColors.textPrimary),
+          style: AppTextStyles.categoryChip.copyWith(
+            color: selected ? Colors.white : AppColors.textPrimary,
+          ),
         ),
       ),
     );
@@ -530,10 +590,16 @@ class _TappableField extends StatelessWidget {
                 Expanded(
                   child: Text(
                     hasValue ? value : hint,
-                    style: hasValue ? AppTextStyles.rowLabel : AppTextStyles.searchHint,
+                    style: hasValue
+                        ? AppTextStyles.rowLabel
+                        : AppTextStyles.searchHint,
                   ),
                 ),
-                const Icon(Icons.keyboard_arrow_down, size: 20, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
               ],
             ),
           ),
@@ -564,7 +630,10 @@ class _GradientButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 17),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [AppColors.accentGradientStart, AppColors.accentGradientEnd],
+              colors: [
+                AppColors.accentGradientStart,
+                AppColors.accentGradientEnd,
+              ],
             ),
             borderRadius: BorderRadius.circular(26),
           ),
