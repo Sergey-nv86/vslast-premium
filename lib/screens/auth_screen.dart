@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../utils/date_format.dart';
 import '../utils/phone_formatter.dart';
 import '../widgets/labeled_text_field.dart';
+import 'phone_verification_screen.dart';
 
 enum AuthMode { login, register }
 
@@ -128,8 +129,16 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
     // TODO: подключить реальную регистрацию и валидацию полей.
-    context.read<AuthProvider>().markLoggedIn(displayName: _firstNameController.text);
-    Navigator.of(context).maybePop();
+    // Подтверждение номера — отдельным экраном (Telegram → MAX → SMS),
+    // AuthProvider.markLoggedIn() вызывается уже там, после верного кода.
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PhoneVerificationScreen(
+          phoneNumber: _phoneController.text.trim(),
+          displayName: _firstNameController.text,
+        ),
+      ),
+    );
   }
 
   @override
