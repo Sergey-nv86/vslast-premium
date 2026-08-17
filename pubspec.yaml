@@ -24,6 +24,22 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  # Иконка приложения (не логотип целиком — тот перегружен мелким текстом
+  # для маленьких размеров; здесь только эмблема хлеба, вырезанная и
+  # пересобранная на фирменном фоне, см. assets/icons/app_icon_source.png).
+  # Перегенерировать под все платформы после смены исходника:
+  #   flutter pub get && dart run flutter_launcher_icons
+  image_path: "assets/icons/app_icon_source.png"
+  android: true
+  ios: true
+  web:
+    generate: true
+    background_color: "#2E1C12"
+    theme_color: "#2E1C12"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true

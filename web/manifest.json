@@ -1,11 +1,11 @@
 {
-    "name": "vslast_premium",
-    "short_name": "vslast_premium",
+    "name": "Всласть — пекарня и кондитерская",
+    "short_name": "Всласть",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#2E1C12",
+    "theme_color": "#2E1C12",
+    "description": "Пекарня и кондитерская «Всласть» — свежая выпечка и десерты с доставкой.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
