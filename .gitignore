@@ -62,3 +62,14 @@ apply_*.sh
 # Local backup copies
 *.bak
 *.bak_*
+
+# Local development / repair scripts
+*.py
+*.sh
+*.sh.save
+*.save
+
+# Local source backups / temporary copies
+*.before_*
+*.old_*
+*.tmp_*
