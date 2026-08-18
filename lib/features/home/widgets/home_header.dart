@@ -51,7 +51,7 @@ class HomeHeader extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (_) => auth.isLoggedIn
                         ? const ProfileScreen()
-                        : const AuthScreen(initialMode: AuthMode.register),
+                        : const AuthScreen(initialMode: AuthMode.login),
                   ),
                 );
               },
@@ -141,8 +141,31 @@ class HomeHeader extends StatelessWidget {
     );
   }
 
+  String _greeting(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final displayName = auth.displayName.trim();
+
+    final name = displayName.isNotEmpty && displayName != 'Пользователь'
+        ? displayName.split(' ').first
+        : '';
+
+    final hour = DateTime.now().hour;
+
+    final greeting = switch (hour) {
+      >= 5 && < 12 => 'Доброе утро',
+      >= 12 && < 18 => 'Добрый день',
+      >= 18 => 'Добрый вечер',
+      _ => 'Доброй ночи',
+    };
+
+    return name.isEmpty ? greeting : '$greeting,\n$name!';
+  }
+
   @override
   Widget build(BuildContext context) {
+    // HomeHeader должен перестраиваться сразу после смены пользователя.
+    context.watch<AuthProvider>();
+
     final top = MediaQuery.of(context).padding.top;
     const double photoHeight = 140;
 
@@ -185,7 +208,7 @@ class HomeHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Доброе утро,\nСергей!',
+                  _greeting(context),
                   style: GoogleFonts.alice(
                     color: AppColors.primaryBrown,
                     fontSize: 19,
