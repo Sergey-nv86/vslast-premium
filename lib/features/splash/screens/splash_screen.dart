@@ -1,7 +1,12 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../providers/auth_provider.dart';
+import '../../../screens/auth_screen.dart';
 import '../../../screens/main_screen.dart';
+import '../../admin/screens/app_mode_selection_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -28,15 +33,35 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    Timer(const Duration(seconds: 4), () async {
-      await _controller.reverse();
+    _initialize();
+  }
 
-      if (!mounted) return;
+  Future<void> _initialize() async {
+    final auth = context.read<AuthProvider>();
 
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
-    });
+    await auth.initialize();
+
+    await Future.delayed(const Duration(seconds: 3));
+
+    if (!mounted) return;
+
+    await _controller.reverse();
+
+    if (!mounted) return;
+
+    Widget destination;
+
+    if (!auth.isLoggedIn) {
+      destination = const AuthScreen(initialMode: AuthMode.login);
+    } else if (auth.canAccessAdmin) {
+      destination = const AppModeSelectionScreen();
+    } else {
+      destination = const MainScreen();
+    }
+
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => destination));
   }
 
   @override
