@@ -281,8 +281,6 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
 
-    notifyListeners();
-
     try {
       final session = _supabase.auth.currentSession;
 
@@ -544,19 +542,15 @@ class AuthProvider extends ChangeNotifier {
 
       final result = await _supabase.rpc(
         'get_auth_email_by_phone',
-        params: {
-          'p_phone': normalizedPhone,
-        },
+        params: {'p_phone': normalizedPhone},
       );
 
       if (result == null || result.toString().trim().isEmpty) {
-        _errorMessage =
-            'Пользователь с таким номером телефона не найден.';
+        _errorMessage = 'Пользователь с таким номером телефона не найден.';
         return false;
       }
 
-      final normalizedEmail =
-          result.toString().trim().toLowerCase();
+      final normalizedEmail = result.toString().trim().toLowerCase();
 
       // -----------------------------------------------------------------------
       // 2. Входим в Supabase Auth.
@@ -602,7 +596,6 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-
 
   // REGISTRATION
   // ===========================================================================

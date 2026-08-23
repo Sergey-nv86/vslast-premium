@@ -32,7 +32,11 @@ class OrderHistoryCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
-          BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 3)),
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
         ],
       ),
       child: Column(
@@ -54,15 +58,21 @@ class OrderHistoryCard extends StatelessWidget {
                         width: 84,
                         height: 84,
                         color: AppColors.surfaceMuted,
-                        child: const Icon(Icons.bakery_dining_outlined,
-                            size: 28, color: AppColors.textSecondary),
+                        child: const Icon(
+                          Icons.bakery_dining_outlined,
+                          size: 28,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ),
                   if (order.itemsCount > 1) ...[
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceMuted,
                         borderRadius: BorderRadius.circular(14),
@@ -85,18 +95,28 @@ class OrderHistoryCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Text('Заказ №${order.number}', style: AppTextStyles.orderNumber),
+                          Text(
+                            'Заказ №${order.number}',
+                            style: AppTextStyles.orderNumber,
+                          ),
                           const Spacer(),
                           OrderStatusPill(status: order.status),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text(order.title, style: AppTextStyles.orderTitle, maxLines: 2),
+                      Text(
+                        order.title,
+                        style: AppTextStyles.orderTitle,
+                        maxLines: 2,
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.calendar_today_outlined,
-                              size: 14, color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.calendar_today_outlined,
+                            size: 14,
+                            color: AppColors.textSecondary,
+                          ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -106,8 +126,11 @@ class OrderHistoryCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const Icon(Icons.chevron_right,
-                              size: 18, color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: AppColors.textSecondary,
+                          ),
                         ],
                       ),
                     ],
@@ -133,10 +156,16 @@ class OrderHistoryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Text(order.statusDescription, style: AppTextStyles.rowLabelMuted),
+              child: Text(
+                order.statusDescription,
+                style: AppTextStyles.rowLabelMuted,
+              ),
             ),
             const SizedBox(width: 10),
-            Text(formatPrice(order.totalPrice), style: AppTextStyles.orderItemPrice),
+            Text(
+              formatPrice(order.totalPrice),
+              style: AppTextStyles.orderItemPrice,
+            ),
           ],
         );
 
@@ -148,10 +177,16 @@ class OrderHistoryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(order.statusDescription, style: AppTextStyles.rowLabelMuted),
+                  child: Text(
+                    order.statusDescription,
+                    style: AppTextStyles.rowLabelMuted,
+                  ),
                 ),
                 const SizedBox(width: 10),
-                Text(formatPrice(order.totalPrice), style: AppTextStyles.orderItemPrice),
+                Text(
+                  formatPrice(order.totalPrice),
+                  style: AppTextStyles.orderItemPrice,
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -166,7 +201,10 @@ class OrderHistoryCard extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [AppColors.accentGradientStart, AppColors.accentGradientEnd],
+                          colors: [
+                            AppColors.accentGradientStart,
+                            AppColors.accentGradientEnd,
+                          ],
                         ),
                         borderRadius: BorderRadius.circular(23),
                       ),
@@ -176,7 +214,10 @@ class OrderHistoryCard extends StatelessWidget {
                         children: [
                           const Icon(Icons.bolt, size: 18, color: Colors.white),
                           const SizedBox(width: 6),
-                          Text('Оплатить по СБП', style: AppTextStyles.cartBarButton),
+                          Text(
+                            'Оплатить по СБП',
+                            style: AppTextStyles.cartBarButton,
+                          ),
                         ],
                       ),
                     ),
@@ -191,10 +232,16 @@ class OrderHistoryCard extends StatelessWidget {
                     height: 46,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.accentGradientEnd, width: 1.4),
+                      border: Border.all(
+                        color: AppColors.accentGradientEnd,
+                        width: 1.4,
+                      ),
                     ),
-                    child: const Icon(Icons.qr_code_2,
-                        size: 22, color: AppColors.accentGradientEnd),
+                    child: const Icon(
+                      Icons.qr_code_2,
+                      size: 22,
+                      color: AppColors.accentGradientEnd,
+                    ),
                   ),
                 ),
               ],
@@ -207,20 +254,30 @@ class OrderHistoryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              child: Text(order.statusDescription, style: AppTextStyles.rowLabelMuted),
+              child: Text(
+                order.statusDescription,
+                style: AppTextStyles.rowLabelMuted,
+              ),
             ),
             const SizedBox(width: 10),
             GestureDetector(
               onTap: onRepeat,
               behavior: HitTestBehavior.opaque,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 11,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: AppColors.primaryBrown, width: 1.2),
                 ),
-                child: Text('Повторить заказ',
-                    style: AppTextStyles.rowLabel.copyWith(color: AppColors.primaryBrown)),
+                child: Text(
+                  'Повторить заказ',
+                  style: AppTextStyles.rowLabel.copyWith(
+                    color: AppColors.primaryBrown,
+                  ),
+                ),
               ),
             ),
           ],

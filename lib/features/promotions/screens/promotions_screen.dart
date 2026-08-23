@@ -64,7 +64,12 @@ class _PromotionsScreenState extends State<PromotionsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(_horizontalPadding, 16, _horizontalPadding, 4),
+            padding: const EdgeInsets.fromLTRB(
+              _horizontalPadding,
+              16,
+              _horizontalPadding,
+              4,
+            ),
             child: Text(
               'Акции и спецпредложения',
               style: GoogleFonts.alice(
@@ -82,19 +87,27 @@ class _PromotionsScreenState extends State<PromotionsScreen> {
               itemCount: mockPromotions.length,
               onPageChanged: (i) => setState(() => _activeIndex = i),
               itemBuilder: (context, i) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _horizontalPadding,
+                ),
                 child: _PromoBanner(promotion: mockPromotions[i]),
               ),
             ),
           ),
           const SizedBox(height: 10),
-          _DotsIndicator(count: mockPromotions.length, activeIndex: _activeIndex),
+          _DotsIndicator(
+            count: mockPromotions.length,
+            activeIndex: _activeIndex,
+          ),
           const SizedBox(height: 18),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
             child: Text(
               'Ассортимент к акции',
-              style: AppTextStyles.rowLabel.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
+              style: AppTextStyles.rowLabel.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -104,10 +117,16 @@ class _PromotionsScreenState extends State<PromotionsScreen> {
                 : LayoutBuilder(
                     builder: (context, constraints) {
                       final itemWidth =
-                          (constraints.maxWidth - _horizontalPadding * 2 - _gridSpacing) / 2;
+                          (constraints.maxWidth -
+                              _horizontalPadding * 2 -
+                              _gridSpacing) /
+                          2;
                       return GridView.builder(
                         padding: const EdgeInsets.fromLTRB(
-                          _horizontalPadding, 0, _horizontalPadding, 90,
+                          _horizontalPadding,
+                          0,
+                          _horizontalPadding,
+                          90,
                         ),
                         physics: const BouncingScrollPhysics(),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

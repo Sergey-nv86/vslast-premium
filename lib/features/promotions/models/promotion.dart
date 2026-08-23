@@ -33,7 +33,12 @@ const mockPromotions = <Promotion>[
     subtitle: 'Сладкий стол для линейки и первых дней учёбы',
     icon: Icons.school_outlined,
     color: Color(0xFF6B7FB8),
-    productIds: ['napoleon_cake', 'cheesecake_cherry', 'eclair_chocolate', 'dacquoise'],
+    productIds: [
+      'napoleon_cake',
+      'cheesecake_cherry',
+      'eclair_chocolate',
+      'dacquoise',
+    ],
   ),
   Promotion(
     id: 'ciabatta_discount',

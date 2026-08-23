@@ -30,9 +30,7 @@ class PromotionStore {
       bannerAsset: 'assets/images/hero_banner.jpg',
       type: PromotionType.discount,
       discountPercent: 15,
-      products: const [
-        PromotionProduct(productId: 'ciabatta'),
-      ],
+      products: const [PromotionProduct(productId: 'ciabatta')],
       isAvailable: true,
       startDate: DateTime(2026, 8, 10),
       endDate: DateTime(2026, 8, 17),
@@ -59,12 +57,12 @@ class PromotionStore {
   ];
 
   List<Promotion> get items => List.unmodifiable(
-        [..._items]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder)),
-      );
+    [..._items]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder)),
+  );
 
   List<Promotion> get available => List.unmodifiable(
-        items.where((item) => item.isAvailable && !item.isScheduledOut),
-      );
+    items.where((item) => item.isAvailable && !item.isScheduledOut),
+  );
 
   void add(Promotion item) => _items.insert(0, item);
 

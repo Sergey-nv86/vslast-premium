@@ -5,6 +5,7 @@ import '../providers/cart_provider.dart';
 import '../providers/favorites_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/toast.dart';
+import '../widgets/product_image.dart';
 import 'preorder_screen.dart';
 import 'reviews_screen.dart';
 
@@ -96,9 +97,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => ReviewsScreen(
+                                  productId: product.id,
                                   productName: product.name,
-                                 productPrice: formatPrice(product.price),
-                                 productImage: product.imageUrl,
+                                  productPrice: formatPrice(product.price),
+                                  productImage: product.imageUrl,
                                   rating: product.rating!,
                                   reviewCount: product.reviewsCount ?? 0,
                                 ),
@@ -231,17 +233,10 @@ class _GalleryHeader extends StatelessWidget {
             controller: controller,
             onPageChanged: onPageChanged,
             itemCount: images.length,
-            itemBuilder: (context, index) => Image.asset(
-              images[index],
+            itemBuilder: (context, index) => ProductImage(
+              imageUrl: images[index],
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                color: AppColors.surfaceMuted,
-                child: const Icon(
-                  Icons.bakery_dining_outlined,
-                  size: 48,
-                  color: AppColors.textSecondary,
-                ),
-              ),
+              iconSize: 48,
             ),
           ),
           Positioned(
@@ -270,7 +265,7 @@ class _GalleryHeader extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.92),
+                  color: Colors.white.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
@@ -631,7 +626,7 @@ class _BottomActionBar extends StatelessWidget {
                     Text(
                       'Товара временно нет в наличии',
                       style: AppTextStyles.rowLabelMuted.copyWith(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 11,
                       ),
                     ),
@@ -775,7 +770,7 @@ class _StepperControl extends StatelessWidget {
         width: 28,
         height: 28,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.16),
+          color: Colors.white.withValues(alpha: 0.16),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, size: 16, color: Colors.white),

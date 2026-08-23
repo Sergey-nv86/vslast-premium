@@ -78,7 +78,8 @@ final List<Product> mockProducts = [
     proteinPer100g: 7.3,
     fatPer100g: 21.0,
     carbsPer100g: 45.8,
-    composition: 'Мука пшеничная, масло сливочное, молоко, яйцо, сахар, дрожжи, соль.',
+    composition:
+        'Мука пшеничная, масло сливочное, молоко, яйцо, сахар, дрожжи, соль.',
   ),
   const Product(
     id: 'brioche',
@@ -96,7 +97,8 @@ final List<Product> mockProducts = [
     proteinPer100g: 8.0,
     fatPer100g: 12.5,
     carbsPer100g: 45.0,
-    composition: 'Мука пшеничная, масло сливочное, яйца, молоко, сахар, дрожжи, соль.',
+    composition:
+        'Мука пшеничная, масло сливочное, яйца, молоко, сахар, дрожжи, соль.',
     galleryImages: [
       'assets/images/bread_finnish.jpg',
       'assets/images/bread_sourdough_05.jpg',
@@ -190,7 +192,8 @@ final List<Product> mockProducts = [
     proteinPer100g: 9.4,
     fatPer100g: 4.8,
     carbsPer100g: 44.0,
-    composition: 'Мука цельнозерновая, вода, семена подсолнечника, лён, кунжут, дрожжи, соль.',
+    composition:
+        'Мука цельнозерновая, вода, семена подсолнечника, лён, кунжут, дрожжи, соль.',
     galleryImages: [
       'assets/images/bread_sourdough_01.jpg',
       'assets/images/bread_sourdough_07.jpg',
@@ -212,7 +215,8 @@ final List<Product> mockProducts = [
     proteinPer100g: 6.0,
     fatPer100g: 18.0,
     carbsPer100g: 32.0,
-    composition: 'Мука, масло сливочное, яйца, молоко, сахар, шоколад, крем заварной.',
+    composition:
+        'Мука, масло сливочное, яйца, молоко, сахар, шоколад, крем заварной.',
     galleryImages: [
       'assets/images/dessert_eclair.jpg',
       'assets/images/dessert_lemon_basil.jpg',
@@ -234,7 +238,8 @@ final List<Product> mockProducts = [
     proteinPer100g: 5.8,
     fatPer100g: 21.0,
     carbsPer100g: 30.0,
-    composition: 'Миндальная и фундучная мука, яичный белок, сахар, сливочный крем.',
+    composition:
+        'Миндальная и фундучная мука, яичный белок, сахар, сливочный крем.',
   ),
   const Product(
     id: 'lemon_basil_tart',

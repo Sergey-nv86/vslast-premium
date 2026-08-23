@@ -56,11 +56,17 @@ class LabeledTextField extends StatelessWidget {
               hintStyle: AppTextStyles.searchHint,
               border: InputBorder.none,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 16,
+                horizontal: 14,
+              ),
               prefixIcon: leadingIcon == null
                   ? null
                   : Icon(leadingIcon, size: 20, color: AppColors.textSecondary),
-              prefixIconConstraints: const BoxConstraints(minWidth: 42, minHeight: 20),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 42,
+                minHeight: 20,
+              ),
               suffixIcon: trailing,
             ),
           ),

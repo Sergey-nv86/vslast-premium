@@ -66,20 +66,17 @@ class _YandexWebMapState extends State<YandexWebMap> {
     _viewType = 'vslast-yandex-map-$id';
     _elementId = '$_viewType-element';
 
-    ui_web.platformViewRegistry.registerViewFactory(
-      _viewType,
-      (int viewId) {
-        final element = web.HTMLDivElement()
-          ..id = _elementId
-          ..style.width = '100%'
-          ..style.height = '100%'
-          ..style.minWidth = '0'
-          ..style.minHeight = '0'
-          ..style.display = 'block';
+    ui_web.platformViewRegistry.registerViewFactory(_viewType, (int viewId) {
+      final element = web.HTMLDivElement()
+        ..id = _elementId
+        ..style.width = '100%'
+        ..style.height = '100%'
+        ..style.minWidth = '0'
+        ..style.minHeight = '0'
+        ..style.display = 'block';
 
-        return element;
-      },
-    );
+      return element;
+    });
 
     _mapReadyListener = (web.Event event) {
       final customEvent = event as web.CustomEvent;
@@ -89,9 +86,7 @@ class _YandexWebMapState extends State<YandexWebMap> {
 
       final detailObject = detail.dartify();
 
-      if (detailObject is Map &&
-          detailObject['id'] == _elementId &&
-          mounted) {
+      if (detailObject is Map && detailObject['id'] == _elementId && mounted) {
         setState(() {
           _created = true;
           _creating = false;
@@ -126,15 +121,9 @@ class _YandexWebMapState extends State<YandexWebMap> {
       }
     }.toJS;
 
-    web.window.addEventListener(
-      'vslast-map-ready',
-      _mapReadyListener!,
-    );
+    web.window.addEventListener('vslast-map-ready', _mapReadyListener!);
 
-    web.window.addEventListener(
-      'vslast-map-moved',
-      _mapMovedListener!,
-    );
+    web.window.addEventListener('vslast-map-moved', _mapMovedListener!);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _waitForElementAndCreateMap();
@@ -156,9 +145,7 @@ class _YandexWebMapState extends State<YandexWebMap> {
         return;
       }
 
-      await Future<void>.delayed(
-        const Duration(milliseconds: 50),
-      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
     }
 
     _creating = false;
@@ -180,15 +167,11 @@ class _YandexWebMapState extends State<YandexWebMap> {
 
       if (element == null) {
         _creating = false;
-        debugPrint(
-          'Yandex Web Map: element not found: $_elementId',
-        );
+        debugPrint('Yandex Web Map: element not found: $_elementId');
         return;
       }
 
-      debugPrint(
-        'Создание Yandex Web Map: $_elementId',
-      );
+      debugPrint('Создание Yandex Web Map: $_elementId');
 
       await _createMap(
         _elementId.toJS,
@@ -206,13 +189,9 @@ class _YandexWebMapState extends State<YandexWebMap> {
     } catch (e, stackTrace) {
       _creating = false;
 
-      debugPrint(
-        'Ошибка создания Yandex Web Map: $e',
-      );
+      debugPrint('Ошибка создания Yandex Web Map: $e');
 
-      debugPrint(
-        stackTrace.toString(),
-      );
+      debugPrint(stackTrace.toString());
     }
   }
 
@@ -240,26 +219,18 @@ class _YandexWebMapState extends State<YandexWebMap> {
         widget.zoom.toJS,
       );
     } catch (e) {
-      debugPrint(
-        'Ошибка перемещения Yandex Web Map: $e',
-      );
+      debugPrint('Ошибка перемещения Yandex Web Map: $e');
     }
   }
 
   @override
   void dispose() {
     if (_mapMovedListener != null) {
-      web.window.removeEventListener(
-        'vslast-map-moved',
-        _mapMovedListener!,
-      );
+      web.window.removeEventListener('vslast-map-moved', _mapMovedListener!);
     }
 
     if (_mapReadyListener != null) {
-      web.window.removeEventListener(
-        'vslast-map-ready',
-        _mapReadyListener!,
-      );
+      web.window.removeEventListener('vslast-map-ready', _mapReadyListener!);
     }
 
     try {
@@ -273,8 +244,6 @@ class _YandexWebMapState extends State<YandexWebMap> {
 
   @override
   Widget build(BuildContext context) {
-    return HtmlElementView(
-      viewType: _viewType,
-    );
+    return HtmlElementView(viewType: _viewType);
   }
 }

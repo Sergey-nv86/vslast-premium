@@ -28,7 +28,8 @@ class PromotionProduct {
     this.specialPrice,
   });
 
-  PromotionProduct copyWith({int? quantity, int? specialPrice}) => PromotionProduct(
+  PromotionProduct copyWith({int? quantity, int? specialPrice}) =>
+      PromotionProduct(
         productId: productId,
         quantity: quantity ?? this.quantity,
         specialPrice: specialPrice ?? this.specialPrice,
@@ -84,22 +85,22 @@ class Promotion {
     DateTime? endDate,
     int? sortOrder,
   }) => Promotion(
-        id: id,
-        title: title ?? this.title,
-        description: description ?? this.description,
-        bannerAsset: bannerAsset ?? this.bannerAsset,
-        bannerBytes: bannerBytes ?? this.bannerBytes,
-        type: type ?? this.type,
-        discountPercent: discountPercent ?? this.discountPercent,
-        offerPrice: offerPrice ?? this.offerPrice,
-        products: products ?? this.products,
-        isAvailable: isAvailable ?? this.isAvailable,
-        startDate: startDate ?? this.startDate,
-        endDate: endDate ?? this.endDate,
-        sortOrder: sortOrder ?? this.sortOrder,
-        createdAt: createdAt,
-        updatedAt: DateTime.now(),
-      );
+    id: id,
+    title: title ?? this.title,
+    description: description ?? this.description,
+    bannerAsset: bannerAsset ?? this.bannerAsset,
+    bannerBytes: bannerBytes ?? this.bannerBytes,
+    type: type ?? this.type,
+    discountPercent: discountPercent ?? this.discountPercent,
+    offerPrice: offerPrice ?? this.offerPrice,
+    products: products ?? this.products,
+    isAvailable: isAvailable ?? this.isAvailable,
+    startDate: startDate ?? this.startDate,
+    endDate: endDate ?? this.endDate,
+    sortOrder: sortOrder ?? this.sortOrder,
+    createdAt: createdAt,
+    updatedAt: DateTime.now(),
+  );
 
   Product? resolveProduct(List<Product> catalog, String productId) {
     for (final product in catalog) {

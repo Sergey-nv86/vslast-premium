@@ -34,8 +34,11 @@ class ScreenBanner extends StatelessWidget {
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => Container(
                 color: AppColors.surfaceMuted,
-                child: const Icon(Icons.image_outlined,
-                    size: 32, color: AppColors.textSecondary),
+                child: const Icon(
+                  Icons.image_outlined,
+                  size: 32,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
             Positioned.fill(
@@ -45,8 +48,8 @@ class ScreenBanner extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0),
-                      Colors.black.withOpacity(0.45),
+                      Colors.black.withValues(alpha: 0),
+                      Colors.black.withValues(alpha: 0.45),
                     ],
                   ),
                 ),
@@ -72,7 +75,9 @@ class ScreenBanner extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: AppTextStyles.rowLabelMuted.copyWith(color: Colors.white70),
+                      style: AppTextStyles.rowLabelMuted.copyWith(
+                        color: Colors.white70,
+                      ),
                     ),
                   ],
                 ],

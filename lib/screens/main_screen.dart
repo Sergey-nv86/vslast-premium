@@ -37,7 +37,8 @@ class MainScreen extends StatelessWidget {
 
       bottomNavigationBar: PremiumBottomNavBar(
         currentIndex: currentIndex,
-        onTap: (index) => context.read<TabNavigationController>().setIndex(index),
+        onTap: (index) =>
+            context.read<TabNavigationController>().setIndex(index),
       ),
     );
   }

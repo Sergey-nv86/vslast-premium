@@ -6,14 +6,16 @@ import '../theme/app_theme.dart';
 import '../widgets/order_item_tile.dart';
 import 'checkout_screen.dart';
 
-/// Экран «Корзина». Список товаров — это прямое отражение [CartProvider]:
-/// степпер количества и удаление здесь меняют ту же самую корзину, которую
-/// видит и «Каталог», и «Оформление заказа» — отдельного состояния у этого
-/// экрана нет.
+/// Корзина.
 ///
-/// Комментарий к заказу убран — этот шаг теперь только на «Оформлении
-/// заказа», чтобы не дублировать одно и то же на двух экранах подряд.
-/// Промокод, наоборот, остаётся здесь и работает (шторка ввода кода).
+/// В одной корзине могут находиться одновременно:
+/// - товары в наличии;
+/// - товары с признаком предзаказа.
+///
+/// Если есть хотя бы один preorder-товар, вся корзина оформляется
+/// одним предзаказом на общую дату и время.
+///
+/// Дата/время не принадлежат конкретному товару.
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
 
@@ -25,13 +27,29 @@ class _CartScreenState extends State<CartScreen> {
   String? _promoCode;
 
   void _openCheckout(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
-    );
+    final cart = context.read<CartProvider>();
+
+    if (cart.isPreorder) {
+      if (cart.preorderDate == null ||
+          cart.preorderTime == null ||
+          cart.preorderTime!.isEmpty) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(content: Text('Выберите дату и время предзаказа.')),
+          );
+        return;
+      }
+    }
+
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CheckoutScreen()));
   }
 
   Future<void> _editPromoCode() async {
     final controller = TextEditingController(text: _promoCode);
+
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -87,11 +105,13 @@ class _CartScreenState extends State<CartScreen> {
         ),
       ),
     );
+
+    controller.dispose();
+
     if (result != null) {
-      // TODO: подключить реальную проверку промокода на бэкенде
-      // (сейчас код просто сохраняется и показывается как применённый,
-      // без пересчёта суммы).
-      setState(() => _promoCode = result.isEmpty ? null : result);
+      setState(() {
+        _promoCode = result.isEmpty ? null : result;
+      });
     }
   }
 
@@ -123,10 +143,13 @@ class _CartScreenState extends State<CartScreen> {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.divider, width: 1),
+                                border: Border.all(color: AppColors.divider),
                               ),
-                              child: const Icon(Icons.chevron_left,
-                                  size: 24, color: AppColors.primaryBrown),
+                              child: const Icon(
+                                Icons.chevron_left,
+                                size: 24,
+                                color: AppColors.primaryBrown,
+                              ),
                             ),
                           ),
                           Expanded(
@@ -134,7 +157,10 @@ class _CartScreenState extends State<CartScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('Корзина', style: AppTextStyles.screenTitle),
+                                Text(
+                                  'Корзина',
+                                  style: AppTextStyles.screenTitle,
+                                ),
                                 Text(
                                   '${cart.totalCount} ${pluralizeItems(cart.totalCount)}',
                                   style: AppTextStyles.rowLabelMuted,
@@ -149,38 +175,45 @@ class _CartScreenState extends State<CartScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final entry = entries[index];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 14),
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: OrderItemTile(
-                              product: entry.key,
-                              quantity: entry.value,
-                            ),
-                          );
-                        },
-                        childCount: entries.length,
-                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final entry = entries[index];
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: OrderItemTile(
+                            product: entry.key,
+                            quantity: entry.value,
+                          ),
+                        );
+                      }, childCount: entries.length),
                     ),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
                     sliver: SliverToBoxAdapter(
-                      child: _PromoCodeRow(code: _promoCode, onTap: _editPromoCode),
+                      child: _PromoCodeRow(
+                        code: _promoCode,
+                        onTap: _editPromoCode,
+                      ),
                     ),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
                     sliver: SliverToBoxAdapter(
-                      child: _CartSummary(itemsTotal: cart.totalSum),
+                      child: _CartSummary(
+                        itemsTotal: cart.totalSum,
+                        isPreorder: cart.isPreorder,
+                      ),
                     ),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
                     sliver: SliverToBoxAdapter(
@@ -196,8 +229,12 @@ class _CartScreenState extends State<CartScreen> {
                               borderRadius: BorderRadius.circular(26),
                             ),
                             alignment: Alignment.center,
-                            child: Text('Оформить заказ',
-                                style: AppTextStyles.cartBarButton),
+                            child: Text(
+                              cart.isPreorder
+                                  ? 'Оформить предзаказ'
+                                  : 'Оформить заказ',
+                              style: AppTextStyles.cartBarButton,
+                            ),
                           ),
                         ),
                       ),
@@ -206,8 +243,6 @@ class _CartScreenState extends State<CartScreen> {
                 ],
               ),
       ),
-      // Нижняя панель навигации намеренно не реализуется здесь —
-      // используется текущая панель проекта.
     );
   }
 }
@@ -221,6 +256,7 @@ class _PromoCodeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasCode = code != null && code!.isNotEmpty;
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -235,7 +271,9 @@ class _PromoCodeRow extends StatelessWidget {
             Icon(
               hasCode ? Icons.check_circle : Icons.confirmation_number_outlined,
               size: 20,
-              color: hasCode ? AppColors.statusSuccessText : AppColors.primaryBrown,
+              color: hasCode
+                  ? AppColors.statusSuccessText
+                  : AppColors.primaryBrown,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -247,8 +285,12 @@ class _PromoCodeRow extends StatelessWidget {
               ),
             ),
             if (!hasCode)
-              Text('Применить',
-                  style: AppTextStyles.rowLabel.copyWith(color: AppColors.linkAccent)),
+              Text(
+                'Применить',
+                style: AppTextStyles.rowLabel.copyWith(
+                  color: AppColors.linkAccent,
+                ),
+              ),
             const Icon(Icons.chevron_right, color: AppColors.textSecondary),
           ],
         ),
@@ -257,13 +299,11 @@ class _PromoCodeRow extends StatelessWidget {
   }
 }
 
-/// Упрощённая сводка суммы для «Корзины»: способ получения ещё не выбран
-/// (это делается на «Оформлении заказа»), поэтому строка доставки — просто
-/// заглушка «Самовывоз: Бесплатно», как в утверждённом макете.
 class _CartSummary extends StatelessWidget {
   final int itemsTotal;
+  final bool isPreorder;
 
-  const _CartSummary({required this.itemsTotal});
+  const _CartSummary({required this.itemsTotal, required this.isPreorder});
 
   @override
   Widget build(BuildContext context) {
@@ -272,7 +312,7 @@ class _CartSummary extends StatelessWidget {
       children: [
         _row('Сумма товаров', formatPrice(itemsTotal)),
         const SizedBox(height: 8),
-        _row('Самовывоз', 'Бесплатно'),
+        _row(isPreorder ? 'Самовывоз' : 'Самовывоз', 'Бесплатно'),
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 12),
           child: Divider(height: 1, color: AppColors.divider),
@@ -288,13 +328,15 @@ class _CartSummary extends StatelessWidget {
     );
   }
 
-  Widget _row(String label, String value) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: AppTextStyles.rowLabelMuted),
-          Text(value, style: AppTextStyles.rowValue),
-        ],
-      );
+  Widget _row(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: AppTextStyles.rowLabelMuted),
+        Text(value, style: AppTextStyles.rowValue),
+      ],
+    );
+  }
 }
 
 class _EmptyCartState extends StatelessWidget {
@@ -318,23 +360,32 @@ class _EmptyCartState extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.divider, width: 1),
+                    border: Border.all(color: AppColors.divider),
                   ),
-                  child: const Icon(Icons.chevron_left,
-                      size: 24, color: AppColors.primaryBrown),
+                  child: const Icon(
+                    Icons.chevron_left,
+                    size: 24,
+                    color: AppColors.primaryBrown,
+                  ),
                 ),
               ),
-              Expanded(child: Text('Корзина', style: AppTextStyles.screenTitle)),
+              Expanded(
+                child: Text('Корзина', style: AppTextStyles.screenTitle),
+              ),
             ],
           ),
           const Spacer(),
-          Icon(Icons.shopping_bag_outlined,
-              size: 40, color: AppColors.textSecondary.withOpacity(0.6)),
+          Icon(
+            Icons.shopping_bag_outlined,
+            size: 40,
+            color: AppColors.textSecondary.withValues(alpha: 0.6),
+          ),
           const SizedBox(height: 12),
           Text('Корзина пуста', style: AppTextStyles.sectionLabel),
           const SizedBox(height: 6),
           Text(
-            'Добавьте товары из каталога, чтобы оформить заказ',
+            'Добавьте товары из каталога, '
+            'чтобы оформить заказ',
             textAlign: TextAlign.center,
             style: AppTextStyles.rowLabelMuted,
           ),

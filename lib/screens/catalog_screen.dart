@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/mock_products.dart';
+import '../services/product_service.dart';
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
 import '../providers/tab_navigation_controller.dart';
@@ -50,11 +50,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   ProductCategory? _activeCategory;
 
+  List<Product> _products = [];
+
   List<ProductCategory> get _shownCategories {
     final query = _searchController.text.trim().toLowerCase();
 
     return ProductCategory.values.where((category) {
-      return mockProducts.any((product) {
+      return _products.any((product) {
         if (product.category != category) return false;
         if (query.isEmpty) return true;
         return product.name.toLowerCase().contains(query);
@@ -65,7 +67,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   List<Product> _productsFor(ProductCategory category) {
     final query = _searchController.text.trim().toLowerCase();
 
-    return mockProducts.where((product) {
+    return _products.where((product) {
       if (product.category != category) return false;
       if (query.isEmpty) return true;
       return product.name.toLowerCase().contains(query);
@@ -119,9 +121,33 @@ class _CatalogScreenState extends State<CatalogScreen> {
     _scrollController.addListener(_updateActiveCategory);
     _searchController.addListener(_onSearchChanged);
 
+    _loadProducts();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _updateActiveCategory();
     });
+  }
+
+  Future<void> _loadProducts() async {
+    try {
+      final products = await ProductService.instance.getProducts();
+
+      if (!mounted) return;
+
+      setState(() {
+        _products = products;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _updateActiveCategory();
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {});
+    }
   }
 
   @override

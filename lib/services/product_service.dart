@@ -1,7 +1,28 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/product.dart';
 
+import 'dart:developer' as developer;
+
+/// Единая точка работы с товарами.
+///
+/// UI административной панели не обращается к Supabase напрямую.
+/// Все операции с товарами выполняются через этот сервис.
+///
+/// Архитектура:
+///
+/// Admin UI
+///   ↓
+/// ProductService
+///   ↓
+/// Supabase
+///   ↓
+/// products
+///
+/// В дальнейшем сюда можно добавить синхронизацию с 1С, кассой,
+/// складом, внешними SKU и другими системами.
 class ProductService {
   ProductService._();
 
@@ -9,14 +30,21 @@ class ProductService {
 
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // ---------------------------------------------------------------------------
+  // SELECT
+  // ---------------------------------------------------------------------------
+
+  /// Загружает активные товары из Supabase.
   Future<List<Product>> getProducts() async {
     final rows = await _supabase
         .from('products')
         .select('''
           id,
+          external_id,
           name,
           price,
           image_url,
+          gallery_images,
           badge,
           in_stock,
           is_weighed,
@@ -29,6 +57,9 @@ class ProductService {
           composition,
           rating,
           reviews_count,
+          is_active,
+          created_at,
+          updated_at,
           category_id,
           categories (
             name,
@@ -38,24 +69,572 @@ class ProductService {
         .eq('is_active', true)
         .order('created_at');
 
+    developer.log('DEBUG getProducts COUNT: ${rows.length}');
+    for (final row in rows) {
+      developer.log(
+        'DEBUG PRODUCT: '
+        'id=${row['id']} '
+        'name=${row['name']} '
+        'rating=${row['rating']} '
+        'reviews_count=${row['reviews_count']}',
+      );
+    }
+
     return (rows as List)
         .map((row) => _fromSupabase(Map<String, dynamic>.from(row)))
         .toList();
   }
 
+  /// Загружает один товар по ID.
+  Future<Product?> getProduct(String id) async {
+    final rows = await _supabase
+        .from('products')
+        .select('''
+          id,
+          external_id,
+          name,
+          price,
+          image_url,
+          gallery_images,
+          badge,
+          in_stock,
+          is_weighed,
+          weight_label,
+          description,
+          calories_per_100g,
+          protein_per_100g,
+          fat_per_100g,
+          carbs_per_100g,
+          composition,
+          rating,
+          reviews_count,
+          is_active,
+          created_at,
+          updated_at,
+          category_id,
+          categories (
+            name,
+            slug
+          )
+        ''')
+        .eq('id', id)
+        .limit(1);
+
+    if (rows.isEmpty) {
+      return null;
+    }
+
+    return _fromSupabase(Map<String, dynamic>.from(rows.first));
+  }
+
+  // ---------------------------------------------------------------------------
+  // INSERT
+  // ---------------------------------------------------------------------------
+
+  /// Создаёт новый товар в Supabase.
+  ///
+  /// ID намеренно НЕ передаётся в INSERT.
+  /// PostgreSQL сам создаёт UUID через gen_random_uuid().
+  ///
+  /// Возвращается уже сохранённый товар из БД.
+  Future<Product> createProduct(Product product) async {
+    developer.log(
+      'DEBUG createProduct: user = ${_supabase.auth.currentUser?.id}',
+    );
+    developer.log(
+      'DEBUG createProduct: session = ${_supabase.auth.currentSession != null}',
+    );
+
+    final categoryId = await _getCategoryId(product.category);
+
+    final payload = <String, dynamic>{
+      'name': product.name,
+      'category_id': categoryId,
+      'price': product.price,
+      'image_url': product.imageUrl.isEmpty ? null : product.imageUrl,
+      'gallery_images': product.galleryImages,
+      'badge': _badgeToDatabase(product.badge),
+      'in_stock': product.inStock,
+      'is_weighed': product.isWeighed,
+      'weight_label': product.weightLabel,
+      'description': product.description,
+      'calories_per_100g': product.caloriesPer100g,
+      'protein_per_100g': product.proteinPer100g,
+      'fat_per_100g': product.fatPer100g,
+      'carbs_per_100g': product.carbsPer100g,
+      'composition': product.composition,
+      'rating': product.rating,
+      'reviews_count': product.reviewsCount,
+      'is_active': true,
+    };
+
+    try {
+      final row = await _supabase.from('products').insert(payload).select('''
+            id,
+            external_id,
+            name,
+            price,
+            image_url,
+            gallery_images,
+            badge,
+            in_stock,
+            is_weighed,
+            weight_label,
+            description,
+            calories_per_100g,
+            protein_per_100g,
+            fat_per_100g,
+            carbs_per_100g,
+            composition,
+            rating,
+            reviews_count,
+            is_active,
+            created_at,
+            updated_at,
+            category_id,
+            categories (
+              name,
+              slug
+            )
+          ''').single();
+
+      return _fromSupabase(Map<String, dynamic>.from(row));
+    } on PostgrestException catch (error) {
+      developer.log('DEBUG createProduct ERROR: message=${error.message}');
+      developer.log('DEBUG createProduct ERROR: code=${error.code}');
+      developer.log('DEBUG createProduct ERROR: details=${error.details}');
+      developer.log('DEBUG createProduct ERROR: hint=${error.hint}');
+
+      throw ProductServiceException(
+        'Не удалось создать товар: ${error.message}',
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // UPDATE
+  // ---------------------------------------------------------------------------
+
+  /// Обновляет существующий товар.
+  ///
+  /// ID передаётся в WHERE, остальные поля обновляются в products.
+  Future<Product> updateProduct(Product product) async {
+    final categoryId = await _getCategoryId(product.category);
+
+    final payload = <String, dynamic>{
+      'name': product.name,
+      'category_id': categoryId,
+      'price': product.price,
+      'image_url': product.imageUrl.isEmpty ? null : product.imageUrl,
+      'gallery_images': product.galleryImages,
+      'badge': _badgeToDatabase(product.badge),
+      'in_stock': product.inStock,
+      'is_weighed': product.isWeighed,
+      'weight_label': product.weightLabel,
+      'description': product.description,
+      'calories_per_100g': product.caloriesPer100g,
+      'protein_per_100g': product.proteinPer100g,
+      'fat_per_100g': product.fatPer100g,
+      'carbs_per_100g': product.carbsPer100g,
+      'composition': product.composition,
+      'rating': product.rating,
+      'reviews_count': product.reviewsCount,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
+    try {
+      final row = await _supabase
+          .from('products')
+          .update(payload)
+          .eq('id', product.id)
+          .select('''
+            id,
+            external_id,
+            name,
+            price,
+            image_url,
+            gallery_images,
+            badge,
+            in_stock,
+            is_weighed,
+            weight_label,
+            description,
+            calories_per_100g,
+            protein_per_100g,
+            fat_per_100g,
+            carbs_per_100g,
+            composition,
+            rating,
+            reviews_count,
+            is_active,
+            created_at,
+            updated_at,
+            category_id,
+            categories (
+              name,
+              slug
+            )
+          ''')
+          .single();
+
+      return _fromSupabase(Map<String, dynamic>.from(row));
+    } on PostgrestException catch (error) {
+      throw ProductServiceException(
+        'Не удалось обновить товар: ${error.message}',
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // GALLERY
+  // ---------------------------------------------------------------------------
+
+  /// Загружает несколько фотографий товара в Supabase Storage.
+  ///
+  /// Файлы сохраняются в:
+  ///
+  /// `products/<productId>/gallery/<timestamp>_<index>.<extension>`
+  ///
+  /// Возвращает публичные URL загруженных изображений.
+  Future<List<String>> uploadProductGalleryImages({
+    required String productId,
+    required List<Uint8List> images,
+    required List<String> extensions,
+  }) async {
+    if (images.isEmpty) {
+      return [];
+    }
+
+    if (images.length != extensions.length) {
+      throw ArgumentError(
+        'Количество изображений должно совпадать с количеством расширений',
+      );
+    }
+
+    final urls = <String>[];
+
+    for (var i = 0; i < images.length; i++) {
+      final normalizedExtension = extensions[i]
+          .replaceFirst('.', '')
+          .toLowerCase();
+
+      final safeExtension = normalizedExtension.isEmpty
+          ? 'jpg'
+          : normalizedExtension;
+
+      final path =
+          'products/$productId/gallery/${DateTime.now().microsecondsSinceEpoch}_$i.$safeExtension';
+
+      final contentType = _contentTypeForExtension(safeExtension);
+
+      try {
+        developer.log('GALLERY UPLOAD START');
+        developer.log('bucket: product-images');
+        developer.log('path: $path');
+        developer.log('bytes: ${images[i].length}');
+        developer.log('contentType: $contentType');
+
+        await _supabase.storage
+            .from('product-images')
+            .uploadBinary(
+              path,
+              images[i],
+              fileOptions: FileOptions(contentType: contentType, upsert: true),
+            );
+
+        developer.log('GALLERY UPLOAD SUCCESS: $path');
+
+        final publicUrl = _supabase.storage
+            .from('product-images')
+            .getPublicUrl(path);
+
+        urls.add(publicUrl);
+      } catch (error) {
+        developer.log('GALLERY UPLOAD ERROR: $error');
+        rethrow;
+      }
+    }
+
+    return urls;
+  }
+
+  /// Сохраняет галерею товара в products.gallery_images.
+  Future<void> updateProductGallery({
+    required String productId,
+    required List<String> galleryImages,
+  }) async {
+    final cleanGallery = galleryImages
+        .where((url) => url.trim().isNotEmpty)
+        .toList();
+
+    try {
+      await _supabase
+          .from('products')
+          .update({
+            'gallery_images': cleanGallery.isEmpty ? null : cleanGallery,
+            'image_url': cleanGallery.isEmpty ? null : cleanGallery.first,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', productId);
+    } on PostgrestException catch (error) {
+      throw ProductServiceException(
+        'Не удалось сохранить галерею товара: ${error.message}',
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // DELETE / DEACTIVATE
+  // ---------------------------------------------------------------------------
+
+  /// Деактивирует товар.
+  ///
+  /// Физически запись не удаляется.
+  /// is_active становится false.
+  Future<void> deactivateProduct(String productId) async {
+    try {
+      await _supabase
+          .from('products')
+          .update({
+            'is_active': false,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', productId);
+    } on PostgrestException catch (error) {
+      throw ProductServiceException(
+        'Не удалось скрыть товар: ${error.message}',
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      );
+    }
+  }
+
+  /// Полностью удаляет товар из таблицы products.
+  ///
+  /// Используется административной панелью.
+  /// Перед удалением проверяем, что товар существует,
+  /// затем выполняем DELETE и проверяем результат.
+  Future<void> deleteProduct(String productId) async {
+    try {
+      developer.log('DEBUG deleteProduct START: id=$productId');
+
+      // 1. Проверяем, что товар существует.
+      final existing = await _supabase
+          .from('products')
+          .select('id, name, is_active')
+          .eq('id', productId)
+          .maybeSingle();
+
+      developer.log('DEBUG deleteProduct EXISTING: $existing');
+
+      if (existing == null) {
+        throw ProductServiceException('Товар с ID $productId не найден.');
+      }
+
+      // 2. Физически удаляем товар.
+      final deletedRows = await _supabase
+          .from('products')
+          .delete()
+          .eq('id', productId)
+          .select('id');
+
+      developer.log('DEBUG deleteProduct RESULT: $deletedRows');
+
+      // 3. Проверяем, что DELETE действительно удалил строку.
+      if (deletedRows.isEmpty) {
+        throw ProductServiceException(
+          'Supabase не удалил товар. '
+          'Проверьте RLS policy DELETE для таблицы products.',
+        );
+      }
+
+      developer.log('DEBUG deleteProduct SUCCESS: id=$productId');
+    } on PostgrestException catch (error) {
+      developer.log('DEBUG deleteProduct ERROR: message=${error.message}');
+      developer.log('DEBUG deleteProduct ERROR: code=${error.code}');
+      developer.log('DEBUG deleteProduct ERROR: details=${error.details}');
+      developer.log('DEBUG deleteProduct ERROR: hint=${error.hint}');
+
+      throw ProductServiceException(
+        'Не удалось удалить товар: ${error.message}',
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      );
+    }
+  }
+
+  /// Активирует товар.
+  Future<void> activateProduct(String productId) async {
+    try {
+      await _supabase
+          .from('products')
+          .update({
+            'is_active': true,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', productId);
+    } on PostgrestException catch (error) {
+      throw ProductServiceException(
+        'Не удалось показать товар: ${error.message}',
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // IMAGE
+  // ---------------------------------------------------------------------------
+
+  /// Загружает главное изображение товара в Supabase Storage.
+  Future<String> uploadProductImage({
+    required String productId,
+    required Uint8List bytes,
+    required String extension,
+  }) async {
+    final normalizedExtension = extension.replaceFirst('.', '').toLowerCase();
+
+    final safeExtension = normalizedExtension.isEmpty
+        ? 'jpg'
+        : normalizedExtension;
+
+    final path = 'products/$productId/main.$safeExtension';
+
+    final contentType = _contentTypeForExtension(safeExtension);
+
+    await _supabase.storage
+        .from('product-images')
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: contentType, upsert: true),
+        );
+
+    return _supabase.storage.from('product-images').getPublicUrl(path);
+  }
+
+  /// Удаляет изображение товара из Storage.
+  Future<void> deleteProductImage({
+    required String productId,
+    required String extension,
+  }) async {
+    final normalizedExtension = extension.replaceFirst('.', '').toLowerCase();
+
+    final path = 'products/$productId/main.$normalizedExtension';
+
+    await _supabase.storage.from('product-images').remove([path]);
+  }
+
+  /// Обновляет URL изображения существующего товара.
+  Future<void> updateProductImageUrl({
+    required String productId,
+    required String imageUrl,
+  }) async {
+    try {
+      await _supabase
+          .from('products')
+          .update({
+            'image_url': imageUrl,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', productId);
+    } on PostgrestException catch (error) {
+      throw ProductServiceException(
+        'Не удалось сохранить изображение: ${error.message}',
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // CATEGORY
+  // ---------------------------------------------------------------------------
+
+  /// Возвращает UUID категории из таблицы categories.
+  Future<String> _getCategoryId(ProductCategory category) async {
+    final slug = _categoryToSlug(category);
+
+    final rows = await _supabase
+        .from('categories')
+        .select('id, slug')
+        .eq('slug', slug)
+        .limit(1);
+
+    if (rows.isEmpty) {
+      throw ProductServiceException(
+        'Категория "$slug" не найдена в таблице categories.',
+      );
+    }
+
+    return rows.first['id'].toString();
+  }
+
+  String _categoryToSlug(ProductCategory category) {
+    switch (category) {
+      case ProductCategory.bread:
+        return 'bread';
+
+      case ProductCategory.pastry:
+        return 'pastry';
+
+      case ProductCategory.cakes:
+        return 'cakes';
+
+      case ProductCategory.desserts:
+        return 'desserts';
+    }
+  }
+
+  ProductCategory _parseCategory(String? slug) {
+    switch (slug?.trim().toLowerCase()) {
+      case 'bread':
+        return ProductCategory.bread;
+
+      case 'pastry':
+        return ProductCategory.pastry;
+
+      case 'cakes':
+        return ProductCategory.cakes;
+
+      case 'desserts':
+        return ProductCategory.desserts;
+
+      default:
+        return ProductCategory.bread;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // MAPPING
+  // ---------------------------------------------------------------------------
+
   Product _fromSupabase(Map<String, dynamic> row) {
     final categoryData = row['categories'];
 
-    final Map<String, dynamic> category =
-        categoryData is Map
-            ? Map<String, dynamic>.from(categoryData)
-            : <String, dynamic>{};
+    final Map<String, dynamic> category = categoryData is Map
+        ? Map<String, dynamic>.from(categoryData)
+        : <String, dynamic>{};
 
     return Product(
       id: row['id'].toString(),
       name: row['name']?.toString() ?? '',
       price: _toInt(row['price']),
       imageUrl: row['image_url']?.toString() ?? '',
+      galleryImages: _toStringList(row['gallery_images']),
       category: _parseCategory(category['slug']?.toString()),
       badge: _parseBadge(row['badge']?.toString()),
       inStock: row['in_stock'] == true,
@@ -72,18 +651,19 @@ class ProductService {
     );
   }
 
-  ProductCategory _parseCategory(String? slug) {
-    switch (slug) {
-      case 'bread':
-        return ProductCategory.bread;
-      case 'pastry':
-        return ProductCategory.pastry;
-      case 'cakes':
-        return ProductCategory.cakes;
-      case 'desserts':
-        return ProductCategory.desserts;
-      default:
-        return ProductCategory.bread;
+  String? _badgeToDatabase(ProductBadge? badge) {
+    switch (badge) {
+      case ProductBadge.hit:
+        return 'hit';
+
+      case ProductBadge.newItem:
+        return 'new';
+
+      case ProductBadge.promo:
+        return 'promo';
+
+      case null:
+        return null;
     }
   }
 
@@ -91,30 +671,167 @@ class ProductService {
     switch (value?.trim().toLowerCase()) {
       case 'hit':
         return ProductBadge.hit;
+
       case 'new':
       case 'new_item':
       case 'newitem':
         return ProductBadge.newItem;
+
       case 'promo':
       case 'promotion':
         return ProductBadge.promo;
+
       default:
         return null;
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // SYNC
+  // ---------------------------------------------------------------------------
+
+  /// Формирует payload для будущей синхронизации
+  /// с 1С или кассовой системой.
+  Future<Map<String, dynamic>> buildSyncPayload(Product product) async {
+    return {
+      'id': product.id,
+      'name': product.name,
+      'price': product.price,
+      'image_url': product.imageUrl,
+      'gallery_images': product.galleryImages,
+      'in_stock': product.inStock,
+      'is_weighed': product.isWeighed,
+      'weight_label': product.weightLabel,
+      'description': product.description,
+      'calories_per_100g': product.caloriesPer100g,
+      'protein_per_100g': product.proteinPer100g,
+      'fat_per_100g': product.fatPer100g,
+      'carbs_per_100g': product.carbsPer100g,
+      'composition': product.composition,
+      'rating': product.rating,
+      'reviews_count': product.reviewsCount,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELPERS
+  // ---------------------------------------------------------------------------
+
+  /// Преобразует PostgreSQL text[] / Supabase List
+  /// в безопасный `List<String>`.
+  List<String>? _toStringList(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is List) {
+      final result = value
+          .map((item) => item?.toString() ?? '')
+          .where((item) => item.trim().isNotEmpty)
+          .toList();
+
+      return result.isEmpty ? null : result;
+    }
+
+    return null;
+  }
+
   int _toInt(dynamic value) {
-    if (value is int) return value;
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   int? _toNullableInt(dynamic value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
+
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
     return int.tryParse(value.toString());
   }
 
   double? _toNullableDouble(dynamic value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
+
+    if (value is double) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toDouble();
+    }
+
     return double.tryParse(value.toString());
+  }
+
+  String _contentTypeForExtension(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+
+      case 'png':
+        return 'image/png';
+
+      case 'webp':
+        return 'image/webp';
+
+      case 'gif':
+        return 'image/gif';
+
+      case 'heic':
+        return 'image/heic';
+
+      case 'heif':
+        return 'image/heif';
+
+      default:
+        return 'application/octet-stream';
+    }
+  }
+}
+
+/// Ошибка ProductService.
+class ProductServiceException implements Exception {
+  final String message;
+  final String? code;
+  final dynamic details;
+  final String? hint;
+
+  ProductServiceException(this.message, {this.code, this.details, this.hint});
+
+  @override
+  String toString() {
+    final buffer = StringBuffer(message);
+
+    if (code != null) {
+      buffer.write('\nCode: $code');
+    }
+
+    if (details != null) {
+      buffer.write('\nDetails: $details');
+    }
+
+    if (hint != null) {
+      buffer.write('\nHint: $hint');
+    }
+
+    return buffer.toString();
   }
 }

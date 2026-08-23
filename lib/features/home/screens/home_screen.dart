@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../../../data/mock_products.dart';
 import '../../../models/product.dart';
+import '../../../services/product_service.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../screens/cart_screen.dart';
 import '../../../screens/product_detail_screen.dart';
@@ -59,15 +59,52 @@ class _HomeScreenState extends State<HomeScreen> {
   };
 
   HomeFilterState _filter = const HomeFilterState();
+
+  List<Product> _products = [];
+
   ProductCategory? _activeCategory;
+
+  Future<void> _loadProducts() async {
+    try {
+      final products = await ProductService.instance.getProducts();
+
+      if (!mounted) return;
+
+      setState(() {
+        _products = products;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _updateActiveCategory();
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {});
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+
     _scrollController.addListener(_updateActiveCategory);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _updateActiveCategory(),
-    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadProducts();
+    });
+  }
+
+  List<Product> get _popularProducts {
+    return _products
+        .where(
+          (product) => product.inStock && product.badge == ProductBadge.hit,
+        )
+        .take(5)
+        .toList();
   }
 
   @override
@@ -78,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Product> get _visibleProducts =>
-      mockProducts.where((p) => p.inStock && _filter.matches(p)).toList();
+      _products.where((p) => p.inStock && _filter.matches(p)).toList();
 
   List<ProductCategory> get _categoriesShown {
     final present = _visibleProducts.map((p) => p.category).toSet();
@@ -277,12 +314,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     // PopularSection специально НЕ pinned.
                     // Он уезжает вверх при прокрутке.
-                    const SliverToBoxAdapter(
+                    SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(
+                        padding: const EdgeInsets.symmetric(
                           horizontal: _horizontalPadding,
                         ),
-                        child: PopularSection(),
+                        child: PopularSection(products: _popularProducts),
                       ),
                     ),
 

@@ -16,14 +16,10 @@ import '../web/yandex_map_web_stub.dart'
 class DeliveryAddressScreen extends StatefulWidget {
   final String? initialAddress;
 
-  const DeliveryAddressScreen({
-    super.key,
-    this.initialAddress,
-  });
+  const DeliveryAddressScreen({super.key, this.initialAddress});
 
   @override
-  State<DeliveryAddressScreen> createState() =>
-      _DeliveryAddressScreenState();
+  State<DeliveryAddressScreen> createState() => _DeliveryAddressScreenState();
 }
 
 class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
@@ -32,15 +28,13 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
 
   YandexMapController? _mapController;
 
-  late final TextEditingController _addressController =
-      TextEditingController(text: widget.initialAddress);
+  late final TextEditingController _addressController = TextEditingController(
+    text: widget.initialAddress,
+  );
 
-  final TextEditingController _apartmentController =
-      TextEditingController();
-  final TextEditingController _floorController =
-      TextEditingController();
-  final TextEditingController _commentController =
-      TextEditingController();
+  final TextEditingController _apartmentController = TextEditingController();
+  final TextEditingController _floorController = TextEditingController();
+  final TextEditingController _commentController = TextEditingController();
 
   Point? _selectedPoint;
 
@@ -67,17 +61,11 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
     _mapController = controller;
 
     final city = context.read<LocationProvider>().cityCenter;
-    final point = Point(
-      latitude: city.$1,
-      longitude: city.$2,
-    );
+    final point = Point(latitude: city.$1, longitude: city.$2);
 
     await controller.moveCamera(
       CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: point,
-          zoom: _currentZoom,
-        ),
+        CameraPosition(target: point, zoom: _currentZoom),
       ),
     );
 
@@ -88,10 +76,7 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
     });
   }
 
-  void _onNativeCameraChanged(
-    CameraPosition position,
-    bool finished,
-  ) {
+  void _onNativeCameraChanged(CameraPosition position, bool finished) {
     _currentZoom = position.zoom;
 
     if (!finished) return;
@@ -117,10 +102,7 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
 
     _currentZoom = zoom ?? _currentZoom;
 
-    final point = Point(
-      latitude: latitude,
-      longitude: longitude,
-    );
+    final point = Point(latitude: latitude, longitude: longitude);
 
     setState(() {
       _selectedPoint = point;
@@ -182,15 +164,11 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
 
     if (target == null || _mapController == null) return;
 
-    final newZoom =
-        (_currentZoom + delta).clamp(_minZoom, _maxZoom);
+    final newZoom = (_currentZoom + delta).clamp(_minZoom, _maxZoom);
 
     await _mapController!.moveCamera(
       CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: target,
-          zoom: newZoom,
-        ),
+        CameraPosition(target: target, zoom: newZoom),
       ),
       animation: const MapAnimation(
         type: MapAnimationType.smooth,
@@ -229,8 +207,7 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
         return;
       }
 
-      final serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
         if (mounted) {
@@ -243,12 +220,9 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
         return;
       }
 
-      final position =
-          await Geolocator.getCurrentPosition(
+      final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-      ).timeout(
-        const Duration(seconds: 8),
-      );
+      ).timeout(const Duration(seconds: 8));
 
       final point = Point(
         latitude: position.latitude,
@@ -264,10 +238,7 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
       } else {
         await _mapController?.moveCamera(
           CameraUpdate.newCameraPosition(
-            CameraPosition(
-              target: point,
-              zoom: 16,
-            ),
+            CameraPosition(target: point, zoom: 16),
           ),
           animation: const MapAnimation(
             type: MapAnimationType.smooth,
@@ -275,13 +246,7 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
           ),
         );
 
-        _onNativeCameraChanged(
-          CameraPosition(
-            target: point,
-            zoom: 16,
-          ),
-          true,
-        );
+        _onNativeCameraChanged(CameraPosition(target: point, zoom: 16), true);
       }
     } catch (_) {
       if (mounted) {
@@ -330,13 +295,10 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
       });
     }
 
-    final proceedWithoutFilling =
-        await showDialog<bool>(
+    final proceedWithoutFilling = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Квартира и этаж не указаны',
-        ),
+        title: const Text('Квартира и этаж не указаны'),
         content: const Text(
           'Если это частный дом или доставка без '
           'квартиры/этажа — можно продолжить без них. '
@@ -345,13 +307,11 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () =>
-                Navigator.of(ctx).pop(false),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Заполнить'),
           ),
           TextButton(
-            onPressed: () =>
-                Navigator.of(ctx).pop(true),
+            onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Продолжить без них'),
           ),
         ],
@@ -369,17 +329,11 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
     final floor = _floorController.text.trim();
     final comment = _commentController.text.trim();
 
-    final apartmentText =
-        apartment.isEmpty ? 'нет' : apartment;
+    final apartmentText = apartment.isEmpty ? 'нет' : apartment;
 
-    final floorText =
-        floor.isEmpty ? 'нет' : floor;
+    final floorText = floor.isEmpty ? 'нет' : floor;
 
-    final parts = <String>[
-      street,
-      'кв. $apartmentText',
-      'этаж $floorText',
-    ];
+    final parts = <String>[street, 'кв. $apartmentText', 'этаж $floorText'];
 
     var result = parts.join(', ');
 
@@ -392,8 +346,7 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final city =
-        context.watch<LocationProvider>().cityCenter;
+    final city = context.watch<LocationProvider>().cityCenter;
 
     final initialLatitude = city.$1;
     final initialLongitude = city.$2;
@@ -415,12 +368,8 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
             Positioned.fill(
               child: YandexMap(
                 onMapCreated: _onMapCreated,
-                onCameraPositionChanged:
-                    (position, reason, finished) {
-                  _onNativeCameraChanged(
-                    position,
-                    finished,
-                  );
+                onCameraPositionChanged: (position, reason, finished) {
+                  _onNativeCameraChanged(position, finished);
                 },
               ),
             ),
@@ -441,13 +390,11 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
 
           SafeArea(
             child: Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () =>
-                        Navigator.of(context).maybePop(),
+                    onTap: () => Navigator.of(context).maybePop(),
                     behavior: HitTestBehavior.opaque,
                     child: Container(
                       width: 44,
@@ -473,15 +420,13 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius:
-                            BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(18),
                         boxShadow: const [
                           BoxShadow(
                             color: AppColors.shadow,
@@ -492,8 +437,7 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                       ),
                       child: Text(
                         'Адрес доставки',
-                        style:
-                            AppTextStyles.screenTitleSmall,
+                        style: AppTextStyles.screenTitleSmall,
                       ),
                     ),
                   ),
@@ -508,21 +452,13 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
               bottom: 190,
               child: Column(
                 children: [
-                  _MapRoundButton(
-                    icon: Icons.add,
-                    onTap: () => _zoomBy(1),
-                  ),
+                  _MapRoundButton(icon: Icons.add, onTap: () => _zoomBy(1)),
                   const SizedBox(height: 8),
-                  _MapRoundButton(
-                    icon: Icons.remove,
-                    onTap: () => _zoomBy(-1),
-                  ),
+                  _MapRoundButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
                   const SizedBox(height: 16),
                   _MapRoundButton(
                     icon: Icons.my_location,
-                    onTap: _isLocating
-                        ? null
-                        : _useCurrentLocation,
+                    onTap: _isLocating ? null : _useCurrentLocation,
                     loading: _isLocating,
                   ),
                 ],
@@ -537,16 +473,11 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
               top: false,
               child: Container(
                 constraints: BoxConstraints(
-                  maxHeight:
-                      MediaQuery.of(context).size.height *
-                          0.42,
+                  maxHeight: MediaQuery.of(context).size.height * 0.42,
                 ),
                 decoration: const BoxDecoration(
                   color: Colors.white,
-                  borderRadius:
-                      BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.shadow,
@@ -556,35 +487,22 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                   ],
                 ),
                 child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.fromLTRB(
-                    20,
-                    14,
-                    20,
-                    16,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Text(
-                            'Улица, дом',
-                            style:
-                                AppTextStyles.fieldLabel,
-                          ),
+                          Text('Улица, дом', style: AppTextStyles.fieldLabel),
                           if (_isGeocoding) ...[
                             const SizedBox(width: 8),
                             const SizedBox(
                               width: 12,
                               height: 12,
-                              child:
-                                  CircularProgressIndicator(
+                              child: CircularProgressIndicator(
                                 strokeWidth: 1.6,
-                                color:
-                                    AppColors.textSecondary,
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ],
@@ -593,37 +511,26 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                       const SizedBox(height: 6),
                       Container(
                         decoration: BoxDecoration(
-                          color:
-                              AppColors.surfaceMuted,
-                          borderRadius:
-                              BorderRadius.circular(14),
+                          color: AppColors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         child: TextField(
-                          controller:
-                              _addressController,
-                          style:
-                              AppTextStyles.rowLabel,
-                          decoration:
-                              InputDecoration(
+                          controller: _addressController,
+                          style: AppTextStyles.rowLabel,
+                          decoration: InputDecoration(
                             hintText:
                                 'Определяется по карте — или введите вручную',
-                            hintStyle:
-                                AppTextStyles.searchHint,
-                            border:
-                                InputBorder.none,
+                            hintStyle: AppTextStyles.searchHint,
+                            border: InputBorder.none,
                             isDense: true,
-                            contentPadding:
-                                const EdgeInsets.symmetric(
+                            contentPadding: const EdgeInsets.symmetric(
                               vertical: 12,
                               horizontal: 12,
                             ),
-                            prefixIcon:
-                                const Icon(
-                              Icons
-                                  .location_on_outlined,
+                            prefixIcon: const Icon(
+                              Icons.location_on_outlined,
                               size: 18,
-                              color: AppColors
-                                  .textSecondary,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ),
@@ -632,36 +539,26 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                       GestureDetector(
                         onTap: () {
                           setState(() {
-                            _detailsExpanded =
-                                !_detailsExpanded;
+                            _detailsExpanded = !_detailsExpanded;
                           });
                         },
-                        behavior:
-                            HitTestBehavior.opaque,
+                        behavior: HitTestBehavior.opaque,
                         child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(
-                            vertical: 8,
-                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Row(
-                            mainAxisSize:
-                                MainAxisSize.min,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 _detailsExpanded
-                                    ? Icons
-                                        .keyboard_arrow_up
-                                    : Icons
-                                        .keyboard_arrow_down,
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
                                 size: 18,
-                                color:
-                                    AppColors.linkAccent,
+                                color: AppColors.linkAccent,
                               ),
                               const SizedBox(width: 2),
                               Text(
                                 'Квартира, этаж, комментарий курьеру',
-                                style:
-                                    AppTextStyles.linkText,
+                                style: AppTextStyles.linkText,
                               ),
                             ],
                           ),
@@ -670,17 +567,14 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                       if (_detailsExpanded) ...[
                         const SizedBox(height: 4),
                         Row(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               child: _SmallField(
                                 label: 'Квартира',
                                 hint: 'Например: 45',
-                                controller:
-                                    _apartmentController,
-                                keyboardType:
-                                    TextInputType.text,
+                                controller: _apartmentController,
+                                keyboardType: TextInputType.text,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -688,10 +582,8 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                               child: _SmallField(
                                 label: 'Этаж',
                                 hint: 'Например: 3',
-                                controller:
-                                    _floorController,
-                                keyboardType:
-                                    TextInputType.number,
+                                controller: _floorController,
+                                keyboardType: TextInputType.number,
                               ),
                             ),
                           ],
@@ -699,33 +591,23 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                         const SizedBox(height: 10),
                         Text(
                           'Комментарий курьеру',
-                          style:
-                              AppTextStyles.fieldLabel,
+                          style: AppTextStyles.fieldLabel,
                         ),
                         const SizedBox(height: 6),
                         Container(
                           decoration: BoxDecoration(
-                            color:
-                                AppColors.surfaceMuted,
-                            borderRadius:
-                                BorderRadius.circular(14),
+                            color: AppColors.surfaceMuted,
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: TextField(
-                            controller:
-                                _commentController,
+                            controller: _commentController,
                             maxLines: 2,
-                            style:
-                                AppTextStyles.rowLabel,
-                            decoration:
-                                InputDecoration(
-                              hintText:
-                                  'Например: домофон 45К',
-                              hintStyle:
-                                  AppTextStyles.searchHint,
-                              border:
-                                  InputBorder.none,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(
+                            style: AppTextStyles.rowLabel,
+                            decoration: InputDecoration(
+                              hintText: 'Например: домофон 45К',
+                              hintStyle: AppTextStyles.searchHint,
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
                                 vertical: 12,
                                 horizontal: 12,
                               ),
@@ -739,26 +621,17 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                         width: double.infinity,
                         child: GestureDetector(
                           onTap: _confirm,
-                          behavior:
-                              HitTestBehavior.opaque,
+                          behavior: HitTestBehavior.opaque,
                           child: Container(
-                            padding:
-                                const EdgeInsets.symmetric(
-                              vertical: 15,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryBrown,
+                              borderRadius: BorderRadius.circular(24),
                             ),
-                            decoration:
-                                BoxDecoration(
-                              color:
-                                  AppColors.primaryBrown,
-                              borderRadius:
-                                  BorderRadius.circular(24),
-                            ),
-                            alignment:
-                                Alignment.center,
+                            alignment: Alignment.center,
                             child: Text(
                               'Подтвердить адрес',
-                              style: AppTextStyles
-                                  .cartBarButton,
+                              style: AppTextStyles.cartBarButton,
                             ),
                           ),
                         ),
@@ -791,19 +664,14 @@ class _SmallField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: AppTextStyles.fieldLabel,
-        ),
+        Text(label, style: AppTextStyles.fieldLabel),
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
             color: AppColors.surfaceMuted,
-            borderRadius:
-                BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: TextField(
             controller: controller,
@@ -811,12 +679,10 @@ class _SmallField extends StatelessWidget {
             style: AppTextStyles.rowLabel,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle:
-                  AppTextStyles.searchHint,
+              hintStyle: AppTextStyles.searchHint,
               border: InputBorder.none,
               isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(
+              contentPadding: const EdgeInsets.symmetric(
                 vertical: 12,
                 horizontal: 12,
               ),
@@ -861,19 +727,12 @@ class _MapRoundButton extends StatelessWidget {
         child: loading
             ? const Padding(
                 padding: EdgeInsets.all(13),
-                child:
-                    CircularProgressIndicator(
+                child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color:
-                      AppColors.primaryBrown,
+                  color: AppColors.primaryBrown,
                 ),
               )
-            : Icon(
-                icon,
-                size: 20,
-                color:
-                    AppColors.primaryBrown,
-              ),
+            : Icon(icon, size: 20, color: AppColors.primaryBrown),
       ),
     );
   }

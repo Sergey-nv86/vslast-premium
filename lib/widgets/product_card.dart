@@ -6,6 +6,7 @@ import '../providers/favorites_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/toast.dart';
 import '../screens/preorder_screen.dart';
+import 'product_image.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -43,7 +44,9 @@ class ProductCard extends StatelessWidget {
     final isFavorite = favorites.isFavorite(product);
     // Высота строки "цена + кнопка" растёт вместе с controlScale, чтобы
     // увеличенный степпер не обрезался фиксированной высотой строки.
-    final priceRowHeight = controlScale <= 1.0 ? 26.0 : 26.0 * controlScale + 6.0;
+    final priceRowHeight = controlScale <= 1.0
+        ? 26.0
+        : 26.0 * controlScale + 6.0;
 
     // Карточка больше не в белой "плашке" с тенью — фото (со скруглёнными
     // углами) и текст лежат прямо на фоне экрана, как в референсе.
@@ -66,14 +69,10 @@ class ProductCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.asset(
-                    product.imageUrl,
+                  ProductImage(
+                    imageUrl: product.imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: AppColors.surfaceMuted,
-                      child: const Icon(Icons.bakery_dining_outlined,
-                          size: 36, color: AppColors.textSecondary),
-                    ),
+                    iconSize: 36,
                   ),
                   if (product.badge != null)
                     Positioned(
@@ -81,7 +80,9 @@ class ProductCard extends StatelessWidget {
                       left: 10,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 3),
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: _badgeColor(product.badge!),
                           borderRadius: BorderRadius.circular(6),
@@ -102,7 +103,9 @@ class ProductCard extends StatelessWidget {
                         favorites.toggle(product);
                         FadeToast.show(
                           context,
-                          wasFavorite ? 'Удалено из избранного' : 'Добавлено в избранное',
+                          wasFavorite
+                              ? 'Удалено из избранного'
+                              : 'Добавлено в избранное',
                         );
                       },
                     ),
@@ -145,52 +148,53 @@ class ProductCard extends StatelessWidget {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => PreorderScreen(product: product),
+                                builder: (_) =>
+                                    PreorderScreen(product: product),
                               ),
                             );
                           },
                         ),
                       )
                     : quantity == 0
-                        ? Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  formatPrice(product.price),
-                                  style: AppTextStyles.productPrice,
-                                  maxLines: 1,
-                                  softWrap: false,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              _RoundIconButton(
-                                icon: Icons.add,
-                                controlScale: controlScale,
-                                onTap: () => cart.add(product),
-                              ),
-                            ],
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  formatPrice(product.price),
-                                  style: AppTextStyles.productPrice,
-                                  maxLines: 1,
-                                  softWrap: false,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              _QuantityStepper(
-                                quantity: quantity,
-                                controlScale: controlScale,
-                                onDecrement: () => cart.decrement(product),
-                                onIncrement: () => cart.increment(product),
-                              ),
-                            ],
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              formatPrice(product.price),
+                              style: AppTextStyles.productPrice,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
+                          _RoundIconButton(
+                            icon: Icons.add,
+                            controlScale: controlScale,
+                            onTap: () => cart.add(product),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              formatPrice(product.price),
+                              style: AppTextStyles.productPrice,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          _QuantityStepper(
+                            quantity: quantity,
+                            controlScale: controlScale,
+                            onDecrement: () => cart.decrement(product),
+                            onIncrement: () => cart.increment(product),
+                          ),
+                        ],
+                      ),
               ),
             ],
           ),
@@ -255,7 +259,11 @@ class _RoundIconButton extends StatelessWidget {
           color: AppColors.primaryBrown,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 14.0 * controlScale, color: AppColors.textOnPrimary),
+        child: Icon(
+          icon,
+          size: 14.0 * controlScale,
+          color: AppColors.textOnPrimary,
+        ),
       ),
     );
   }
@@ -281,22 +289,35 @@ class _QuantityStepper extends StatelessWidget {
         color: AppColors.surfaceMuted,
         borderRadius: BorderRadius.circular(20),
       ),
-      padding: EdgeInsets.symmetric(horizontal: 1 * controlScale, vertical: 1 * controlScale),
+      padding: EdgeInsets.symmetric(
+        horizontal: 1 * controlScale,
+        vertical: 1 * controlScale,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _StepperButton(
-              icon: Icons.remove, onTap: onDecrement, filled: false, controlScale: controlScale),
+            icon: Icons.remove,
+            onTap: onDecrement,
+            filled: false,
+            controlScale: controlScale,
+          ),
           SizedBox(
             width: 14.0 * controlScale,
             child: Text(
               '$quantity',
               textAlign: TextAlign.center,
-              style: AppTextStyles.productName.copyWith(fontSize: 11.0 * controlScale),
+              style: AppTextStyles.productName.copyWith(
+                fontSize: 11.0 * controlScale,
+              ),
             ),
           ),
           _StepperButton(
-              icon: Icons.add, onTap: onIncrement, filled: true, controlScale: controlScale),
+            icon: Icons.add,
+            onTap: onIncrement,
+            filled: true,
+            controlScale: controlScale,
+          ),
         ],
       ),
     );
@@ -360,8 +381,12 @@ class _PreorderButton extends StatelessWidget {
             color: AppColors.primaryBrown,
             borderRadius: BorderRadius.circular(height / 2),
           ),
-          child: Text('Предзаказ',
-              style: AppTextStyles.preorderButton.copyWith(fontSize: 11.0 * controlScale.clamp(1.0, 1.3))),
+          child: Text(
+            'Предзаказ',
+            style: AppTextStyles.preorderButton.copyWith(
+              fontSize: 11.0 * controlScale.clamp(1.0, 1.3),
+            ),
+          ),
         ),
       ),
     );

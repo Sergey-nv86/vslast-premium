@@ -80,9 +80,9 @@ class HomeHeader extends StatelessWidget {
               label: 'Мои заказы',
               onTap: () {
                 Navigator.pop(sheetContext);
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const OrdersScreen()),
-                );
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const OrdersScreen()));
               },
             ),
             const SizedBox(height: 8),
@@ -192,8 +192,8 @@ class HomeHeader extends StatelessWidget {
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                   colors: [
-                    Colors.white.withOpacity(.55),
-                    Colors.white.withOpacity(0),
+                    Colors.white.withValues(alpha: .55),
+                    Colors.white.withValues(alpha: 0),
                   ],
                 ),
               ),
@@ -240,11 +240,11 @@ class HomeHeader extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.94),
+                  color: Colors.white.withValues(alpha: 0.94),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.10),
+                      color: Colors.black.withValues(alpha: 0.10),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),

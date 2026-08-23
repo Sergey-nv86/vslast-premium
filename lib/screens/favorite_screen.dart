@@ -25,9 +25,12 @@ class FavoriteScreen extends StatelessWidget {
   static const int _crossAxisCount = 3;
 
   SliverGridDelegateWithFixedCrossAxisCount _buildGridDelegate(
-      BuildContext context, double horizontalPadding) {
+    BuildContext context,
+    double horizontalPadding,
+  ) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final itemWidth = (screenWidth -
+    final itemWidth =
+        (screenWidth -
             horizontalPadding * 2 -
             _gridSpacing * (_crossAxisCount - 1)) /
         _crossAxisCount;
@@ -42,8 +45,9 @@ class FavoriteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final favorites = context.watch<FavoritesProvider>();
-    final favoriteProducts =
-        mockProducts.where((p) => favorites.isFavorite(p)).toList();
+    final favoriteProducts = mockProducts
+        .where((p) => favorites.isFavorite(p))
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -65,13 +69,24 @@ class FavoriteScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.divider, width: 1),
+                          border: Border.all(
+                            color: AppColors.divider,
+                            width: 1,
+                          ),
                         ),
-                        child: const Icon(Icons.chevron_left,
-                            size: 24, color: AppColors.primaryBrown),
+                        child: const Icon(
+                          Icons.chevron_left,
+                          size: 24,
+                          color: AppColors.primaryBrown,
+                        ),
                       ),
                     ),
-                    Expanded(child: Text('Избранное', style: AppTextStyles.screenTitle)),
+                    Expanded(
+                      child: Text(
+                        'Избранное',
+                        style: AppTextStyles.screenTitle,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -109,8 +124,11 @@ class _EmptyFavorites extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 60),
       child: Column(
         children: [
-          Icon(Icons.favorite_border,
-              size: 40, color: AppColors.textSecondary.withOpacity(0.6)),
+          Icon(
+            Icons.favorite_border,
+            size: 40,
+            color: AppColors.textSecondary.withValues(alpha: 0.6),
+          ),
           const SizedBox(height: 12),
           Text('Пока нет избранных товаров', style: AppTextStyles.sectionLabel),
           const SizedBox(height: 6),

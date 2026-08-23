@@ -1,276 +1,407 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/loyalty_level.dart';
-
-class LoyaltyScreen extends StatelessWidget {
+class LoyaltyScreen extends StatefulWidget {
   const LoyaltyScreen({super.key});
 
-  static const background = Color(0xFFFAF7F1);
-  static const text = Color(0xFF201C1A);
-  static const muted = Color(0xFF81766B);
-  static const divider = Color(0xFFE8E0D5);
+  @override
+  State<LoyaltyScreen> createState() => _LoyaltyScreenState();
+}
 
-  // Демонстрационные данные.
-  //
-  // В дальнейшем эти значения будут приходить из профиля клиента / Firebase.
-  static const LoyaltyAccount account = LoyaltyAccount(
-    clientName: 'Сергей Кolesников',
-    cardNumber: '000 123 456',
-    bonusBalance: 1250,
-    cumulativePurchases: 1250,
-  );
+class _LoyaltyScreenState extends State<LoyaltyScreen> {
+  static const Color background = Color(0xFFF8F4EE);
+  static const Color brown = Color(0xFF2E1C13);
+  static const Color gold = Color(0xFFD6A54B);
+  static const Color lightGold = Color(0xFFF7E3B8);
+  static const Color muted = Color(0xFF9A8C7C);
+
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  bool _loading = true;
+  String? _error;
+
+  String _userName = 'Пользователь';
+  String _cardNumber = '—';
+  int _bonusBalance = 0;
+  int _cumulativePurchases = 0;
+  String _level = 'Silver';
+
+  List<_LoyaltyTransaction> _transactions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLoyalty();
+  }
+
+  Future<void> _loadLoyalty() async {
+    if (!mounted) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final user = _supabase.auth.currentUser;
+
+      if (user == null) {
+        throw Exception('Пользователь не авторизован');
+      }
+
+      // ------------------------------------------------------------
+      // PROFILE
+      // ------------------------------------------------------------
+
+      final profile = await _supabase
+          .from('profiles')
+          .select('first_name, last_name, display_name')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      String userName = 'Пользователь';
+
+      if (profile != null) {
+        final displayName = profile['display_name']?.toString().trim();
+        final firstName = profile['first_name']?.toString().trim();
+        final lastName = profile['last_name']?.toString().trim();
+
+        if (displayName != null && displayName.isNotEmpty) {
+          userName = displayName;
+        } else {
+          final parts = <String>[
+            if (firstName != null && firstName.isNotEmpty) firstName,
+            if (lastName != null && lastName.isNotEmpty) lastName,
+          ];
+
+          if (parts.isNotEmpty) {
+            userName = parts.join(' ');
+          }
+        }
+      }
+
+      // ------------------------------------------------------------
+      // LOYALTY ACCOUNT
+      // ------------------------------------------------------------
+
+      final account = await _supabase
+          .from('loyalty_accounts')
+          .select('''
+            id,
+            user_id,
+            card_number,
+            bonus_balance,
+            cumulative_purchases,
+            level,
+            created_at,
+            updated_at
+          ''')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      if (account == null) {
+        throw Exception('Для пользователя ещё не создана карта лояльности.');
+      }
+
+      final bonusBalance = _toInt(account['bonus_balance']);
+      final cumulativePurchases = _toInt(account['cumulative_purchases']);
+
+      final level = account['level']?.toString().trim();
+
+      final cardNumber = account['card_number']?.toString().trim() ?? '';
+
+      if (cardNumber.isEmpty) {
+        throw Exception('У карты лояльности отсутствует номер.');
+      }
+
+      // ------------------------------------------------------------
+      // TRANSACTIONS
+      // ------------------------------------------------------------
+
+      final transactionRows = await _supabase
+          .from('loyalty_transactions')
+          .select('''
+            id,
+            user_id,
+            type,
+            amount,
+            description,
+            order_id,
+            created_at
+          ''')
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false)
+          .limit(20);
+
+      final transactions = (transactionRows as List)
+          .map(
+            (row) =>
+                _LoyaltyTransaction.fromMap(Map<String, dynamic>.from(row)),
+          )
+          .toList();
+
+      if (!mounted) return;
+
+      setState(() {
+        _userName = userName;
+        _cardNumber = cardNumber;
+        _bonusBalance = bonusBalance;
+        _cumulativePurchases = cumulativePurchases;
+        _level = _normalizeLevel(level);
+        _transactions = transactions;
+        _loading = false;
+      });
+    } catch (error) {
+      debugPrint('DEBUG loyalty LOAD ERROR: $error');
+
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+        _error = error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  String _normalizeLevel(String? value) {
+    switch (value?.toLowerCase()) {
+      case 'silver':
+        return 'Silver';
+      case 'gold':
+        return 'GOLD';
+      case 'premium':
+        return 'Premium';
+      default:
+        return 'Silver';
+    }
+  }
+
+  int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  int get _bonusPercent {
+    switch (_level.toLowerCase()) {
+      case 'premium':
+        return 5;
+      case 'gold':
+        return 3;
+      case 'silver':
+      default:
+        return 1;
+    }
+  }
+
+  int? get _nextLevelTarget {
+    switch (_level.toLowerCase()) {
+      case 'silver':
+        return 50000;
+      case 'gold':
+        return 150000;
+      case 'premium':
+        return null;
+      default:
+        return 50000;
+    }
+  }
+
+  double get _levelProgress {
+    final target = _nextLevelTarget;
+
+    if (target == null) {
+      return 1.0;
+    }
+
+    if (_cumulativePurchases <= 0) {
+      return 0;
+    }
+
+    return (_cumulativePurchases / target).clamp(0.0, 1.0);
+  }
+
+  int? get _remainingToNextLevel {
+    final target = _nextLevelTarget;
+
+    if (target == null) {
+      return null;
+    }
+
+    final remaining = target - _cumulativePurchases;
+
+    return remaining > 0 ? remaining : 0;
+  }
+
+  List<_Privilege> get _privileges {
+    switch (_level.toLowerCase()) {
+      case 'premium':
+        return const [
+          _Privilege(
+            iconAsset: 'assets/icons/gift.svg',
+            title: 'Подарок ко дню рождения',
+            description: 'Специальный подарок от «Всласть»',
+          ),
+          _Privilege(
+            iconAsset: 'assets/icons/bread.svg',
+            title: 'Ранний доступ к новинкам',
+            description: 'Попробуйте новые продукты раньше остальных',
+          ),
+          _Privilege(
+            iconAsset: 'assets/icons/premium.svg',
+            title: 'Специальные предложения',
+            description: 'Персональные предложения для вашего уровня',
+          ),
+          _Privilege(
+            iconAsset: 'assets/icons/crown_1.svg',
+            title: 'Приоритетный предзаказ',
+            description: 'Закажите сезонные и праздничные коллекции заранее',
+          ),
+        ];
+
+      case 'gold':
+        return const [
+          _Privilege(
+            iconAsset: 'assets/icons/gift.svg',
+            title: 'Подарок ко дню рождения',
+            description: 'Специальный подарок от «Всласть»',
+          ),
+          _Privilege(
+            iconAsset: 'assets/icons/bread.svg',
+            title: 'Первыми узнаёте о новинках',
+            description: 'Будьте среди первых, кто узнает о новинках',
+          ),
+          _Privilege(
+            iconAsset: 'assets/icons/premium.svg',
+            title: 'Персональные предложения',
+            description: 'Специальные предложения для вашего уровня',
+          ),
+        ];
+
+      case 'silver':
+      default:
+        return const [
+          _Privilege(
+            iconAsset: 'assets/icons/zvezda.svg',
+            title: '1% бонусами с каждой покупки',
+            description: 'Получайте бонусы за каждую покупку',
+          ),
+          _Privilege(
+            iconAsset: 'assets/icons/premium.svg',
+            title: 'Бонусы для следующих покупок',
+            description: 'Используйте накопленные бонусы при оплате',
+          ),
+          _Privilege(
+            iconAsset: 'assets/icons/crown_1.svg',
+            title: 'Персональные предложения',
+            description: 'Получайте специальные предложения «Всласть»',
+          ),
+        ];
+    }
+  }
+
+  Future<void> _refresh() async {
+    await _loadLoyalty();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final level = account.level;
-
     return Scaffold(
       backgroundColor: background,
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 430),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 110),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _Header(onBack: () => Navigator.of(context).maybePop()),
-
-                  const SizedBox(height: 18),
-
-                  _PremiumCard(account: account),
-
-                  const SizedBox(height: 14),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _InfoCard(
-                          icon: Icons.account_balance_wallet_outlined,
-                          title: 'Баланс',
-                          value: '${_format(account.bonusBalance)} Б',
-                          subtitle: '≈ ${_format(account.bonusBalance)} ₽',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _InfoCard(
-                          icon: Icons.shopping_bag_outlined,
-                          title: 'Покупки',
-                          value: '${_format(account.cumulativePurchases)} ₽',
-                          subtitle: level.rangeDescription,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  _SectionTitle(title: 'Ваш уровень'),
-
-                  const SizedBox(height: 10),
-
-                  _LevelStatusCard(account: account),
-
-                  const SizedBox(height: 22),
-
-                  _SectionTitle(title: 'Система бонусов'),
-
-                  const SizedBox(height: 10),
-
-                  const _TierRow(
-                    level: LoyaltyLevel.silver,
-                    range: 'до 30 000 ₽',
-                    bonus: '2%',
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  const _TierRow(
-                    level: LoyaltyLevel.gold,
-                    range: '30 001–100 000 ₽',
-                    bonus: '3%',
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  const _TierRow(
-                    level: LoyaltyLevel.premium,
-                    range: 'от 100 001 ₽',
-                    bonus: '5%',
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  _SectionTitle(
-                    title: 'Ваши привилегии',
-                    action: 'Все привилегии',
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Row(
-                    children: const [
-                      Expanded(
-                        child: _BenefitTile(
-                          icon: Icons.card_giftcard_outlined,
-                          title: 'Подарок ко дню рождения',
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: _BenefitTile(
-                          icon: Icons.new_releases_outlined,
-                          title: 'Ранний доступ к новинкам',
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Row(
-                    children: const [
-                      Expanded(
-                        child: _BenefitTile(
-                          icon: Icons.auto_awesome_outlined,
-                          title: 'Персональные предложения',
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: _BenefitTile(
-                          icon: Icons.workspace_premium_outlined,
-                          title: 'Приоритетный предзаказ',
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  _SectionTitle(
-                    title: 'История начислений',
-                    action: 'Вся история',
-                    onAction: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const FullHistoryScreen(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  const _HistoryTile(
-                    title: 'Покупка',
-                    date: 'Сегодня, 10:30',
-                    amount: '+120',
-                    balance: '1 250',
-                    positive: true,
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  const _HistoryTile(
-                    title: 'Покупка',
-                    date: 'Вчера, 16:45',
-                    amount: '+350',
-                    balance: '1 130',
-                    positive: true,
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  const _HistoryTile(
-                    title: 'Оплата бонусами',
-                    date: '12 августа, 14:20',
-                    amount: '−200',
-                    balance: '780',
-                    positive: false,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const FullQrScreen(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.qr_code_2_rounded, size: 21),
-                      label: const Text(
-                        'Показать QR кассиру',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: text,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(17),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+        child: _loading
+            ? const Center(child: CircularProgressIndicator(color: gold))
+            : RefreshIndicator(
+                color: gold,
+                backgroundColor: Colors.white,
+                onRefresh: _refresh,
+                child: _error != null
+                    ? _ErrorView(message: _error!, onRetry: _loadLoyalty)
+                    : _buildContent(),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }
 
-  static String _format(int value) {
-    final source = value.toString();
-    final buffer = StringBuffer();
+  Widget _buildContent() {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 16),
 
-    for (var i = 0; i < source.length; i++) {
-      if (i > 0 && (source.length - i) % 3 == 0) {
-        buffer.write(' ');
-      }
-      buffer.write(source[i]);
-    }
+          // КАРТА
+          _buildLoyaltyCard(),
 
-    return buffer.toString();
+          const SizedBox(height: 10),
+
+          // БАЛАНС + УРОВЕНЬ
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _BalanceCard(
+                    balance: _bonusBalance,
+                    approxValue: '≈ ${_formatThousands(_bonusBalance)} ₽',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _LevelCard(
+                    levelName: _level,
+                    current: _cumulativePurchases,
+                    target: _nextLevelTarget,
+                    progress: _levelProgress,
+                    remaining: _remainingToNextLevel,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // ПРИВИЛЕГИИ
+          _buildPrivileges(),
+
+          const SizedBox(height: 14),
+
+          // ИСТОРИЯ
+          _buildHistory(),
+
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
   }
-}
 
-class _Header extends StatelessWidget {
-  final VoidCallback onBack;
-
-  const _Header({required this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildHeader() {
     return Row(
       children: [
         GestureDetector(
-          onTap: onBack,
+          onTap: () => Navigator.of(context).maybePop(),
           child: Container(
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: Colors.white,
               shape: BoxShape.circle,
-              border: Border.all(color: LoyaltyScreen.divider),
+              border: Border.all(color: const Color(0xFFE7DFD2)),
             ),
             child: const Icon(
               Icons.chevron_left_rounded,
-              color: LoyaltyScreen.text,
+              color: brown,
+              size: 20,
             ),
           ),
         ),
@@ -279,163 +410,214 @@ class _Header extends StatelessWidget {
             child: Text(
               'Карта лояльности',
               style: GoogleFonts.alice(
-                color: LoyaltyScreen.text,
-                fontSize: 21,
+                fontSize: 20,
                 fontWeight: FontWeight.w700,
+                color: brown,
               ),
             ),
           ),
         ),
-        const SizedBox(width: 40),
+        const SizedBox(width: 36),
       ],
     );
   }
-}
 
-class _PremiumCard extends StatelessWidget {
-  final LoyaltyAccount account;
+  // ==============================================================
+  // LOYALTY CARD
+  // ==============================================================
 
-  const _PremiumCard({required this.account});
-
-  @override
-  Widget build(BuildContext context) {
-    final level = account.level.level;
-
-    final isSilver = level == LoyaltyLevel.silver;
-    final isGold = level == LoyaltyLevel.gold;
-
-    final background = isSilver
-        ? const Color(0xFFD9DDE0)
-        : isGold
-        ? const Color(0xFFCDAA54)
-        : const Color(0xFF111111);
-
-    final foreground = isSilver || isGold
-        ? const Color(0xFF201C1A)
-        : Colors.white;
-
-    final secondary = isSilver || isGold
-        ? const Color(0xFF5F574F)
-        : Colors.white70;
+  Widget _buildLoyaltyCard() {
+    final theme = _cardTheme;
 
     return GestureDetector(
       onTap: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const FullQrScreen()));
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => FullQrScreen(
+              cardNumber: _cardNumber,
+              userName: _userName,
+              level: _level,
+            ),
+          ),
+        );
       },
+      behavior: HitTestBehavior.opaque,
       child: Container(
         width: double.infinity,
-        constraints: const BoxConstraints(minHeight: 205),
         decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(22),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: theme.gradient,
+          ),
+          border: theme.borderColor == null
+              ? null
+              : Border.all(color: theme.borderColor!, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: .10),
+              color: theme.shadowColor,
               blurRadius: 22,
-              offset: const Offset(0, 10),
+              offset: const Offset(0, 11),
             ),
           ],
         ),
         child: Stack(
           children: [
             Positioned(
-              right: -20,
-              top: -20,
-              child: Container(
-                width: 150,
-                height: 150,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: foreground.withValues(alpha: .05),
+              top: 10,
+              right: 10,
+              child: SizedBox(
+                width: 78,
+                height: 48,
+                child: Opacity(
+                  opacity: theme.illustrationOpacity,
+                  child: SvgPicture.asset(
+                    'assets/images/bakery_illustration.svg',
+                    fit: BoxFit.contain,
+                    colorFilter: theme.illustrationColor == null
+                        ? null
+                        : ColorFilter.mode(
+                            theme.illustrationColor!,
+                            BlendMode.srcIn,
+                          ),
+                  ),
                 ),
               ),
             ),
+
+            // Декоративные точки
+            Positioned(
+              right: 28,
+              bottom: 22,
+              child: Opacity(
+                opacity: .18,
+                child: Row(
+                  children: [
+                    _dot(theme.accentColor),
+                    const SizedBox(width: 5),
+                    _dot(theme.accentColor),
+                    const SizedBox(width: 5),
+                    _dot(theme.accentColor),
+                  ],
+                ),
+              ),
+            ),
+
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 19, 20, 18),
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        'ВСЛАСТЬ',
-                        style: GoogleFonts.alice(
-                          color: foreground,
-                          fontSize: 23,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: .5,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        account.level.name,
-                        style: TextStyle(
-                          color: foreground,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.8,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Всласть',
+                    style: GoogleFonts.alice(
+                      color: theme.logoColor,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      fontStyle: FontStyle.italic,
+                      height: 1,
+                    ),
                   ),
 
-                  const SizedBox(height: 52),
+                  const SizedBox(height: 2),
 
                   Text(
-                    account.clientName,
-                    style: GoogleFonts.alice(
-                      color: foreground,
-                      fontSize: 19,
+                    '— ${_level.toUpperCase()} —',
+                    style: TextStyle(
+                      color: theme.accentColor,
+                      fontSize: 9,
+                      letterSpacing: 2.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
 
-                  const SizedBox(height: 6),
-
-                  Text(
-                    '№ ${account.cardNumber}',
-                    style: TextStyle(
-                      color: secondary,
-                      fontSize: 11,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${account.level.bonusPercent}%',
-                        style: TextStyle(
-                          color: foreground,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${_level.toUpperCase()} MEMBER',
+                              style: TextStyle(
+                                color: theme.accentColor,
+                                fontSize: 9.5,
+                                letterSpacing: 1.2,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+
+                            const SizedBox(height: 3),
+
+                            Text(
+                              _userName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.alice(
+                                color: theme.primaryText,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            Text(
+                              '$_bonusPercent% бонусами',
+                              style: TextStyle(
+                                color: theme.primaryText,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            Text(
+                              '№ ${_formatCardNumber(_cardNumber)}',
+                              style: TextStyle(
+                                color: theme.secondaryText,
+                                fontSize: 11,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'бонусов с покупки',
-                        style: TextStyle(
-                          color: secondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const Spacer(),
+
+                      const SizedBox(width: 10),
+
+                      // Маленький QR прямо на карте.
+                      // Нажатие на всю карту открывает большой QR.
                       Container(
-                        width: 54,
-                        height: 54,
-                        padding: const EdgeInsets.all(5),
+                        width: 80,
+                        height: 80,
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: theme.accentColor.withValues(alpha: .55),
+                          ),
                         ),
-                        child: Image.asset(
-                          'assets/images/qr_demo.png',
-                          fit: BoxFit.contain,
+                        child: QrImageView(
+                          data: _qrData,
+                          version: QrVersions.auto,
+                          size: 68,
+                          backgroundColor: Colors.white,
+                          padding: EdgeInsets.zero,
+                          eyeStyle: const QrEyeStyle(
+                            eyeShape: QrEyeShape.square,
+                            color: Colors.black,
+                          ),
+                          dataModuleStyle: const QrDataModuleStyle(
+                            dataModuleShape: QrDataModuleShape.square,
+                            color: Colors.black,
+                          ),
                         ),
                       ),
                     ],
@@ -448,362 +630,272 @@ class _PremiumCard extends StatelessWidget {
       ),
     );
   }
-}
 
-class _InfoCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  final String subtitle;
-
-  const _InfoCard({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _dot(Color color) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: LoyaltyScreen.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: LoyaltyScreen.text),
-          const SizedBox(height: 9),
-          Text(
-            title,
-            style: const TextStyle(color: LoyaltyScreen.muted, fontSize: 11),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: const TextStyle(
-              color: LoyaltyScreen.text,
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: const TextStyle(color: LoyaltyScreen.muted, fontSize: 10),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LevelStatusCard extends StatelessWidget {
-  final LoyaltyAccount account;
-
-  const _LevelStatusCard({required this.account});
-
-  @override
-  Widget build(BuildContext context) {
-    final level = account.level;
-
-    if (level.isPremium) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF111111),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.workspace_premium_rounded,
-              color: Colors.white,
-              size: 30,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Максимальный уровень',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Вы получаете ${level.bonusPercent}% бонусов с каждой покупки',
-                    style: const TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final remaining = account.purchasesToNextLevel ?? 0;
-    final target = account.nextLevelThreshold ?? 0;
-
-    final nextLevel = level.level == LoyaltyLevel.silver
-        ? LoyaltyLevelInfo.gold
-        : LoyaltyLevelInfo.premium;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: LoyaltyScreen.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.trending_up_rounded,
-                color: LoyaltyScreen.text,
-                size: 21,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'До уровня ${nextLevel.name}',
-                  style: const TextStyle(
-                    color: LoyaltyScreen.text,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Text(
-                '${_format(remaining)} ₽',
-                style: const TextStyle(
-                  color: LoyaltyScreen.text,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 11),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: account.progressToNextLevel,
-              minHeight: 7,
-              backgroundColor: const Color(0xFFEDE7DE),
-              valueColor: const AlwaysStoppedAnimation(LoyaltyScreen.text),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Порог следующего уровня: ${_format(target)} ₽',
-            style: const TextStyle(color: LoyaltyScreen.muted, fontSize: 10.5),
-          ),
-        ],
-      ),
+      width: 4,
+      height: 4,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 
-  static String _format(int value) {
-    final source = value.toString();
-    final buffer = StringBuffer();
+  // Единый формат для будущей интеграции с кассой.
+  String get _qrData {
+    final cleanCardNumber = _cardNumber.replaceAll(RegExp(r'\s+'), '');
 
-    for (var i = 0; i < source.length; i++) {
-      if (i > 0 && (source.length - i) % 3 == 0) {
-        buffer.write(' ');
-      }
-      buffer.write(source[i]);
-    }
-
-    return buffer.toString();
+    return 'VSLAST|CARD|$cleanCardNumber';
   }
-}
 
-class _TierRow extends StatelessWidget {
-  final LoyaltyLevel level;
-  final String range;
-  final String bonus;
+  _LoyaltyCardTheme get _cardTheme {
+    switch (_level.toLowerCase()) {
+      case 'gold':
+        return const _LoyaltyCardTheme(
+          gradient: [Color(0xFFC89B3C), Color(0xFFE3C16F), Color(0xFFB98225)],
+          primaryText: Color(0xFF2A1A0E),
+          secondaryText: Color(0xFF4C3518),
+          logoColor: Color(0xFF2A1A0E),
+          accentColor: Color(0xFF6C4B19),
+          shadowColor: Color(0x4D9C741E),
+          borderColor: Color(0xFFEAD18A),
+          illustrationColor: Color(0xFF5B401A),
+          illustrationOpacity: .55,
+        );
 
-  const _TierRow({
-    required this.level,
-    required this.range,
-    required this.bonus,
-  });
+      case 'premium':
+        return const _LoyaltyCardTheme(
+          gradient: [Color(0xFF101010), Color(0xFF252525), Color(0xFF080808)],
+          primaryText: Colors.white,
+          secondaryText: Color(0xFFD8D0C5),
+          logoColor: Color(0xFFF5E6C8),
+          accentColor: Color(0xFFD6A54B),
+          shadowColor: Color(0x59000000),
+          borderColor: Color(0x665B4A32),
+          illustrationColor: Color(0xFFD6A54B),
+          illustrationOpacity: .38,
+        );
 
-  @override
-  Widget build(BuildContext context) {
-    final info = switch (level) {
-      LoyaltyLevel.silver => LoyaltyLevelInfo.silver,
-      LoyaltyLevel.gold => LoyaltyLevelInfo.gold,
-      LoyaltyLevel.premium => LoyaltyLevelInfo.premium,
-    };
+      case 'silver':
+      default:
+        return const _LoyaltyCardTheme(
+          gradient: [Color(0xFFE8E8E8), Color(0xFFC9CDD0), Color(0xFFF0F0F0)],
+          primaryText: Color(0xFF252525),
+          secondaryText: Color(0xFF5E6265),
+          logoColor: Color(0xFF252525),
+          accentColor: Color(0xFF62676B),
+          shadowColor: Color(0x3D555555),
+          borderColor: Color(0xFFEDEDED),
+          illustrationColor: Color(0xFF5D6265),
+          illustrationOpacity: .35,
+        );
+    }
+  }
 
-    final color = switch (level) {
-      LoyaltyLevel.silver => const Color(0xFFD9DDE0),
-      LoyaltyLevel.gold => const Color(0xFFCDAA54),
-      LoyaltyLevel.premium => const Color(0xFF111111),
-    };
+  // ==============================================================
+  // PRIVILEGES
+  // ==============================================================
 
-    final textColor = level == LoyaltyLevel.premium
-        ? Colors.white
-        : LoyaltyScreen.text;
+  Widget _buildPrivileges() {
+    final privileges = _privileges;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: LoyaltyScreen.divider),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Icon(
-              Icons.workspace_premium_rounded,
-              size: 19,
-              color: textColor,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Ваши привилегии',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: brown,
           ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+
+        const SizedBox(height: 8),
+
+        for (int i = 0; i < privileges.length; i += 2) ...[
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  info.name,
-                  style: const TextStyle(
-                    color: LoyaltyScreen.text,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: .7,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  range,
-                  style: const TextStyle(
-                    color: LoyaltyScreen.muted,
-                    fontSize: 10.5,
-                  ),
+                Expanded(child: _BenefitTile(privilege: privileges[i])),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: i + 1 < privileges.length
+                      ? _BenefitTile(privilege: privileges[i + 1])
+                      : const SizedBox(),
                 ),
               ],
             ),
           ),
-          Text(
-            bonus,
-            style: const TextStyle(
-              color: LoyaltyScreen.text,
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          if (i + 2 < privileges.length) const SizedBox(height: 8),
         ],
-      ),
+      ],
     );
   }
-}
 
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  final String? action;
-  final VoidCallback? onAction;
+  // ==============================================================
+  // HISTORY
+  // ==============================================================
 
-  const _SectionTitle({
-    required this.title,
-    this.action,
-    this.onAction,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
+  Widget _buildHistory() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: GoogleFonts.alice(
-            color: LoyaltyScreen.text,
-            fontSize: 18,
+        const Text(
+          'История начислений',
+          style: TextStyle(
+            fontSize: 15,
             fontWeight: FontWeight.w700,
+            color: brown,
           ),
         ),
-        const Spacer(),
-        if (action != null)
-          GestureDetector(
-            onTap: onAction,
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 4,
-                vertical: 4,
-              ),
-              child: Text(
-                action!,
-                style: const TextStyle(
-                  color: LoyaltyScreen.muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+
+        const SizedBox(height: 10),
+
+        if (_transactions.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Text(
+              'История операций пока пуста',
+              style: TextStyle(fontSize: 13, color: muted),
+            ),
+          )
+        else
+          ..._transactions.map(
+            (transaction) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: _HistoryTile(transaction: transaction),
             ),
           ),
       ],
     );
   }
+
+  String _formatCardNumber(String value) {
+    if (value.isEmpty || value == '—') {
+      return '—';
+    }
+
+    final clean = value.replaceAll(RegExp(r'\s+'), '');
+
+    final groups = <String>[];
+
+    for (int i = 0; i < clean.length; i += 4) {
+      final end = (i + 4).clamp(0, clean.length);
+      groups.add(clean.substring(i, end));
+    }
+
+    return groups.join(' ');
+  }
 }
 
-class _BenefitTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
+// ==================================================================
+// CARD THEME
+// ==================================================================
 
-  const _BenefitTile({required this.icon, required this.title});
+class _LoyaltyCardTheme {
+  final List<Color> gradient;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color logoColor;
+  final Color accentColor;
+  final Color shadowColor;
+  final Color? borderColor;
+  final Color? illustrationColor;
+  final double illustrationOpacity;
+
+  const _LoyaltyCardTheme({
+    required this.gradient,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.logoColor,
+    required this.accentColor,
+    required this.shadowColor,
+    required this.borderColor,
+    required this.illustrationColor,
+    required this.illustrationOpacity,
+  });
+}
+
+// ==================================================================
+// BALANCE CARD
+// ==================================================================
+
+class _BalanceCard extends StatelessWidget {
+  final int balance;
+  final String approxValue;
+
+  const _BalanceCard({required this.balance, required this.approxValue});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 78,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: LoyaltyScreen.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .05),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 34,
             height: 34,
+            padding: const EdgeInsets.all(7),
             decoration: const BoxDecoration(
-              color: Color(0xFFF1ECE3),
+              color: _LoyaltyScreenState.lightGold,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 18, color: LoyaltyScreen.text),
+            child: _goldIcon('assets/icons/zvezda.svg', 18),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: LoyaltyScreen.text,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
-                height: 1.2,
-              ),
+
+          const SizedBox(height: 5),
+
+          const Text(
+            'Ваш баланс',
+            style: TextStyle(fontSize: 10.5, color: _LoyaltyScreenState.muted),
+          ),
+
+          const SizedBox(height: 3),
+
+          Text(
+            _formatThousands(balance),
+            style: const TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              color: _LoyaltyScreenState.brown,
+              height: 1.05,
+            ),
+          ),
+
+          const Text(
+            'бонусов',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _LoyaltyScreenState.brown,
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          Text(
+            approxValue,
+            style: const TextStyle(
+              fontSize: 10,
+              color: _LoyaltyScreenState.muted,
             ),
           ),
         ],
@@ -812,29 +904,244 @@ class _BenefitTile extends StatelessWidget {
   }
 }
 
-class _HistoryTile extends StatelessWidget {
-  final String title;
-  final String date;
-  final String amount;
-  final String balance;
-  final bool positive;
+// ==================================================================
+// LEVEL CARD
+// ==================================================================
 
-  const _HistoryTile({
-    required this.title,
-    required this.date,
-    required this.amount,
-    required this.balance,
-    required this.positive,
+class _LevelCard extends StatelessWidget {
+  final String levelName;
+  final int current;
+  final int? target;
+  final double progress;
+  final int? remaining;
+
+  const _LevelCard({
+    required this.levelName,
+    required this.current,
+    required this.target,
+    required this.progress,
+    required this.remaining,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isPremium = levelName.toLowerCase() == 'premium';
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: LoyaltyScreen.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .05),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            padding: const EdgeInsets.all(7),
+            decoration: const BoxDecoration(
+              color: _LoyaltyScreenState.lightGold,
+              shape: BoxShape.circle,
+            ),
+            child: _goldIcon('assets/icons/crown_1.svg', 18),
+          ),
+
+          const SizedBox(height: 5),
+
+          const Text(
+            'Ваш уровень',
+            style: TextStyle(fontSize: 10.5, color: _LoyaltyScreenState.muted),
+          ),
+
+          const SizedBox(height: 2),
+
+          Text(
+            levelName,
+            style: GoogleFonts.alice(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: _LoyaltyScreenState.brown,
+            ),
+          ),
+
+          const SizedBox(height: 5),
+
+          if (isPremium)
+            const Text(
+              'Вы достигли максимального уровня',
+              style: TextStyle(
+                fontSize: 9.5,
+                color: _LoyaltyScreenState.muted,
+                height: 1.2,
+              ),
+            )
+          else
+            Text(
+              'До следующего уровня\n'
+              'осталось ${_formatThousands(remaining ?? 0)} ₽',
+              style: const TextStyle(
+                fontSize: 9.5,
+                color: _LoyaltyScreenState.muted,
+                height: 1.2,
+              ),
+            ),
+
+          const SizedBox(height: 6),
+
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 5,
+              backgroundColor: const Color(0xFFF0E6D2),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                _LoyaltyScreenState.brown,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          if (isPremium)
+            Text(
+              '${_formatThousands(current)} ₽',
+              style: const TextStyle(
+                fontSize: 9.5,
+                color: _LoyaltyScreenState.muted,
+              ),
+            )
+          else
+            Text(
+              '${_formatThousands(current)} / '
+              '${_formatThousands(target ?? 0)} ₽',
+              style: const TextStyle(
+                fontSize: 9.5,
+                color: _LoyaltyScreenState.muted,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================================================================
+// PRIVILEGE
+// ==================================================================
+
+class _Privilege {
+  final String iconAsset;
+  final String title;
+  final String description;
+
+  const _Privilege({
+    required this.iconAsset,
+    required this.title,
+    required this.description,
+  });
+}
+
+class _BenefitTile extends StatelessWidget {
+  final _Privilege privilege;
+
+  const _BenefitTile({required this.privilege});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .05),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            padding: const EdgeInsets.all(7),
+            decoration: const BoxDecoration(
+              color: _LoyaltyScreenState.lightGold,
+              shape: BoxShape.circle,
+            ),
+            child: _goldIcon(privilege.iconAsset, 18),
+          ),
+
+          const SizedBox(width: 8),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  privilege.title,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    height: 1.2,
+                    fontWeight: FontWeight.w700,
+                    color: _LoyaltyScreenState.brown,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  privilege.description,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    height: 1.2,
+                    color: _LoyaltyScreenState.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================================================================
+// HISTORY
+// ==================================================================
+
+class _HistoryTile extends StatelessWidget {
+  final _LoyaltyTransaction transaction;
+
+  const _HistoryTile({required this.transaction});
+
+  @override
+  Widget build(BuildContext context) {
+    final positive = transaction.amount >= 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -843,476 +1150,413 @@ class _HistoryTile extends StatelessWidget {
             height: 34,
             decoration: BoxDecoration(
               color: positive
-                  ? const Color(0xFFE8F3EA)
-                  : const Color(0xFFF7E9E5),
+                  ? const Color(0xFFEAF6ED)
+                  : const Color(0xFFF8E9E5),
               shape: BoxShape.circle,
             ),
             child: Icon(
               positive ? Icons.add_rounded : Icons.remove_rounded,
-              size: 18,
               color: positive
-                  ? const Color(0xFF31834A)
-                  : const Color(0xFFB75A4A),
+                  ? const Color(0xFF2E9C56)
+                  : const Color(0xFFB45A4C),
+              size: 20,
             ),
           ),
+
           const SizedBox(width: 10),
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  transaction.title,
                   style: const TextStyle(
-                    color: LoyaltyScreen.text,
-                    fontSize: 12.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
+                    color: _LoyaltyScreenState.brown,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  date,
+                  transaction.formattedDate,
                   style: const TextStyle(
-                    color: LoyaltyScreen.muted,
                     fontSize: 10,
+                    color: _LoyaltyScreenState.muted,
                   ),
                 ),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                amount,
-                style: TextStyle(
-                  color: positive
-                      ? const Color(0xFF31834A)
-                      : const Color(0xFFB75A4A),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '$balance Б',
-                style: const TextStyle(
-                  color: LoyaltyScreen.muted,
-                  fontSize: 9.5,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
-
-
-class FullHistoryScreen extends StatefulWidget {
-  const FullHistoryScreen({super.key});
-
-  @override
-  State<FullHistoryScreen> createState() => _FullHistoryScreenState();
-}
-
-enum _HistoryFilter {
-  all,
-  earn,
-  spend,
-}
-
-class _FullHistoryScreenState extends State<FullHistoryScreen> {
-  _HistoryFilter _selectedFilter = _HistoryFilter.all;
-
-  static const List<_HistoryItemData> _items = [
-    _HistoryItemData(
-      title: 'Покупка',
-      date: 'Сегодня, 10:30',
-      amount: '+120',
-      balance: '1 250',
-      positive: true,
-    ),
-    _HistoryItemData(
-      title: 'Покупка',
-      date: 'Вчера, 16:45',
-      amount: '+350',
-      balance: '1 130',
-      positive: true,
-    ),
-    _HistoryItemData(
-      title: 'Оплата бонусами',
-      date: '12 августа, 14:20',
-      amount: '−200',
-      balance: '780',
-      positive: false,
-    ),
-    _HistoryItemData(
-      title: 'Покупка',
-      date: '8 августа, 12:15',
-      amount: '+620',
-      balance: '980',
-      positive: true,
-    ),
-    _HistoryItemData(
-      title: 'Бонус за день рождения',
-      date: '3 августа, 09:00',
-      amount: '+1 000',
-      balance: '360',
-      positive: true,
-    ),
-  ];
-
-  List<_HistoryItemData> get _filteredItems {
-    switch (_selectedFilter) {
-      case _HistoryFilter.all:
-        return _items;
-
-      case _HistoryFilter.earn:
-        return _items
-            .where((item) => item.positive)
-            .toList();
-
-      case _HistoryFilter.spend:
-        return _items
-            .where((item) => !item.positive)
-            .toList();
-    }
-  }
-
-  void _selectFilter(_HistoryFilter filter) {
-    if (_selectedFilter == filter) {
-      return;
-    }
-
-    setState(() {
-      _selectedFilter = filter;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final filteredItems = _filteredItems;
-
-    return Scaffold(
-      backgroundColor: LoyaltyScreen.background,
-      appBar: AppBar(
-        backgroundColor: LoyaltyScreen.background,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 19,
-          ),
-          color: LoyaltyScreen.text,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'История начислений',
-          style: GoogleFonts.alice(
-            color: LoyaltyScreen.text,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        centerTitle: false,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _HistoryFilterChip(
-                  title: 'Все',
-                  selected: _selectedFilter == _HistoryFilter.all,
-                  onTap: () => _selectFilter(_HistoryFilter.all),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _HistoryFilterChip(
-                  title: 'Начисления',
-                  selected: _selectedFilter == _HistoryFilter.earn,
-                  onTap: () => _selectFilter(_HistoryFilter.earn),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _HistoryFilterChip(
-                  title: 'Списания',
-                  selected: _selectedFilter == _HistoryFilter.spend,
-                  onTap: () => _selectFilter(_HistoryFilter.spend),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 18),
-
-          if (filteredItems.isEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 32,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: LoyaltyScreen.divider,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 30,
-                    color: LoyaltyScreen.muted,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Операций пока нет',
-                    style: const TextStyle(
-                      color: LoyaltyScreen.text,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            ...List.generate(
-              filteredItems.length,
-              (index) {
-                final item = filteredItems[index];
-
-                return Padding(
-                  padding: EdgeInsets.only(
-                    bottom: index == filteredItems.length - 1
-                        ? 0
-                        : 8,
-                  ),
-                  child: _HistoryTile(
-                    title: item.title,
-                    date: item.date,
-                    amount: item.amount,
-                    balance: item.balance,
-                    positive: item.positive,
-                  ),
-                );
-              },
+          Text(
+            '${positive ? '+' : ''}${transaction.amount}',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: positive
+                  ? const Color(0xFF2E9C56)
+                  : const Color(0xFFB45A4C),
             ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _HistoryItemData {
-  final String title;
-  final String date;
-  final String amount;
-  final String balance;
-  final bool positive;
+// ==================================================================
+// TRANSACTION
+// ==================================================================
 
-  const _HistoryItemData({
-    required this.title,
-    required this.date,
+class _LoyaltyTransaction {
+  final String type;
+  final int amount;
+  final String? description;
+  final DateTime createdAt;
+
+  const _LoyaltyTransaction({
+    required this.type,
     required this.amount,
-    required this.balance,
-    required this.positive,
-  });
-}
-
-class _HistoryFilterChip extends StatelessWidget {
-  final String title;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _HistoryFilterChip({
-    required this.title,
-    required this.selected,
-    required this.onTap,
+    required this.description,
+    required this.createdAt,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        height: 36,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected
-              ? LoyaltyScreen.text
-              : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected
-                ? LoyaltyScreen.text
-                : LoyaltyScreen.divider,
-          ),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            color: selected
-                ? Colors.white
-                : LoyaltyScreen.text,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+  factory _LoyaltyTransaction.fromMap(Map<String, dynamic> map) {
+    return _LoyaltyTransaction(
+      type: map['type']?.toString() ?? '',
+      amount: _parseAmount(map['amount']),
+      description: map['description']?.toString(),
+      createdAt:
+          DateTime.tryParse(map['created_at']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
+
+  static int _parseAmount(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  String get title {
+    if (description != null && description!.trim().isNotEmpty) {
+      return description!.trim();
+    }
+
+    switch (type.toLowerCase()) {
+      case 'purchase':
+      case 'accrual':
+      case 'earn':
+      case 'bonus':
+      case 'credit':
+        return 'Начисление бонусов';
+
+      case 'redeem':
+      case 'spend':
+      case 'writeoff':
+      case 'debit':
+        return 'Оплата бонусами';
+
+      case 'birthday':
+        return 'Подарок ко дню рождения';
+
+      default:
+        return amount >= 0 ? 'Начисление бонусов' : 'Списание бонусов';
+    }
+  }
+
+  String get formattedDate {
+    final local = createdAt.toLocal();
+
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+
+    return '$day.$month.${local.year}, '
+        '$hour:$minute';
+  }
 }
+
+// ==================================================================
+// QR SCREEN
+// ==================================================================
 
 class FullQrScreen extends StatelessWidget {
-  const FullQrScreen({super.key});
+  final String cardNumber;
+  final String userName;
+  final String level;
+
+  const FullQrScreen({
+    super.key,
+    required this.cardNumber,
+    required this.userName,
+    required this.level,
+  });
+
+  String get _qrData {
+    final cleanCardNumber = cardNumber.replaceAll(RegExp(r'\s+'), '');
+
+    return 'VSLAST|CARD|$cleanCardNumber';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final account = LoyaltyScreen.account;
-
     return Scaffold(
-      backgroundColor: LoyaltyScreen.background,
+      backgroundColor: _LoyaltyScreenState.background,
+      appBar: AppBar(
+        backgroundColor: _LoyaltyScreenState.background,
+        elevation: 0,
+        centerTitle: true,
+        title: const Text(
+          'QR-код карты',
+          style: TextStyle(
+            color: _LoyaltyScreenState.brown,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: _LoyaltyScreenState.brown),
+      ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: LoyaltyScreen.divider),
-                      ),
-                      child: const Icon(
-                        Icons.close_rounded,
-                        color: LoyaltyScreen.text,
-                      ),
-                    ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                Text(
+                  userName,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.alice(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w700,
+                    color: _LoyaltyScreenState.brown,
                   ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'QR-код',
-                        style: GoogleFonts.alice(
-                          color: LoyaltyScreen.text,
-                          fontSize: 21,
-                          fontWeight: FontWeight.w700,
+                ),
+
+                const SizedBox(height: 6),
+
+                Text(
+                  '$level • Карта № ${_formatCardNumber(cardNumber)}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _LoyaltyScreenState.muted,
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 390),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(26),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: .08),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: const Color(0xFFE8E0D5)),
+                        ),
+                        child: QrImageView(
+                          data: _qrData,
+                          version: QrVersions.auto,
+                          size: 270,
+                          backgroundColor: Colors.white,
+                          padding: EdgeInsets.zero,
+                          eyeStyle: const QrEyeStyle(
+                            eyeShape: QrEyeShape.square,
+                            color: Colors.black,
+                          ),
+                          dataModuleStyle: const QrDataModuleStyle(
+                            dataModuleShape: QrDataModuleShape.square,
+                            color: Colors.black,
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 40),
-                ],
-              ),
 
-              const Spacer(),
+                      const SizedBox(height: 20),
 
-              Text(
-                'Покажите QR кассиру',
-                style: GoogleFonts.alice(
-                  color: LoyaltyScreen.text,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+                      const Text(
+                        'Покажите QR-код кассиру',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: _LoyaltyScreenState.brown,
+                        ),
+                      ),
 
-              const SizedBox(height: 8),
+                      const SizedBox(height: 6),
 
-              Text(
-                'Карта ${account.level.name} · ${account.level.bonusPercent}% бонусов',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: LoyaltyScreen.muted,
-                  fontSize: 13,
-                ),
-              ),
+                      const Text(
+                        'Код содержит идентификатор вашей '
+                        'карты лояльности',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: _LoyaltyScreenState.muted,
+                        ),
+                      ),
 
-              const SizedBox(height: 28),
+                      const SizedBox(height: 18),
 
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: LoyaltyScreen.divider),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .07),
-                      blurRadius: 28,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: Image.asset(
-                  'assets/images/qr_demo.png',
-                  width: 260,
-                  height: 260,
-                  fit: BoxFit.contain,
-                ),
-              ),
-
-              const SizedBox(height: 22),
-
-              Text(
-                account.clientName,
-                style: GoogleFonts.alice(
-                  color: LoyaltyScreen.text,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-
-              const SizedBox(height: 4),
-
-              Text(
-                '№ ${account.cardNumber}',
-                style: const TextStyle(
-                  color: LoyaltyScreen.muted,
-                  fontSize: 11,
-                  letterSpacing: 1,
-                ),
-              ),
-
-              const Spacer(),
-
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: LoyaltyScreen.text,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(17),
-                    ),
-                  ),
-                  child: const Text(
-                    'Закрыть',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 11,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _LoyaltyScreenState.background,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '№ ${_formatCardNumber(cardNumber)}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
+                            color: _LoyaltyScreenState.brown,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==================================================================
+// HELPERS
+// ==================================================================
+
+Widget _goldIcon(String asset, double size) {
+  return SvgPicture.asset(
+    asset,
+    width: size,
+    height: size,
+    colorFilter: const ColorFilter.mode(
+      _LoyaltyScreenState.brown,
+      BlendMode.srcIn,
+    ),
+  );
+}
+
+String _formatThousands(int value) {
+  final negative = value < 0;
+  final digits = value.abs().toString();
+
+  final buffer = StringBuffer();
+
+  for (int i = 0; i < digits.length; i++) {
+    if (i != 0 && (digits.length - i) % 3 == 0) {
+      buffer.write(' ');
+    }
+
+    buffer.write(digits[i]);
+  }
+
+  return '${negative ? '-' : ''}$buffer';
+}
+
+String _formatCardNumber(String value) {
+  if (value.isEmpty || value == '—') {
+    return '—';
+  }
+
+  final clean = value.replaceAll(RegExp(r'\s+'), '');
+
+  final groups = <String>[];
+
+  for (int i = 0; i < clean.length; i += 4) {
+    final end = (i + 4).clamp(0, clean.length);
+    groups.add(clean.substring(i, end));
+  }
+
+  return groups.join(' ');
+}
+
+// ==================================================================
+// ERROR
+// ==================================================================
+
+class _ErrorView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorView({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.credit_card_off_rounded,
+              size: 52,
+              color: _LoyaltyScreenState.muted,
+            ),
+
+            const SizedBox(height: 16),
+
+            const Text(
+              'Не удалось загрузить карту',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: _LoyaltyScreenState.brown,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                color: _LoyaltyScreenState.muted,
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            ElevatedButton(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _LoyaltyScreenState.brown,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Повторить'),
+            ),
+          ],
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/order.dart';
 import '../theme/app_theme.dart';
+import 'product_image.dart';
 
 /// Строка товара в составе заказа на экране «Подтверждение заказа».
 /// В отличие от [OrderItemTile] — только для чтения, без степпера и удаления,
@@ -16,19 +17,16 @@ class ReceiptItemTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              item.product.imageUrl,
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 56,
-                height: 56,
-                color: AppColors.surfaceMuted,
-                child: const Icon(Icons.bakery_dining_outlined,
-                    size: 20, color: AppColors.textSecondary),
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: ProductImage(
+                imageUrl: item.product.imageUrl,
+                fit: BoxFit.cover,
+                iconSize: 20,
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
@@ -44,7 +42,10 @@ class ReceiptItemTile extends StatelessWidget {
           const SizedBox(width: 8),
           Text('${item.quantity} шт.', style: AppTextStyles.receiptQty),
           const SizedBox(width: 12),
-          Text(formatPrice(item.lineTotal), style: AppTextStyles.orderItemPrice),
+          Text(
+            formatPrice(item.lineTotal),
+            style: AppTextStyles.orderItemPrice,
+          ),
         ],
       ),
     );

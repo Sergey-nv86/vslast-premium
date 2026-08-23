@@ -1,25 +1,21 @@
+import '../../../widgets/product_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../data/mock_products.dart';
+
 import '../../../models/product.dart';
 import '../../../screens/product_detail_screen.dart';
 import '../../../theme/app_theme.dart';
 
-/// Блок "Популярное". Раньше карточки были декоративными (свои
-/// image/title/price без связи с товаром, без onTap) — отсюда и не
-/// открывалась карточка товара по нажатию. Теперь ссылаемся на реальные
-/// Product из mockProducts — переход на ProductDetailScreen работает, и
-/// цена/фото/название больше не могут разойтись с каталогом.
+/// Блок "Популярное".
+///
+/// Данные приходят из HomeScreen:
+/// Supabase → ProductService → HomeScreen → PopularSection.
+///
+/// UI намеренно сохранён прежним.
 class PopularSection extends StatelessWidget {
-  const PopularSection({super.key});
+  final List<Product> products;
 
-  static final List<Product> _items = [
-    mockProducts.firstWhere((p) => p.id == 'eclair_chocolate'),
-    mockProducts.firstWhere((p) => p.id == 'dacquoise'),
-    mockProducts.firstWhere((p) => p.id == 'lemon_basil_tart'),
-    mockProducts.firstWhere((p) => p.id == 'ciabatta'),
-    mockProducts.firstWhere((p) => p.id == 'grain_bun'),
-  ];
+  const PopularSection({super.key, required this.products});
 
   void _openProductDetails(BuildContext context, Product product) {
     Navigator.of(context).push(
@@ -29,6 +25,10 @@ class PopularSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (products.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -37,7 +37,7 @@ class PopularSection extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                "Популярное",
+                'Популярное',
                 style: GoogleFonts.alice(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -46,7 +46,7 @@ class PopularSection extends StatelessWidget {
               ),
               const Spacer(),
               const Text(
-                "Все",
+                'Все',
                 style: TextStyle(
                   color: AppColors.linkAccent,
                   fontSize: 12.5,
@@ -54,24 +54,30 @@ class PopularSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 3),
-              const Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.linkAccent),
+              const Icon(
+                Icons.arrow_forward_ios,
+                size: 10,
+                color: AppColors.linkAccent,
+              ),
             ],
           ),
         ),
-
         const SizedBox(height: 8),
-
         SizedBox(
           height: 128,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            itemCount: _items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, index) => _PopularItem(
-              product: _items[index],
-              onTap: () => _openProductDetails(context, _items[index]),
-            ),
+            itemCount: products.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final product = products[index];
+
+              return _PopularItem(
+                product: product,
+                onTap: () => _openProductDetails(context, product),
+              );
+            },
           ),
         ),
       ],
@@ -100,14 +106,10 @@ class _PopularItem extends StatelessWidget {
               child: SizedBox(
                 width: 84,
                 height: 84,
-                child: Image.asset(
-                  product.imageUrl,
+                child: ProductImage(
+                  imageUrl: product.imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: AppColors.surfaceMuted,
-                    child: const Icon(Icons.bakery_dining_outlined,
-                        size: 22, color: AppColors.textSecondary),
-                  ),
+                  iconSize: 22,
                 ),
               ),
             ),
@@ -123,7 +125,7 @@ class _PopularItem extends StatelessWidget {
               ),
             ),
             Text(
-              product.inStock ? "${product.price} ₽" : "Под заказ",
+              product.inStock ? '${product.price} ₽' : 'Под заказ',
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,

@@ -116,11 +116,24 @@ class AdminProductMeta {
       orderable: product.inStock,
       showInCatalog: true,
       priceHistory: [
-        PriceHistoryEntry(date: DateTime.now().subtract(const Duration(days: 1)), price: basePrice, author: 'Сергей'),
-        PriceHistoryEntry(date: DateTime.now().subtract(const Duration(days: 40)), price: (basePrice * 0.93).round(), author: 'Сергей'),
-        PriceHistoryEntry(date: DateTime.now().subtract(const Duration(days: 90)), price: (basePrice * 0.85).round(), author: 'Сергей'),
+        PriceHistoryEntry(
+          date: DateTime.now().subtract(const Duration(days: 1)),
+          price: basePrice,
+          author: 'Сергей',
+        ),
+        PriceHistoryEntry(
+          date: DateTime.now().subtract(const Duration(days: 40)),
+          price: (basePrice * 0.93).round(),
+          author: 'Сергей',
+        ),
+        PriceHistoryEntry(
+          date: DateTime.now().subtract(const Duration(days: 90)),
+          price: (basePrice * 0.85).round(),
+          author: 'Сергей',
+        ),
       ],
-      techCardCode: 'ТТК-${product.category.name.toUpperCase()}-${(index + 1).toString().padLeft(3, '0')}',
+      techCardCode:
+          'ТТК-${product.category.name.toUpperCase()}-${(index + 1).toString().padLeft(3, '0')}',
       yieldWeight: product.weightLabel,
       costPrice: (basePrice * 0.35).round(),
       favoritesCount: 20 + (seed % 120),

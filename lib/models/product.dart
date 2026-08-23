@@ -91,8 +91,17 @@ class Product {
     this.galleryImages,
   });
 
-  List<String> get gallery =>
-      (galleryImages == null || galleryImages!.isEmpty) ? [imageUrl] : galleryImages!;
+  List<String> get gallery {
+    final images = (galleryImages ?? const <String>[])
+        .where((url) => url.trim().isNotEmpty)
+        .toList();
+
+    if (images.isNotEmpty) {
+      return images;
+    }
+
+    return imageUrl.trim().isNotEmpty ? [imageUrl] : const [];
+  }
 
   bool get hasNutritionInfo =>
       caloriesPer100g != null ||
@@ -103,7 +112,8 @@ class Product {
   /// Экран «Предзаказ» показывает шаг выбора веса только для тортов или
   /// весового товара — для остального (эклер, булочка и т.п.) вес не
   /// выбирается, и шаг просто не рисуется.
-  bool get showsWeightSelector => category == ProductCategory.cakes || isWeighed;
+  bool get showsWeightSelector =>
+      category == ProductCategory.cakes || isWeighed;
 
   @override
   bool operator ==(Object other) => other is Product && other.id == id;

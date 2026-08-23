@@ -60,7 +60,12 @@ class OrderItemSnapshot {
 
 /// Полный снимок оформленного заказа для экрана «Подтверждение заказа».
 class OrderSummary {
+  /// UUID заказа в Supabase.
+  final String orderId;
+
+  /// Номер заказа, сгенерированный PostgreSQL.
   final int orderNumber;
+
   final DateTime createdAt;
   final List<OrderItemSnapshot> items;
   final String? comment;
@@ -69,15 +74,23 @@ class OrderSummary {
   final String pickupTimeSlot;
   final PaymentMethod paymentMethod;
 
-  /// Адрес доставки — только для DeliveryMethod.delivery, введён на
-  /// DeliveryAddressScreen. Для самовывоза всегда null.
+  /// Адрес доставки — только для DeliveryMethod.delivery.
   final String? deliveryAddress;
 
-  /// null — стоимость доставки ещё не рассчитана ("Уточняется"),
-  /// 0 — бесплатно (например, самовывоз).
-  final int? deliveryCost;
+  /// Серверная сумма товаров.
+  final int itemsTotal;
+
+  /// Серверная скидка за самовывоз.
+  final int pickupDiscount;
+
+  /// Серверная стоимость доставки.
+  final int deliveryCost;
+
+  /// Финальная сумма заказа, рассчитанная PostgreSQL.
+  final int total;
 
   const OrderSummary({
+    required this.orderId,
     required this.orderNumber,
     required this.createdAt,
     required this.items,
@@ -87,10 +100,11 @@ class OrderSummary {
     required this.pickupTimeSlot,
     required this.paymentMethod,
     this.deliveryAddress,
-    this.deliveryCost = 0,
+    required this.itemsTotal,
+    required this.pickupDiscount,
+    required this.deliveryCost,
+    required this.total,
   });
 
   int get itemsCount => items.fold(0, (sum, i) => sum + i.quantity);
-  int get itemsTotal => items.fold(0, (sum, i) => sum + i.lineTotal);
-  int get total => itemsTotal + (deliveryCost ?? 0);
 }

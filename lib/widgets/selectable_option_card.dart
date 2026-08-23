@@ -55,8 +55,11 @@ class SelectableOptionCard extends StatelessWidget {
               const Positioned(
                 top: 0,
                 right: 0,
-                child: Icon(Icons.check_circle,
-                    size: 18, color: AppColors.primaryBrown),
+                child: Icon(
+                  Icons.check_circle,
+                  size: 18,
+                  color: AppColors.primaryBrown,
+                ),
               ),
           ],
         ),

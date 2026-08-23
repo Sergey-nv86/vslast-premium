@@ -44,19 +44,13 @@ class _AccessDenied extends StatelessWidget {
   final String title;
   final String message;
 
-  const _AccessDenied({
-    required this.title,
-    required this.message,
-  });
+  const _AccessDenied({required this.title, required this.message});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F4EE),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F4EE),
-        elevation: 0,
-      ),
+      appBar: AppBar(backgroundColor: const Color(0xFFF8F4EE), elevation: 0),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
@@ -82,10 +76,7 @@ class _AccessDenied extends StatelessWidget {
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF806F65),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF806F65)),
               ),
             ],
           ),

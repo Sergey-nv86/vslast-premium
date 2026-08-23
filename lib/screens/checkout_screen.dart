@@ -1,7 +1,6 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/order.dart';
 import '../providers/cart_provider.dart';
@@ -12,9 +11,19 @@ import '../widgets/selectable_option_card.dart';
 import 'delivery_address_screen.dart';
 import 'order_confirmation_screen.dart';
 
-/// Экран «Оформление заказа». Список товаров — это живой срез корзины
-/// (CartProvider), поэтому изменения количества/удаление здесь сразу
-/// отражаются и в корзине, и наоборот.
+/// Экран «Оформление заказа».
+///
+/// Заказ создаётся через Supabase RPC:
+/// create_order_from_cart
+///
+/// Источником истины для:
+/// - номера заказа;
+/// - суммы товаров;
+/// - скидки за самовывоз;
+/// - стоимости доставки;
+/// - итоговой суммы
+///
+/// является PostgreSQL-функция create_order_from_cart().
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -23,37 +32,93 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
+  /// Вся корзина становится предзаказом, если содержит
+  /// хотя бы один товар с inStock == false.
+
   static const List<String> _timeSlots = [
-    '10:00 – 11:00',
     '11:00 – 12:00',
     '12:00 – 13:00',
     '13:00 – 14:00',
     '14:00 – 15:00',
     '15:00 – 16:00',
+    '16:00 – 17:00',
+    '17:00 – 18:00',
+    '18:00 – 19:00',
   ];
 
   DeliveryMethod _deliveryMethod = DeliveryMethod.pickup;
   PaymentMethod _paymentMethod = PaymentMethod.onlineSbp;
-  DateTime _pickupDate = DateTime.now();
+
+  DateTime _pickupDate = _minimumPickupDate();
+
+  static DateTime _minimumPickupDate() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return today.add(const Duration(days: 2));
+  }
+
   late String _pickupTimeSlot;
+
   String? _comment;
   String? _deliveryAddress;
+
+  bool _isSubmitting = false;
+
+  // Процент скидки за самовывоз из public.order_settings.
+  int _pickupDiscountPercent = 0;
 
   @override
   void initState() {
     super.initState();
-    _pickupTimeSlot = _timeSlots[2]; // 12:00–13:00 по умолчанию, как в макете
+
+    // 11:00–12:00 по умолчанию.
+    _pickupTimeSlot = _timeSlots[0];
+    _loadOrderSettings();
+  }
+
+  Future<void> _loadOrderSettings() async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      final response = await supabase
+          .from('order_settings')
+          .select('pickup_discount')
+          .eq('id', 1)
+          .maybeSingle();
+
+      if (!mounted || response == null) return;
+
+      final value = response['pickup_discount'];
+
+      final percent = value is num
+          ? value.round()
+          : int.tryParse(value.toString()) ?? 0;
+
+      if (percent < 0 || percent > 100) return;
+
+      setState(() {
+        _pickupDiscountPercent = percent;
+      });
+    } catch (error) {
+      debugPrint('Не удалось загрузить скидку за самовывоз: $error');
+    }
   }
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
+
     final picked = await showDatePicker(
       context: context,
       initialDate: _pickupDate.isBefore(now) ? now : _pickupDate,
       firstDate: now,
       lastDate: now.add(const Duration(days: 30)),
     );
-    if (picked != null) setState(() => _pickupDate = picked);
+
+    if (picked != null && mounted) {
+      setState(() {
+        _pickupDate = picked;
+      });
+    }
   }
 
   Future<void> _pickTimeSlot() async {
@@ -63,12 +128,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => _TimeSlotSheet(
-        slots: _timeSlots,
-        selected: _pickupTimeSlot,
-      ),
+      builder: (context) {
+        return _TimeSlotSheet(slots: _timeSlots, selected: _pickupTimeSlot);
+      },
     );
-    if (selected != null) setState(() => _pickupTimeSlot = selected);
+
+    if (selected != null && mounted) {
+      setState(() {
+        _pickupTimeSlot = selected;
+      });
+    }
   }
 
   Future<void> _selectDelivery() async {
@@ -77,7 +146,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         builder: (_) => DeliveryAddressScreen(initialAddress: _deliveryAddress),
       ),
     );
-    if (address != null) {
+
+    if (address != null && mounted) {
       setState(() {
         _deliveryMethod = DeliveryMethod.delivery;
         _deliveryAddress = address;
@@ -87,6 +157,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> _editComment() async {
     final controller = TextEditingController(text: _comment);
+
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -94,83 +165,309 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Комментарий к заказу', style: AppTextStyles.sectionLabel),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              maxLines: 3,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'Например: не звонить в домофон',
-                filled: true,
-                fillColor: AppColors.surfaceMuted,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context, controller.text.trim()),
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBrown,
-                    borderRadius: BorderRadius.circular(24),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Комментарий к заказу', style: AppTextStyles.sectionLabel),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                maxLines: 3,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Например: не звонить в домофон',
+                  filled: true,
+                  fillColor: AppColors.surfaceMuted,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
                   ),
-                  alignment: Alignment.center,
-                  child: Text('Сохранить', style: AppTextStyles.cartBarButton),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context, controller.text.trim());
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBrown,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Сохранить',
+                      style: AppTextStyles.cartBarButton,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
-    if (result != null) setState(() => _comment = result.isEmpty ? null : result);
+
+    controller.dispose();
+
+    if (result != null && mounted) {
+      setState(() {
+        _comment = result.isEmpty ? null : result;
+      });
+    }
   }
 
-  void _submitOrder(CartProvider cart) {
-    final items = cart.items.entries
-        .map((e) => OrderItemSnapshot(product: e.key, quantity: e.value))
-        .toList();
-    if (items.isEmpty) return;
+  /// Создание заказа через Supabase RPC.
+  ///
+  /// ВАЖНО:
+  /// Номер заказа НЕ генерируется в Flutter.
+  /// Его создаёт PostgreSQL через:
+  ///
+  /// nextval('public.orders_order_number_seq')
+  ///
+  /// внутри create_order_from_cart().
+  Future<void> _submitOrder(CartProvider cart) async {
+    if (_isSubmitting) return;
 
-    final order = OrderSummary(
-      // TODO: заменить на номер заказа, который вернёт бэкенд.
-      orderNumber: 1000 + Random().nextInt(9000),
-      createdAt: DateTime.now(),
-      items: items,
-      comment: _comment,
-      deliveryMethod: _deliveryMethod,
-      pickupDate: _pickupDate,
-      pickupTimeSlot: _pickupTimeSlot,
-      paymentMethod: _paymentMethod,
-      deliveryAddress:
-          _deliveryMethod == DeliveryMethod.delivery ? _deliveryAddress : null,
-      deliveryCost: _deliveryMethod == DeliveryMethod.pickup ? 0 : null,
-    );
+    if (cart.isEmpty) {
+      _showError('Корзина пуста');
+      return;
+    }
 
-    cart.clear();
+    if (_deliveryMethod == DeliveryMethod.delivery &&
+        (_deliveryAddress == null || _deliveryAddress!.trim().isEmpty)) {
+      _showError('Укажите адрес доставки');
+      return;
+    }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => OrderConfirmationScreen(order: order)),
-    );
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    // Для предзаказа дата и время являются общими для всей корзины
+    // и выбираются в CartScreen через CartProvider.
+    // Для обычного заказа используются значения CheckoutScreen.
+    final orderDate = cart.isPreorder ? cart.preorderDate : _pickupDate;
+
+    final orderTimeSlot = cart.isPreorder ? cart.preorderTime : _pickupTimeSlot;
+
+    if (cart.isPreorder &&
+        (orderDate == null || orderTimeSlot == null || orderTimeSlot.isEmpty)) {
+      _showError('Выберите дату и время предзаказа');
+      return;
+    }
+
+    try {
+      final supabase = Supabase.instance.client;
+
+      final response = await supabase.rpc(
+        'create_order_from_cart',
+        params: {
+          'p_delivery_method': _deliveryMethod.name,
+          'p_payment_method': _paymentMethod.name,
+
+          // Для preorder дата и время берутся из CartProvider.
+          // Для обычного заказа используются локальные значения Checkout.
+          'p_pickup_date': orderDate!.toIso8601String().split('T').first,
+
+          'p_pickup_time_slot': orderTimeSlot!,
+
+          'p_delivery_address': _deliveryMethod == DeliveryMethod.delivery
+              ? _deliveryAddress?.trim()
+              : null,
+
+          'p_comment': (_comment == null || _comment!.trim().isEmpty)
+              ? null
+              : _comment!.trim(),
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response == null) {
+        throw Exception('Сервер не вернул данные созданного заказа');
+      }
+
+      Map<String, dynamic> result;
+
+      if (response is List && response.isNotEmpty) {
+        result = Map<String, dynamic>.from(response.first as Map);
+      } else if (response is Map) {
+        result = Map<String, dynamic>.from(response);
+      } else {
+        throw Exception('Неожиданный формат ответа сервера');
+      }
+
+      final orderId = result['order_id']?.toString();
+
+      if (orderId == null || orderId.isEmpty) {
+        throw Exception('Сервер не вернул ID заказа');
+      }
+
+      final orderNumber = _parseInt(result['order_number']);
+
+      final itemsTotal = _parseInt(result['items_total']);
+
+      final pickupDiscount = _parseInt(result['pickup_discount']);
+
+      final deliveryCost = _parseInt(result['delivery_cost']);
+
+      final total = _parseInt(result['total']);
+
+      if (orderNumber == null) {
+        throw Exception('Сервер не вернул номер заказа');
+      }
+
+      if (itemsTotal == null) {
+        throw Exception('Сервер не вернул сумму товаров');
+      }
+
+      if (pickupDiscount == null) {
+        throw Exception('Сервер не вернул скидку за самовывоз');
+      }
+
+      if (deliveryCost == null) {
+        throw Exception('Сервер не вернул стоимость доставки');
+      }
+
+      if (total == null) {
+        throw Exception('Сервер не вернул итоговую сумму');
+      }
+
+      // Снимок товаров для экрана подтверждения.
+      //
+      // Сам заказ уже создан в БД.
+      // Эти данные нужны только для отображения
+      // пользователю на следующем экране.
+      final items = cart.items.entries
+          .map(
+            (entry) =>
+                OrderItemSnapshot(product: entry.key, quantity: entry.value),
+          )
+          .toList();
+
+      final order = OrderSummary(
+        orderId: orderId,
+        orderNumber: orderNumber,
+        createdAt: DateTime.now(),
+        items: items,
+        comment: _comment,
+        deliveryMethod: _deliveryMethod,
+        pickupDate: orderDate,
+        pickupTimeSlot: orderTimeSlot,
+        paymentMethod: _paymentMethod,
+        deliveryAddress: _deliveryMethod == DeliveryMethod.delivery
+            ? _deliveryAddress
+            : null,
+        itemsTotal: itemsTotal,
+        pickupDiscount: pickupDiscount,
+        deliveryCost: deliveryCost,
+        total: total,
+      );
+
+      // Важно:
+      // RPC уже удалил cart_items в БД.
+      //
+      // Теперь очищаем локальную корзину,
+      // чтобы UI приложения соответствовал БД.
+      cart.clearLocal();
+
+      if (!mounted) return;
+
+      // Проверяем серверную сумму.
+      //
+      // OrderSummary.total может быть рассчитан из локальных
+      // товаров и deliveryCost, но сервер также учитывает
+      // pickup_discount.
+      //
+      // Поэтому для диагностики выводим серверные значения.
+      debugPrint(
+        'ORDER CREATED: '
+        'id=$orderId, '
+        'number=$orderNumber, '
+        'itemsTotal=$itemsTotal, '
+        'pickupDiscount=$pickupDiscount, '
+        'deliveryCost=$deliveryCost, '
+        'total=$total',
+      );
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => OrderConfirmationScreen(order: order),
+        ),
+      );
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+
+      debugPrint(
+        'create_order_from_cart PostgrestException: '
+        'code=${error.code}, '
+        'message=${error.message}, '
+        'details=${error.details}, '
+        'hint=${error.hint}',
+      );
+
+      _showError(_friendlySupabaseError(error));
+    } catch (error, stackTrace) {
+      if (!mounted) return;
+
+      debugPrint('create_order_from_cart error: $error');
+
+      debugPrint('create_order_from_cart stackTrace: $stackTrace');
+
+      _showError('Не удалось оформить заказ. Попробуйте ещё раз.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  int? _parseInt(dynamic value) {
+    if (value == null) return null;
+
+    if (value is int) return value;
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value.toString());
+  }
+
+  String _friendlySupabaseError(PostgrestException error) {
+    final message = error.message.trim();
+
+    if (message.isNotEmpty) {
+      return message;
+    }
+
+    return 'Не удалось оформить заказ. Попробуйте ещё раз.';
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
   }
 
   @override
@@ -189,6 +486,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                     sliver: const SliverToBoxAdapter(child: _Header()),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                     sliver: SliverToBoxAdapter(
@@ -197,38 +495,48 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         children: [
                           Text('Ваш заказ', style: AppTextStyles.sectionLabel),
                           Text(
-                            '${cart.totalCount} ${pluralizeItems(cart.totalCount)}',
+                            '${cart.totalCount} '
+                            '${pluralizeItems(cart.totalCount)}',
                             style: AppTextStyles.sectionCounter,
                           ),
                         ],
                       ),
                     ),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final entry = entries[index];
-                          return Column(
-                            children: [
-                              OrderItemTile(
-                                  product: entry.key, quantity: entry.value),
-                              if (index != entries.length - 1)
-                                const Divider(height: 1, color: AppColors.divider),
-                            ],
-                          );
-                        },
-                        childCount: entries.length,
-                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final entry = entries[index];
+
+                        return Column(
+                          children: [
+                            OrderItemTile(
+                              product: entry.key,
+                              quantity: entry.value,
+                            ),
+                            if (index != entries.length - 1)
+                              const Divider(
+                                height: 1,
+                                color: AppColors.divider,
+                              ),
+                          ],
+                        );
+                      }, childCount: entries.length),
                     ),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     sliver: SliverToBoxAdapter(
-                      child: _CommentRow(comment: _comment, onTap: _editComment),
+                      child: _CommentRow(
+                        comment: _comment,
+                        onTap: _editComment,
+                      ),
                     ),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
                     sliver: SliverToBoxAdapter(
@@ -241,9 +549,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 icon: Icons.shopping_bag_outlined,
                                 title: DeliveryMethod.pickup.title,
                                 subtitle: DeliveryMethod.pickup.subtitle,
-                                selected: _deliveryMethod == DeliveryMethod.pickup,
-                                onTap: () => setState(
-                                    () => _deliveryMethod = DeliveryMethod.pickup),
+                                selected:
+                                    _deliveryMethod == DeliveryMethod.pickup,
+                                onTap: () {
+                                  setState(() {
+                                    _deliveryMethod = DeliveryMethod.pickup;
+                                  });
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -251,7 +563,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               child: SelectableOptionCard(
                                 icon: Icons.delivery_dining_outlined,
                                 title: DeliveryMethod.delivery.title,
-                                subtitle: _deliveryMethod == DeliveryMethod.delivery &&
+                                subtitle:
+                                    _deliveryMethod ==
+                                            DeliveryMethod.delivery &&
                                         _deliveryAddress != null
                                     ? _deliveryAddress!
                                     : DeliveryMethod.delivery.subtitle,
@@ -265,6 +579,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
                     sliver: SliverToBoxAdapter(
@@ -275,16 +590,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             Expanded(
                               child: _DropdownField(
                                 icon: Icons.calendar_today_outlined,
-                                label: formatPickupDateLabel(_pickupDate),
-                                onTap: _pickDate,
+                                label: cart.isPreorder
+                                    ? (cart.preorderDate == null
+                                          ? 'Дата из корзины'
+                                          : formatPickupDateLabel(
+                                              cart.preorderDate!,
+                                            ))
+                                    : formatPickupDateLabel(_pickupDate),
+                                onTap: cart.isPreorder
+                                    ? () {}
+                                    : () {
+                                        _pickDate();
+                                      },
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: _DropdownField(
                                 icon: Icons.access_time,
-                                label: _pickupTimeSlot,
-                                onTap: _pickTimeSlot,
+                                label: cart.isPreorder
+                                    ? (cart.preorderTime ?? 'Время из корзины')
+                                    : _pickupTimeSlot,
+                                onTap: cart.isPreorder
+                                    ? () {}
+                                    : () {
+                                        _pickTimeSlot();
+                                      },
                               ),
                             ),
                           ],
@@ -292,6 +623,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
                     sliver: SliverToBoxAdapter(
@@ -306,8 +638,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 subtitle: 'Администратор выставит QR-код',
                                 selected:
                                     _paymentMethod == PaymentMethod.onlineSbp,
-                                onTap: () => setState(() =>
-                                    _paymentMethod = PaymentMethod.onlineSbp),
+                                onTap: () {
+                                  setState(() {
+                                    _paymentMethod = PaymentMethod.onlineSbp;
+                                  });
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -317,8 +652,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 title: PaymentMethod.cash.title,
                                 subtitle: PaymentMethod.cash.subtitle,
                                 selected: _paymentMethod == PaymentMethod.cash,
-                                onTap: () => setState(
-                                    () => _paymentMethod = PaymentMethod.cash),
+                                onTap: () {
+                                  setState(() {
+                                    _paymentMethod = PaymentMethod.cash;
+                                  });
+                                },
                               ),
                             ),
                           ],
@@ -326,38 +664,65 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
                     sliver: SliverToBoxAdapter(
                       child: _PriceSummary(
                         itemsTotal: cart.totalSum,
                         deliveryLabel: _deliveryMethod.title,
-                        deliveryCost:
-                            _deliveryMethod == DeliveryMethod.pickup ? 0 : null,
+                        deliveryCost: _deliveryMethod == DeliveryMethod.pickup
+                            ? 0
+                            : null,
+                        pickupDiscountPercent:
+                            _deliveryMethod == DeliveryMethod.pickup
+                            ? _pickupDiscountPercent
+                            : 0,
                       ),
                     ),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                     sliver: const SliverToBoxAdapter(child: _InfoNote()),
                   ),
+
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                     sliver: SliverToBoxAdapter(
                       child: SizedBox(
                         width: double.infinity,
                         child: GestureDetector(
-                          onTap: () => _submitOrder(cart),
+                          onTap: _isSubmitting
+                              ? null
+                              : () => _submitOrder(cart),
                           behavior: HitTestBehavior.opaque,
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 17),
                             decoration: BoxDecoration(
-                              color: AppColors.primaryBrown,
+                              color: _isSubmitting
+                                  ? AppColors.primaryBrown.withValues(
+                                      alpha: 0.6,
+                                    )
+                                  : AppColors.primaryBrown,
                               borderRadius: BorderRadius.circular(26),
                             ),
                             alignment: Alignment.center,
-                            child:
-                                Text('Заказать', style: AppTextStyles.cartBarButton),
+                            child: _isSubmitting
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    'Заказать',
+                                    style: AppTextStyles.cartBarButton,
+                                  ),
                           ),
                         ),
                       ),
@@ -388,8 +753,11 @@ class _Header extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.divider, width: 1),
             ),
-            child: const Icon(Icons.chevron_left,
-                size: 24, color: AppColors.primaryBrown),
+            child: const Icon(
+              Icons.chevron_left,
+              size: 24,
+              color: AppColors.primaryBrown,
+            ),
           ),
         ),
         const SizedBox(width: 14),
@@ -432,6 +800,7 @@ class _CommentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasComment = comment != null && comment!.isNotEmpty;
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -503,8 +872,11 @@ class _DropdownField extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const Icon(Icons.keyboard_arrow_down,
-                size: 18, color: AppColors.textSecondary),
+            const Icon(
+              Icons.keyboard_arrow_down,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),
@@ -529,14 +901,22 @@ class _TimeSlotSheet extends StatelessWidget {
           children: [
             Text('Когда забрать', style: AppTextStyles.sectionLabel),
             const SizedBox(height: 8),
-            ...slots.map(
-              (slot) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(slot, style: AppTextStyles.rowLabel),
-                trailing: slot == selected
-                    ? const Icon(Icons.check, color: AppColors.primaryBrown)
-                    : null,
-                onTap: () => Navigator.pop(context, slot),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: slots.length,
+                itemBuilder: (context, index) {
+                  final slot = slots[index];
+
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(slot, style: AppTextStyles.rowLabel),
+                    trailing: slot == selected
+                        ? const Icon(Icons.check, color: AppColors.primaryBrown)
+                        : null,
+                    onTap: () => Navigator.pop(context, slot),
+                  );
+                },
               ),
             ),
           ],
@@ -550,18 +930,29 @@ class _PriceSummary extends StatelessWidget {
   final int itemsTotal;
   final String deliveryLabel;
 
-  /// null — "Уточняется", 0 — "Бесплатно", иначе — сумма.
+  /// null — «Уточняется».
+  /// 0 — «Бесплатно».
+  /// иначе — сумма.
   final int? deliveryCost;
+
+  /// Процент скидки за самовывоз.
+  final int pickupDiscountPercent;
 
   const _PriceSummary({
     required this.itemsTotal,
     required this.deliveryLabel,
     required this.deliveryCost,
+    required this.pickupDiscountPercent,
   });
 
   @override
   Widget build(BuildContext context) {
-    final total = itemsTotal + (deliveryCost ?? 0);
+    final pickupDiscount = pickupDiscountPercent > 0
+        ? (itemsTotal * pickupDiscountPercent / 100).round()
+        : 0;
+
+    final total = itemsTotal - pickupDiscount + (deliveryCost ?? 0);
+
     final deliveryValue = deliveryCost == null
         ? 'Уточняется'
         : (deliveryCost == 0 ? 'Бесплатно' : formatPrice(deliveryCost!));
@@ -577,6 +968,12 @@ class _PriceSummary extends StatelessWidget {
           _row('Сумма товаров', formatPrice(itemsTotal)),
           const SizedBox(height: 8),
           _row(deliveryLabel, deliveryValue),
+
+          if (pickupDiscount > 0) ...[
+            const SizedBox(height: 8),
+            _row('Скидка за самовывоз', '−${formatPrice(pickupDiscount)}'),
+          ],
+
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 10),
             child: Divider(height: 1, color: AppColors.divider),
@@ -593,13 +990,15 @@ class _PriceSummary extends StatelessWidget {
     );
   }
 
-  Widget _row(String label, String value) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: AppTextStyles.rowLabelMuted),
-          Text(value, style: AppTextStyles.rowValue),
-        ],
-      );
+  Widget _row(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: AppTextStyles.rowLabelMuted),
+        Text(value, style: AppTextStyles.rowValue),
+      ],
+    );
+  }
 }
 
 class _InfoNote extends StatelessWidget {
@@ -616,7 +1015,11 @@ class _InfoNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline, size: 18, color: AppColors.textSecondary),
+          const Icon(
+            Icons.info_outline,
+            size: 18,
+            color: AppColors.textSecondary,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -644,8 +1047,11 @@ class _EmptyCartState extends StatelessWidget {
         children: [
           const _Header(),
           const Spacer(),
-          Icon(Icons.shopping_bag_outlined,
-              size: 40, color: AppColors.textSecondary.withOpacity(0.6)),
+          Icon(
+            Icons.shopping_bag_outlined,
+            size: 40,
+            color: AppColors.textSecondary.withValues(alpha: 0.6),
+          ),
           const SizedBox(height: 12),
           Text('Корзина пуста', style: AppTextStyles.sectionLabel),
           const SizedBox(height: 6),

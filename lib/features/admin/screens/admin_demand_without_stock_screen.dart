@@ -22,12 +22,42 @@ class DemandProduct {
 }
 
 const _demoDemand = <DemandProduct>[
-  DemandProduct(name: 'Хлеб деревенский на закваске', price: 390, favoritesCount: 34, preorderCount: 8),
-  DemandProduct(name: 'Наполеон', price: 1450, favoritesCount: 21, preorderCount: 5),
-  DemandProduct(name: 'Тарт лимон-безе', price: 380, favoritesCount: 18, preorderCount: 3),
-  DemandProduct(name: 'Чиабатта', price: 450, favoritesCount: 12, preorderCount: 0),
-  DemandProduct(name: 'Булочка зерновая', price: 210, favoritesCount: 9, preorderCount: 1),
-  DemandProduct(name: 'Чизкейк с вишней', price: 1250, favoritesCount: 15, preorderCount: 4),
+  DemandProduct(
+    name: 'Хлеб деревенский на закваске',
+    price: 390,
+    favoritesCount: 34,
+    preorderCount: 8,
+  ),
+  DemandProduct(
+    name: 'Наполеон',
+    price: 1450,
+    favoritesCount: 21,
+    preorderCount: 5,
+  ),
+  DemandProduct(
+    name: 'Тарт лимон-безе',
+    price: 380,
+    favoritesCount: 18,
+    preorderCount: 3,
+  ),
+  DemandProduct(
+    name: 'Чиабатта',
+    price: 450,
+    favoritesCount: 12,
+    preorderCount: 0,
+  ),
+  DemandProduct(
+    name: 'Булочка зерновая',
+    price: 210,
+    favoritesCount: 9,
+    preorderCount: 1,
+  ),
+  DemandProduct(
+    name: 'Чизкейк с вишней',
+    price: 1250,
+    favoritesCount: 15,
+    preorderCount: 4,
+  ),
 ];
 
 /// «Спрос без наличия» — открывается с Dashboard администратора по тапу
@@ -56,7 +86,8 @@ class AdminDemandWithoutStockScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
               sliver: SliverList.separated(
                 itemCount: items.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 10),
                 itemBuilder: (context, i) => _DemandCard(item: items[i]),
               ),
             ),
@@ -80,7 +111,10 @@ class AdminDemandWithoutStockScreen extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: AdminDashboardScreen.border),
             ),
-            child: const Icon(Icons.chevron_left, color: AdminDashboardScreen.brown),
+            child: const Icon(
+              Icons.chevron_left,
+              color: AdminDashboardScreen.brown,
+            ),
           ),
         ),
         const SizedBox(width: 14),
@@ -90,12 +124,19 @@ class AdminDemandWithoutStockScreen extends StatelessWidget {
             children: [
               const Text(
                 'Спрос без наличия',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AdminDashboardScreen.dark),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: AdminDashboardScreen.dark,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
                 '${items.length} товаров ожидают клиенты',
-                style: const TextStyle(fontSize: 13, color: AdminDashboardScreen.muted),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AdminDashboardScreen.muted,
+                ),
               ),
             ],
           ),
@@ -126,12 +167,19 @@ class AdminDemandWithoutStockScreen extends StatelessWidget {
               children: [
                 const Text(
                   'Потенциальный спрос от предзаказов',
-                  style: TextStyle(fontSize: 13, color: AdminDashboardScreen.muted),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AdminDashboardScreen.muted,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   '${_totalPotential.toStringAsFixed(0)} ₽',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AdminDashboardScreen.brown),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AdminDashboardScreen.brown,
+                  ),
                 ),
               ],
             ),
@@ -162,13 +210,21 @@ class _DemandCard extends StatelessWidget {
             Expanded(
               child: Text(
                 item.name,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AdminDashboardScreen.dark),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AdminDashboardScreen.dark,
+                ),
               ),
             ),
             const SizedBox(width: 8),
             Text(
               '${item.price.toStringAsFixed(0)} ₽',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AdminDashboardScreen.dark),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AdminDashboardScreen.dark,
+              ),
             ),
           ],
         ),
@@ -177,14 +233,18 @@ class _DemandCard extends StatelessWidget {
           children: [
             _stat(
               icon: item.hasFavorites ? Icons.favorite : Icons.favorite_border,
-              iconColor: item.hasFavorites ? const Color(0xFFB5544A) : AdminDashboardScreen.muted,
+              iconColor: item.hasFavorites
+                  ? const Color(0xFFB5544A)
+                  : AdminDashboardScreen.muted,
               label: 'В избранном',
               value: '${item.favoritesCount}',
             ),
             const SizedBox(width: 18),
             _stat(
               icon: Icons.event_available_outlined,
-              iconColor: item.hasPreorders ? AdminDashboardScreen.brown : AdminDashboardScreen.muted,
+              iconColor: item.hasPreorders
+                  ? AdminDashboardScreen.brown
+                  : AdminDashboardScreen.muted,
               label: 'Предзаказано',
               value: '${item.preorderCount}',
             ),
@@ -192,7 +252,11 @@ class _DemandCard extends StatelessWidget {
               const Spacer(),
               Text(
                 '≈ ${item.potentialDemand.toStringAsFixed(0)} ₽',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AdminDashboardScreen.brown),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AdminDashboardScreen.brown,
+                ),
               ),
             ],
           ],
@@ -213,7 +277,11 @@ class _DemandCard extends StatelessWidget {
       const SizedBox(width: 5),
       Text(
         value,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AdminDashboardScreen.dark),
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: AdminDashboardScreen.dark,
+        ),
       ),
       const SizedBox(width: 4),
       Text(

@@ -10,8 +10,12 @@ class OrderStatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPending = status == OrderStatus.processing;
-    final bg = isPending ? AppColors.statusPendingBg : AppColors.statusSuccessBg;
-    final fg = isPending ? AppColors.statusPendingText : AppColors.statusSuccessText;
+    final bg = isPending
+        ? AppColors.statusPendingBg
+        : AppColors.statusSuccessBg;
+    final fg = isPending
+        ? AppColors.statusPendingText
+        : AppColors.statusSuccessText;
     final icon = isPending ? Icons.sync : Icons.check_circle;
 
     return Container(
@@ -25,7 +29,10 @@ class OrderStatusPill extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: fg),
           const SizedBox(width: 4),
-          Text(status.label, style: AppTextStyles.statusPillLabel.copyWith(color: fg)),
+          Text(
+            status.label,
+            style: AppTextStyles.statusPillLabel.copyWith(color: fg),
+          ),
         ],
       ),
     );

@@ -1,12 +1,4 @@
-enum UserRole {
-  owner,
-  admin,
-  manager,
-  seller,
-  baker,
-  pastryChef,
-  customer,
-}
+enum UserRole { owner, admin, manager, seller, baker, pastryChef, customer }
 
 extension UserRoleX on UserRole {
   String get value => switch (this) {

@@ -38,7 +38,8 @@ class _FadeToast extends StatefulWidget {
   State<_FadeToast> createState() => _FadeToastState();
 }
 
-class _FadeToastState extends State<_FadeToast> with SingleTickerProviderStateMixin {
+class _FadeToastState extends State<_FadeToast>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _opacity;
 
@@ -82,7 +83,11 @@ class _FadeToastState extends State<_FadeToast> with SingleTickerProviderStateMi
                 color: AppColors.primaryBrown,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: const [
-                  BoxShadow(color: AppColors.shadow, blurRadius: 14, offset: Offset(0, 6)),
+                  BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: 14,
+                    offset: Offset(0, 6),
+                  ),
                 ],
               ),
               child: Row(
@@ -93,7 +98,9 @@ class _FadeToastState extends State<_FadeToast> with SingleTickerProviderStateMi
                   Flexible(
                     child: Text(
                       widget.message,
-                      style: AppTextStyles.cartBarText.copyWith(color: Colors.white),
+                      style: AppTextStyles.cartBarText.copyWith(
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],

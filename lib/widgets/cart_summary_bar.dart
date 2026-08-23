@@ -30,8 +30,11 @@ class CartSummaryBar extends StatelessWidget {
               color: Colors.white,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.shopping_bag_outlined,
-                size: 20, color: AppColors.primaryBrown),
+            child: const Icon(
+              Icons.shopping_bag_outlined,
+              size: 20,
+              color: AppColors.primaryBrown,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -56,8 +59,11 @@ class CartSummaryBar extends StatelessWidget {
                 children: [
                   Text('Перейти в корзину', style: AppTextStyles.cartBarButton),
                   const SizedBox(width: 6),
-                  const Icon(Icons.arrow_forward,
-                      size: 16, color: AppColors.textOnPrimary),
+                  const Icon(
+                    Icons.arrow_forward,
+                    size: 16,
+                    color: AppColors.textOnPrimary,
+                  ),
                 ],
               ),
             ),

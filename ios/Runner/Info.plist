@@ -45,7 +45,11 @@
 					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
 					<key>UISceneStoryboardFile</key>
 					<string>Main</string>
-				</dict>
+				
+	<key>NSCameraUsageDescription</key>
+	<string>Камера используется для сканирования карты лояльности «Всласть»</string>
+
+</dict>
 			</array>
 		</dict>
 	</dict>

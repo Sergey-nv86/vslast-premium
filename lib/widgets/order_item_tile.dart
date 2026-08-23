@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
 import '../theme/app_theme.dart';
+import 'product_image.dart';
 
 /// Редактируемая строка товара в списке заказа (экран «Оформление заказа»).
 /// Читает и меняет состояние напрямую через CartProvider, поэтому список
@@ -28,17 +29,13 @@ class OrderItemTile extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: Image.asset(
-              product.imageUrl,
+            child: SizedBox(
               width: 76,
               height: 76,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 76,
-                height: 76,
-                color: AppColors.surfaceMuted,
-                child: const Icon(Icons.bakery_dining_outlined,
-                    color: AppColors.textSecondary),
+              child: ProductImage(
+                imageUrl: product.imageUrl,
+                fit: BoxFit.cover,
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
           ),
@@ -63,8 +60,11 @@ class OrderItemTile extends StatelessWidget {
                       behavior: HitTestBehavior.opaque,
                       child: const Padding(
                         padding: EdgeInsets.only(left: 8, bottom: 4),
-                        child: Icon(Icons.delete_outline,
-                            size: 20, color: AppColors.primaryBrown),
+                        child: Icon(
+                          Icons.delete_outline,
+                          size: 20,
+                          color: AppColors.primaryBrown,
+                        ),
                       ),
                     ),
                   ],

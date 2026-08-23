@@ -93,36 +93,53 @@ class _HomeFilterSheetState extends State<_HomeFilterSheet> {
                 if (_categories.isNotEmpty || _badges.isNotEmpty)
                   TextButton(
                     onPressed: _reset,
-                    child: const Text('Сбросить', style: TextStyle(color: AppColors.linkAccent)),
+                    child: const Text(
+                      'Сбросить',
+                      style: TextStyle(color: AppColors.linkAccent),
+                    ),
                   ),
               ],
             ),
             const SizedBox(height: 16),
-            Text('Категории', style: AppTextStyles.rowLabel.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              'Категории',
+              style: AppTextStyles.rowLabel.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: ProductCategory.values
-                  .map((c) => _FilterChip(
-                        label: c.label,
-                        selected: _categories.contains(c),
-                        onTap: () => _toggleCategory(c),
-                      ))
+                  .map(
+                    (c) => _FilterChip(
+                      label: c.label,
+                      selected: _categories.contains(c),
+                      onTap: () => _toggleCategory(c),
+                    ),
+                  )
                   .toList(),
             ),
             const SizedBox(height: 20),
-            Text('Особые отметки', style: AppTextStyles.rowLabel.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              'Особые отметки',
+              style: AppTextStyles.rowLabel.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: ProductBadge.values
-                  .map((b) => _FilterChip(
-                        label: b.label,
-                        selected: _badges.contains(b),
-                        onTap: () => _toggleBadge(b),
-                      ))
+                  .map(
+                    (b) => _FilterChip(
+                      label: b.label,
+                      selected: _badges.contains(b),
+                      onTap: () => _toggleBadge(b),
+                    ),
+                  )
                   .toList(),
             ),
             const SizedBox(height: 24),
@@ -136,7 +153,9 @@ class _HomeFilterSheetState extends State<_HomeFilterSheet> {
                   backgroundColor: AppColors.primaryBrown,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 child: const Text('Показать'),
               ),
@@ -153,7 +172,11 @@ class _FilterChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _FilterChip({required this.label, required this.selected, required this.onTap});
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +188,9 @@ class _FilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? AppColors.primaryBrown : AppColors.surfaceMuted,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: selected ? AppColors.primaryBrown : AppColors.divider),
+          border: Border.all(
+            color: selected ? AppColors.primaryBrown : AppColors.divider,
+          ),
         ),
         child: Text(
           label,

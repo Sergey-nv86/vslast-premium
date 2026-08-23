@@ -16,7 +16,7 @@ class PremiumCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.brown.withOpacity(.28),
+            color: Colors.brown.withValues(alpha: .28),
             blurRadius: 28,
             offset: const Offset(0, 14),
           ),
@@ -32,7 +32,7 @@ class PremiumCard extends StatelessWidget {
               height: 170,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(.05),
+                color: Colors.white.withValues(alpha: .05),
               ),
             ),
           ),
@@ -45,7 +45,7 @@ class PremiumCard extends StatelessWidget {
               height: 190,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(.04),
+                color: Colors.white.withValues(alpha: .04),
               ),
             ),
           ),
@@ -70,7 +70,7 @@ class PremiumCard extends StatelessWidget {
                 Text(
                   "Premium Club",
                   style: TextStyle(
-                    color: Colors.white.withOpacity(.85),
+                    color: Colors.white.withValues(alpha: .85),
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
@@ -97,7 +97,7 @@ class PremiumCard extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(.18),
+                        color: Colors.white.withValues(alpha: .18),
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: const Row(
@@ -125,7 +125,7 @@ class PremiumCard extends StatelessWidget {
                     Text(
                       "№ 000128",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(.85),
+                        color: Colors.white.withValues(alpha: .85),
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -138,7 +138,7 @@ class PremiumCard extends StatelessWidget {
                 Container(
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(.18),
+                    color: Colors.white.withValues(alpha: .18),
                     borderRadius: BorderRadius.circular(50),
                   ),
                   child: FractionallySizedBox(
@@ -158,7 +158,7 @@ class PremiumCard extends StatelessWidget {
                 Text(
                   "До уровня Diamond осталось 18%",
                   style: TextStyle(
-                    color: Colors.white.withOpacity(.82),
+                    color: Colors.white.withValues(alpha: .82),
                     fontSize: 13,
                   ),
                 ),

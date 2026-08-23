@@ -58,7 +58,7 @@ class BenefitsGrid extends StatelessWidget {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(.05),
+                color: Colors.black.withValues(alpha: .05),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
@@ -69,7 +69,7 @@ class BenefitsGrid extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 26,
-                backgroundColor: item.color.withOpacity(.12),
+                backgroundColor: item.color.withValues(alpha: .12),
                 child: Icon(item.icon, color: item.color, size: 28),
               ),
 

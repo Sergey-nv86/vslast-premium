@@ -10,7 +10,8 @@ final List<OrderListItem> mockOrders = [
     placedAt: DateTime(2025, 5, 18, 10, 32),
     itemsCount: 2,
     totalPrice: 690,
-    statusDescription: 'Заказ отправлен администратору.\nОжидает подтверждения.',
+    statusDescription:
+        'Заказ отправлен администратору.\nОжидает подтверждения.',
     imageUrl: 'assets/images/bread_country.jpg',
   ),
   OrderListItem(

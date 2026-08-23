@@ -39,11 +39,16 @@ class ProfileScreen extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.divider, width: 1),
                       ),
-                      child: const Icon(Icons.chevron_left,
-                          size: 24, color: AppColors.primaryBrown),
+                      child: const Icon(
+                        Icons.chevron_left,
+                        size: 24,
+                        color: AppColors.primaryBrown,
+                      ),
                     ),
                   ),
-                  Expanded(child: Text('Профиль', style: AppTextStyles.screenTitle)),
+                  Expanded(
+                    child: Text('Профиль', style: AppTextStyles.screenTitle),
+                  ),
                 ],
               ),
               const SizedBox(height: 28),
@@ -55,11 +60,17 @@ class ProfileScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.person, size: 40, color: AppColors.primaryBrown),
+                child: const Icon(
+                  Icons.person,
+                  size: 40,
+                  color: AppColors.primaryBrown,
+                ),
               ),
               const SizedBox(height: 16),
               Text(
-                auth.displayName.isNotEmpty ? auth.displayName : 'Гость Всласть',
+                auth.displayName.isNotEmpty
+                    ? auth.displayName
+                    : 'Гость Всласть',
                 style: AppTextStyles.authHeading,
               ),
               const SizedBox(height: 4),
@@ -112,9 +123,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
               ],
-              if (!auth.canAccessAdmin) ...[
-                const SizedBox(height: 8),
-              ],
+              if (!auth.canAccessAdmin) ...[const SizedBox(height: 8)],
               // DEV ONLY — удалить после подключения backend auth.
               if (!auth.canAccessAdmin) ...[
                 SizedBox(
@@ -152,11 +161,18 @@ class ProfileScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.primaryBrown, width: 1.4),
+                      border: Border.all(
+                        color: AppColors.primaryBrown,
+                        width: 1.4,
+                      ),
                     ),
                     alignment: Alignment.center,
-                    child: Text('Выйти',
-                        style: AppTextStyles.rowLabel.copyWith(color: AppColors.primaryBrown)),
+                    child: Text(
+                      'Выйти',
+                      style: AppTextStyles.rowLabel.copyWith(
+                        color: AppColors.primaryBrown,
+                      ),
+                    ),
                   ),
                 ),
               ),

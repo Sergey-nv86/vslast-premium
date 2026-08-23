@@ -25,11 +25,14 @@ class PremiumBottomNavBar extends StatelessWidget {
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Container(
-      padding: EdgeInsets.only(top: 10, bottom: bottomInset > 0 ? bottomInset : 10),
+      padding: EdgeInsets.only(
+        top: 10,
+        bottom: bottomInset > 0 ? bottomInset : 10,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFFFDFBF8),
         border: Border(
-          top: BorderSide(color: Colors.black.withOpacity(.08), width: 1),
+          top: BorderSide(color: Colors.black.withValues(alpha: .08), width: 1),
         ),
       ),
       child: Row(
@@ -37,11 +40,7 @@ class PremiumBottomNavBar extends StatelessWidget {
           _item(icon: 'assets/icons/home.svg', label: 'Главная', index: 0),
           _item(icon: 'assets/icons/catalog.svg', label: 'Каталог', index: 1),
           _item(icon: 'assets/icons/premium.svg', label: 'Карта', index: 2),
-          _item(
-            icon: 'assets/icons/discount.svg',
-            label: 'Акции',
-            index: 3,
-          ),
+          _item(icon: 'assets/icons/discount.svg', label: 'Акции', index: 3),
           _item(icon: 'assets/icons/add.svg', label: 'Корзина', index: 4),
         ],
       ),
@@ -85,12 +84,21 @@ class PremiumBottomNavBar extends StatelessWidget {
       height: size,
       child: Stack(
         children: [
-          SvgPicture.asset(path, width: size, height: size, colorFilter: colorFilter),
+          SvgPicture.asset(
+            path,
+            width: size,
+            height: size,
+            colorFilter: colorFilter,
+          ),
           Positioned(
             left: 0.6,
             top: 0.6,
-            child:
-                SvgPicture.asset(path, width: size, height: size, colorFilter: colorFilter),
+            child: SvgPicture.asset(
+              path,
+              width: size,
+              height: size,
+              colorFilter: colorFilter,
+            ),
           ),
         ],
       ),

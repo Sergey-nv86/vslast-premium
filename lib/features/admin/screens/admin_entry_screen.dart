@@ -25,9 +25,7 @@ class AdminEntryScreen extends StatelessWidget {
 
 /// Convenient route factory for the existing Navigator-based navigation.
 Route<void> adminEntryRoute() {
-  return MaterialPageRoute<void>(
-    builder: (_) => const AdminEntryScreen(),
-  );
+  return MaterialPageRoute<void>(builder: (_) => const AdminEntryScreen());
 }
 
 /// Opens Admin Mode from an existing screen.

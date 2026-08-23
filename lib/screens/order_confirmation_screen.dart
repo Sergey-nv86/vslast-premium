@@ -26,9 +26,9 @@ class OrderConfirmationScreen extends StatelessWidget {
   void _goToOrders(BuildContext context) {
     context.read<TabNavigationController>().goToHome();
     Navigator.of(context).popUntil((route) => route.isFirst);
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const OrdersScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const OrdersScreen()));
   }
 
   @override
@@ -54,20 +54,31 @@ class OrderConfirmationScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.divider, width: 1),
+                          border: Border.all(
+                            color: AppColors.divider,
+                            width: 1,
+                          ),
                         ),
-                        child: const Icon(Icons.chevron_left,
-                            size: 24, color: AppColors.primaryBrown),
+                        child: const Icon(
+                          Icons.chevron_left,
+                          size: 24,
+                          color: AppColors.primaryBrown,
+                        ),
                       ),
                     ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Заказ принят!', style: AppTextStyles.screenTitleSmall),
+                          Text(
+                            'Заказ принят!',
+                            style: AppTextStyles.screenTitleSmall,
+                          ),
                           const SizedBox(height: 4),
-                          Text('Спасибо, что выбрали Всласть ❤️',
-                              style: AppTextStyles.rowLabelMuted),
+                          Text(
+                            'Спасибо, что выбрали Всласть ❤️',
+                            style: AppTextStyles.rowLabelMuted,
+                          ),
                         ],
                       ),
                     ),
@@ -94,7 +105,10 @@ class OrderConfirmationScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Состав заказа', style: AppTextStyles.sectionLabel),
+                          Text(
+                            'Состав заказа',
+                            style: AppTextStyles.sectionLabel,
+                          ),
                           Text(
                             '${order.itemsCount} ${pluralizeItems(order.itemsCount)}',
                             style: AppTextStyles.sectionCounter,
@@ -119,7 +133,51 @@ class OrderConfirmationScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               sliver: SliverToBoxAdapter(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Column(
+                    children: [
+                      _TotalRow(
+                        label: 'Товары',
+                        value: formatPrice(order.itemsTotal),
+                      ),
+                      if (order.pickupDiscount > 0) ...[
+                        const Divider(height: 20, color: AppColors.divider),
+                        _TotalRow(
+                          label: 'Скидка за самовывоз',
+                          value: '−${formatPrice(order.pickupDiscount)}',
+                          valueColor: AppColors.primaryBrown,
+                        ),
+                      ],
+                      if (order.deliveryCost > 0) ...[
+                        const Divider(height: 20, color: AppColors.divider),
+                        _TotalRow(
+                          label: 'Доставка',
+                          value: formatPrice(order.deliveryCost),
+                        ),
+                      ],
+                      const Divider(height: 24, color: AppColors.divider),
+                      _TotalRow(
+                        label: 'Итого',
+                        value: formatPrice(order.total),
+                        bold: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              sliver: SliverToBoxAdapter(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(18),
@@ -160,22 +218,32 @@ class OrderConfirmationScreen extends StatelessWidget {
                   },
                   behavior: HitTestBehavior.opaque,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceMuted,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.chat_bubble_outline,
-                            size: 18, color: AppColors.primaryBrown),
+                        const Icon(
+                          Icons.chat_bubble_outline,
+                          size: 18,
+                          color: AppColors.primaryBrown,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Text('Связаться с нами по заказу',
-                              style: AppTextStyles.rowLabel),
+                          child: Text(
+                            'Связаться с нами по заказу',
+                            style: AppTextStyles.rowLabel,
+                          ),
                         ),
-                        const Icon(Icons.chevron_right,
-                            color: AppColors.textSecondary),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: AppColors.textSecondary,
+                        ),
                       ],
                     ),
                   ),
@@ -197,8 +265,10 @@ class OrderConfirmationScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(26),
                       ),
                       alignment: Alignment.center,
-                      child: Text('Перейти в мои заказы',
-                          style: AppTextStyles.cartBarButton),
+                      child: Text(
+                        'Перейти в мои заказы',
+                        style: AppTextStyles.cartBarButton,
+                      ),
                     ),
                   ),
                 ),
@@ -233,14 +303,22 @@ class _StatusCard extends StatelessWidget {
               color: AppColors.surfaceMuted,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.bakery_dining_outlined,
-                size: 40, color: AppColors.primaryBrown),
+            child: const Icon(
+              Icons.bakery_dining_outlined,
+              size: 40,
+              color: AppColors.primaryBrown,
+            ),
           ),
           const SizedBox(height: 14),
-          Text('Ваш заказ №${order.orderNumber}', style: AppTextStyles.sectionLabel),
+          Text(
+            'Ваш заказ №${order.orderNumber}',
+            style: AppTextStyles.sectionLabel,
+          ),
           const SizedBox(height: 2),
-          Text('от ${formatRuDateTime(order.createdAt)}',
-              style: AppTextStyles.rowLabelMuted),
+          Text(
+            'от ${formatRuDateTime(order.createdAt)}',
+            style: AppTextStyles.rowLabelMuted,
+          ),
           const SizedBox(height: 12),
           Text(
             'Мы получили ваш заказ и передали его на подтверждение администратору.',
@@ -261,15 +339,21 @@ class _StatusCard extends StatelessWidget {
                   color: AppColors.surfaceMuted,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.access_time,
-                    size: 18, color: AppColors.primaryBrown),
+                child: const Icon(
+                  Icons.access_time,
+                  size: 18,
+                  color: AppColors.primaryBrown,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Ожидайте подтверждения', style: AppTextStyles.rowLabel),
+                    Text(
+                      'Ожидайте подтверждения',
+                      style: AppTextStyles.rowLabel,
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       'Мы свяжемся с вами в ближайшее время и сообщим статус заказа.',
@@ -291,7 +375,11 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoRow({required this.icon, required this.label, required this.value});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -313,6 +401,39 @@ class _InfoRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TotalRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool bold;
+  final Color? valueColor;
+
+  const _TotalRow({
+    required this.label,
+    required this.value,
+    this.bold = false,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = bold
+        ? AppTextStyles.rowLabel
+        : AppTextStyles.rowLabelMuted;
+
+    final valueStyle = bold
+        ? AppTextStyles.sectionLabel
+        : AppTextStyles.rowValue;
+
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: labelStyle)),
+        const SizedBox(width: 12),
+        Text(value, style: valueStyle.copyWith(color: valueColor)),
+      ],
     );
   }
 }
