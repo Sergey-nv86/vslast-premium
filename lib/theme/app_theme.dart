@@ -28,6 +28,8 @@ class AppColors {
   // Текст
   static const Color textPrimary = Color(0xFF201C1A);
   static const Color textSecondary = Color(0xFF8A8177);
+  // Приглушённый цвет подписей строк/дней недели.
+  static const Color rowLabelMuted = textSecondary;
   static const Color textOnPrimary = Color(0xFFFFFFFF);
 
   // Фирменная пастель (10%) — один акцент на экран/категорию.

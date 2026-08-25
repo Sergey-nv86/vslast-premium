@@ -1,0 +1,309 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../features/admin/screens/admin_orders_screen.dart';
+
+class AdminOrdersService {
+  AdminOrdersService._();
+
+  static final AdminOrdersService instance = AdminOrdersService._();
+
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  Future<List<AdminOrder>> fetchOrders() async {
+    final response = await _supabase
+        .from('orders')
+        .select('''
+          id,
+          order_number,
+          user_id,
+          status,
+          delivery_method,
+          payment_method,
+          pickup_date,
+          pickup_time_slot,
+          delivery_address,
+          delivery_cost,
+          comment,
+          items_total,
+          pickup_discount,
+          total,
+          created_at,
+          updated_at,
+          order_items (
+            id,
+            product_id,
+            product_name,
+            unit_price,
+            quantity,
+            weight_label,
+            line_total
+          )
+        ''')
+        .order('created_at', ascending: false);
+
+    final rows = List<Map<String, dynamic>>.from(response);
+
+    return rows.map(_mapOrder).toList();
+  }
+
+  AdminOrder _mapOrder(Map<String, dynamic> row) {
+    final rawItems = row['order_items'];
+
+    final items = rawItems is List
+        ? rawItems
+            .map(
+              (item) => Map<String, dynamic>.from(
+                item as Map,
+              ),
+            )
+            .map(_mapItem)
+            .toList()
+        : <AdminOrderItem>[];
+
+    final deliveryMethod =
+        row['delivery_method']?.toString() ?? 'pickup';
+
+    final pickupDate =
+        row['pickup_date']?.toString() ?? '';
+
+    final pickupTimeSlot =
+        row['pickup_time_slot']?.toString() ?? '';
+
+    final status =
+        row['status']?.toString() ?? 'processing';
+
+    return AdminOrder(
+      number: '#${_toInt(row['order_number'])}',
+
+      // На следующем этапе подтянем имя/телефон из profiles.
+      customer: 'Клиент',
+      phone: '',
+      customerType: 'Клиент',
+      customerOrderCount: 1,
+
+      time: _formatCreatedAt(row['created_at']),
+
+      type: _buildType(
+        deliveryMethod,
+        pickupTimeSlot,
+      ),
+
+      receiveTimeDetail: _buildReceiveTimeDetail(
+        deliveryMethod,
+        pickupDate,
+        pickupTimeSlot,
+      ),
+
+      status: _mapStatus(status),
+
+      total: _toDouble(row['total']),
+
+      discount: _toDouble(
+        row['pickup_discount'],
+      ),
+
+      comment: row['comment']?.toString(),
+
+      isPreorder: _isPreorder(
+        pickupDate,
+        row['created_at'],
+      ),
+
+      items: items,
+    );
+  }
+
+  AdminOrderItem _mapItem(
+    Map<String, dynamic> row,
+  ) {
+    return AdminOrderItem(
+      name: row['product_name']?.toString() ?? 'Товар',
+
+      weight:
+          row['weight_label']?.toString() ?? '',
+
+      quantity:
+          _toInt(row['quantity']),
+
+      price:
+          _toDouble(row['unit_price']),
+    );
+  }
+
+  String _mapStatus(String status) {
+    switch (status) {
+      case 'processing':
+        return 'Новый';
+
+      case 'awaiting_payment':
+      case 'awaitingPayment':
+      case 'confirmed':
+        return 'В работе';
+
+      case 'ready':
+        return 'Готов';
+
+      case 'completed':
+      case 'done':
+        return 'Выполнен';
+
+      default:
+        return 'Новый';
+    }
+  }
+
+  String _buildType(
+    String deliveryMethod,
+    String pickupTimeSlot,
+  ) {
+    if (deliveryMethod == 'pickup') {
+      if (pickupTimeSlot.isNotEmpty) {
+        return 'Самовывоз · $pickupTimeSlot';
+      }
+
+      return 'Самовывоз';
+    }
+
+    return 'Доставка';
+  }
+
+  String _buildReceiveTimeDetail(
+    String deliveryMethod,
+    String pickupDate,
+    String pickupTimeSlot,
+  ) {
+    if (deliveryMethod == 'pickup') {
+      if (pickupDate.isNotEmpty &&
+          pickupTimeSlot.isNotEmpty) {
+        return '${_formatDate(pickupDate)}, '
+            'с $pickupTimeSlot';
+      }
+
+      if (pickupDate.isNotEmpty) {
+        return _formatDate(pickupDate);
+      }
+
+      return '';
+    }
+
+    return 'Доставка';
+  }
+
+  bool _isPreorder(
+    String pickupDate,
+    dynamic createdAt,
+  ) {
+    if (pickupDate.isEmpty ||
+        createdAt == null) {
+      return false;
+    }
+
+    final pickup =
+        DateTime.tryParse(pickupDate);
+
+    final created =
+        DateTime.tryParse(
+      createdAt.toString(),
+    );
+
+    if (pickup == null ||
+        created == null) {
+      return false;
+    }
+
+    final localCreated =
+        created.toLocal();
+
+    final createdDate = DateTime(
+      localCreated.year,
+      localCreated.month,
+      localCreated.day,
+    );
+
+    return pickup.isAfter(
+      createdDate,
+    );
+  }
+
+  String _formatCreatedAt(
+    dynamic value,
+  ) {
+    final date =
+        DateTime.tryParse(
+      value?.toString() ?? '',
+    );
+
+    if (date == null) {
+      return '';
+    }
+
+    final local =
+        date.toLocal();
+
+    final day =
+        local.day.toString().padLeft(2, '0');
+
+    final month =
+        local.month.toString().padLeft(2, '0');
+
+    final hour =
+        local.hour.toString().padLeft(2, '0');
+
+    final minute =
+        local.minute.toString().padLeft(2, '0');
+
+    return '$day.$month, $hour:$minute';
+  }
+
+  String _formatDate(
+    String value,
+  ) {
+    final date =
+        DateTime.tryParse(value);
+
+    if (date == null) {
+      return value;
+    }
+
+    final day =
+        date.day.toString().padLeft(2, '0');
+
+    final month =
+        date.month.toString().padLeft(2, '0');
+
+    final year =
+        date.year.toString();
+
+    return '$day.$month.$year';
+  }
+
+  int _toInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(
+          value?.toString() ?? '',
+        ) ??
+        0;
+  }
+
+  double _toDouble(dynamic value) {
+    if (value is double) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+          value?.toString() ?? '',
+        ) ??
+        0;
+  }
+}

@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-/// Раньше иконки/подписи выглядели блёкло — маленький размер, светлый
-/// неактивный цвет, тонкий (не переопределяемый в коде) штрих у самих
-/// SVG-файлов. Здесь: крупнее иконки, темнее неактивный цвет, жирный шрифт
-/// у подписей всегда (не только у активной), плюс лёгкий приём "faux bold" —
-/// иконка отрисовывается двойным слоем со сдвигом на пол-пикселя, что
-/// визуально утолщает тонкий штрих без правки самого SVG-файла.
 class PremiumBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -25,11 +19,14 @@ class PremiumBottomNavBar extends StatelessWidget {
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Container(
-      padding: EdgeInsets.only(top: 10, bottom: bottomInset > 0 ? bottomInset : 10),
+      padding: EdgeInsets.only(
+        top: 10,
+        bottom: bottomInset > 0 ? bottomInset : 10,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFFFDFBF8),
         border: Border(
-          top: BorderSide(color: Colors.black.withOpacity(.08), width: 1),
+          top: BorderSide(color: Colors.black.withValues(alpha: .08), width: 1),
         ),
       ),
       child: Row(
@@ -37,12 +34,8 @@ class PremiumBottomNavBar extends StatelessWidget {
           _item(icon: 'assets/icons/home.svg', label: 'Главная', index: 0),
           _item(icon: 'assets/icons/catalog.svg', label: 'Каталог', index: 1),
           _item(icon: 'assets/icons/premium.svg', label: 'Карта', index: 2),
-          _item(
-            icon: 'assets/icons/discount.svg',
-            label: 'Акции',
-            index: 3,
-          ),
-          _item(icon: 'assets/icons/add.svg', label: 'Корзина', index: 4),
+          _item(icon: 'assets/icons/discount.svg', label: 'Акции', index: 3),
+          _item(icon: 'assets/icons/schedule.svg', label: 'График', index: 4),
         ],
       ),
     );
@@ -80,17 +73,27 @@ class PremiumBottomNavBar extends StatelessWidget {
 
   Widget _boldIcon(String path, Color color, double size) {
     final colorFilter = ColorFilter.mode(color, BlendMode.srcIn);
+
     return SizedBox(
       width: size,
       height: size,
       child: Stack(
         children: [
-          SvgPicture.asset(path, width: size, height: size, colorFilter: colorFilter),
+          SvgPicture.asset(
+            path,
+            width: size,
+            height: size,
+            colorFilter: colorFilter,
+          ),
           Positioned(
             left: 0.6,
             top: 0.6,
-            child:
-                SvgPicture.asset(path, width: size, height: size, colorFilter: colorFilter),
+            child: SvgPicture.asset(
+              path,
+              width: size,
+              height: size,
+              colorFilter: colorFilter,
+            ),
           ),
         ],
       ),
