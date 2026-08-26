@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'admin_demand_without_stock_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_orders_calendar_screen.dart';
+import 'admin_bake_schedule_screen.dart';
 import 'admin_products_screen.dart';
 import 'admin_promotions_screen.dart';
 
@@ -353,6 +354,65 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             SizedBox(height: 3),
                             Text(
                               'Заказы и товары на ближайшую неделю',
+                              style: TextStyle(fontSize: 11, color: muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: muted),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          Container(
+            margin: const EdgeInsets.only(bottom: 20),
+            child: Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AdminBakeScheduleScreen(),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF1E8E0),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.bakery_dining_outlined,
+                          color: brown,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'График запеков',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: dark,
+                              ),
+                            ),
+                            SizedBox(height: 3),
+                            Text(
+                              'Хлеб по дням недели',
                               style: TextStyle(fontSize: 11, color: muted),
                             ),
                           ],

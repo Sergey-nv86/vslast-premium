@@ -35,9 +35,7 @@ class VslastPremiumApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
-        ChangeNotifierProvider(
-          create: (_) => AuthProvider()..initialize(),
-        ),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => TabNavigationController()),
         ChangeNotifierProvider(create: (_) => LocationProvider()),
       ],

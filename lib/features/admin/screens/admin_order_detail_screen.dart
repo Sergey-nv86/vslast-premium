@@ -15,6 +15,7 @@ class AdminOrderDetailScreen extends StatelessWidget {
     'Подтверждён' => const Color(0xFFF9A825),
     'Предзаказ' => const Color(0xFF7A5A8A),
     'Выполнен' => const Color(0xFF43A047),
+    'Отменён' => const Color(0xFF8A8A8A),
     _ => AppColors.primaryBrown,
   };
 
@@ -29,6 +30,13 @@ class AdminOrderDetailScreen extends StatelessWidget {
     'Подтверждён' => 'completed',
     _ => null,
   };
+
+  bool get _canCancel =>
+      order.status != 'Выполнен' &&
+      order.status != 'Отменён' &&
+      order.status != 'отменен' &&
+      order.status != 'cancelled' &&
+      order.status != 'canceled';
 
   String get _initials {
     final parts = order.customer.trim().split(RegExp(r'\s+'));
@@ -575,43 +583,62 @@ class AdminOrderDetailScreen extends StatelessWidget {
   Widget _actionButtons(BuildContext context) {
     final nextStatus = _nextStatus;
 
-    if (nextStatus == null) {
+    if (nextStatus == null && !_canCancel) {
       return const SizedBox.shrink();
     }
 
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () => _changeStatus(context, nextStatus),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBrown,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+        if (nextStatus != null)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _changeStatus(context, nextStatus),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBrown,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
               ),
+              child: Text(_primaryActionLabel),
             ),
-            child: Text(_primaryActionLabel),
           ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: () {},
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primaryBrown,
-              side: const BorderSide(color: AppColors.divider),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+
+        if (nextStatus != null) const SizedBox(height: 10),
+
+        if (_canCancel)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => _showEditDialog(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryBrown,
+                side: const BorderSide(color: AppColors.divider),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
               ),
+              child: const Text('Изменить заказ'),
             ),
-            child: const Text('Изменить заказ'),
           ),
-        ),
+
+        if (_canCancel) const SizedBox(height: 10),
+
+        if (_canCancel)
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => _confirmCancel(context),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFB5544A),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text('Отменить заказ'),
+            ),
+          ),
       ],
     );
   }
@@ -627,7 +654,11 @@ class AdminOrderDetailScreen extends StatelessWidget {
 
       FadeToast.show(
         context,
-        nextStatus == 'confirmed' ? 'Заказ подтверждён' : 'Заказ выполнен',
+        nextStatus == 'confirmed'
+            ? 'Заказ подтверждён'
+            : nextStatus == 'completed'
+            ? 'Заказ выполнен'
+            : 'Статус заказа изменён',
         icon: Icons.check_circle_outline,
       );
 
@@ -635,12 +666,130 @@ class AdminOrderDetailScreen extends StatelessWidget {
     } catch (e) {
       if (!context.mounted) return;
 
+      final message = e.toString().replaceFirst('Exception: ', '').trim();
+
       FadeToast.show(
         context,
-        'Не удалось изменить статус заказа',
+        message.isEmpty ? 'Не удалось изменить статус заказа' : message,
         icon: Icons.error_outline,
       );
     }
+  }
+
+  Future<void> _showEditDialog(BuildContext context) async {
+    // order.status содержит отображаемый русский статус.
+    // Для Supabase и Dropdown используем реальные значения БД.
+    String selectedStatus = switch (order.status) {
+      'Новый' => 'processing',
+      'Предзаказ' => 'processing',
+      'Подтверждён' => 'confirmed',
+      'Выполнен' => 'completed',
+      'Отменён' => 'cancelled',
+      _ => 'processing',
+    };
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Изменить заказ'),
+              content: DropdownButtonFormField<String>(
+                initialValue: selectedStatus,
+                decoration: const InputDecoration(
+                  labelText: 'Статус',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'processing',
+                    child: Text('Новый'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'confirmed',
+                    child: Text('Подтверждён'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'completed',
+                    child: Text('Выполнен'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'cancelled',
+                    child: Text('Отменён'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    selectedStatus = value;
+                  });
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Отмена'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop(selectedStatus);
+                  },
+                  child: const Text('Сохранить'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == null || !context.mounted) {
+      return;
+    }
+
+    final currentStatus = switch (order.status) {
+      'Новый' => 'processing',
+      'Предзаказ' => 'processing',
+      'Подтверждён' => 'confirmed',
+      'Выполнен' => 'completed',
+      'Отменён' => 'cancelled',
+      _ => 'processing',
+    };
+
+    if (result == currentStatus) {
+      return;
+    }
+
+    await _changeStatus(context, result);
+  }
+
+  Future<void> _confirmCancel(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Отменить заказ?'),
+          content: const Text('Заказ будет переведён в статус «Отменён».'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Нет'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Отменить'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    await _changeStatus(context, 'cancelled');
   }
 
   Widget _card({required Widget child}) {

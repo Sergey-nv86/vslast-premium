@@ -5,7 +5,7 @@ import '../../../services/admin_orders_service.dart';
 import 'admin_order_detail_screen.dart';
 import 'admin_order_qr_scanner_screen.dart';
 
-enum AdminOrderFilter { all, newOrders, preorders, confirmed, completed }
+enum AdminOrderFilter { unconfirmed, confirmed, completed }
 
 /// Одна позиция в составе заказа — то, чего раньше не хватало на экране
 /// «Заказ #...»: было видно сумму, но не сам список товаров.
@@ -80,8 +80,9 @@ class AdminOrdersScreen extends StatefulWidget {
 }
 
 class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
-  AdminOrderFilter _filter = AdminOrderFilter.all;
+  AdminOrderFilter _filter = AdminOrderFilter.unconfirmed;
   String _searchQuery = '';
+  bool _isQrCustomerMode = false;
 
   late Future<List<AdminOrder>> _ordersFuture;
   int _todayOrdersCount = 0;
@@ -124,6 +125,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     setState(() {
       _ordersFuture = _loadOrders();
       _searchQuery = '';
+      _isQrCustomerMode = false;
     });
 
     try {
@@ -149,10 +151,16 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       if (!mounted) return;
 
       setState(() {
-        // После QR всегда показываем все найденные активные заказы клиента.
-        // Старый фильтр (например, "Выполненные") не должен скрывать их.
-        _filter = AdminOrderFilter.all;
+        // После QR показываем все активные заказы клиента,
+        // независимо от выбранного рабочего фильтра.
+        //
+        // Выполненные заказы не должны возвращаться
+        // fetchActiveOrdersByCardNumber().
+        //
+        // Поэтому после QR временно отключаем фильтрацию
+        // по статусу и показываем найденный список напрямую.
         _searchQuery = '';
+        _isQrCustomerMode = true;
         _ordersFuture = Future<List<AdminOrder>>.value(activeOrders);
       });
     } catch (e) {
@@ -170,14 +178,13 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     final q = _searchQuery.trim().toLowerCase();
 
     return orders.where((o) {
-      final matchesFilter = switch (_filter) {
-        AdminOrderFilter.all => true,
-        AdminOrderFilter.newOrders => o.status == 'Новый' && !o.isPreorder,
-        AdminOrderFilter.preorders => o.isPreorder,
-        AdminOrderFilter.confirmed =>
-          o.status == 'Подтверждён' && !o.isPreorder,
-        AdminOrderFilter.completed => o.status == 'Выполнен' && !o.isPreorder,
-      };
+      final matchesFilter = _isQrCustomerMode
+          ? true
+          : switch (_filter) {
+              AdminOrderFilter.unconfirmed => o.status == 'Новый',
+              AdminOrderFilter.confirmed => o.status == 'Подтверждён',
+              AdminOrderFilter.completed => o.status == 'Выполнен',
+            };
 
       final matchesSearch =
           q.isEmpty ||
@@ -189,9 +196,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   }
 
   String _label(AdminOrderFilter f) => switch (f) {
-    AdminOrderFilter.all => 'Все',
-    AdminOrderFilter.newOrders => 'Новые',
-    AdminOrderFilter.preorders => 'Предзаказы',
+    AdminOrderFilter.unconfirmed => 'Неподтверждённые',
     AdminOrderFilter.confirmed => 'Подтверждённые',
     AdminOrderFilter.completed => 'Выполненные',
   };
@@ -343,7 +348,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   Widget _buildSearch() => Padding(
     padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
     child: TextField(
-      onChanged: (v) => setState(() => _searchQuery = v),
+      onChanged: (v) => setState(() {
+        _searchQuery = v;
+        _isQrCustomerMode = false;
+      }),
       decoration: InputDecoration(
         hintText: 'Номер заказа или клиент',
         prefixIcon: const Icon(Icons.search_rounded),
@@ -362,7 +370,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   );
 
   Widget _filters() => SizedBox(
-    height: 50,
+    height: 58,
     child: ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       scrollDirection: Axis.horizontal,
@@ -374,7 +382,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         return ChoiceChip(
           label: Text(_label(f)),
           selected: selected,
-          onSelected: (selected) => setState(() => _filter = f),
+          onSelected: (selected) => setState(() {
+            _filter = f;
+            _isQrCustomerMode = false;
+          }),
           selectedColor: AppColors.primaryBrown,
           backgroundColor: Colors.white,
           labelStyle: TextStyle(

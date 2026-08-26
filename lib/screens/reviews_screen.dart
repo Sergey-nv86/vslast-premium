@@ -74,6 +74,12 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     });
 
     try {
+      // Отзывы загружаем независимо от profiles.
+      //
+      // RLS profiles разрешает обычному пользователю читать только
+      // собственный профиль. Поэтому нельзя делать profiles частью
+      // основного запроса отзывов: иначе отображение отзыва может
+      // зависеть от доступа к профилю его автора.
       final rows = await _supabase
           .from('product_reviews')
           .select('''
@@ -82,14 +88,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
             user_id,
             rating,
             review_text,
-            created_at,
-            profiles (
-              id,
-              first_name,
-              last_name,
-              display_name,
-              email
-            )
+            created_at
           ''')
           .eq('product_id', widget.productId)
           .order('created_at', ascending: false);

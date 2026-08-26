@@ -456,7 +456,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         child: Text(
                           'Здесь будет отображаться график получения '
                           'ваших заказов. Вы сможете быстро увидеть '
-                          'дату и время, когда заказ будет готов.',
+                          'дату, на которую вы хотите оформить предзаказ.',
                           style: AppTextStyles.rowLabel.copyWith(
                             height: 1.4,
                           ),

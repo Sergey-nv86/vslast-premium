@@ -368,9 +368,12 @@ class AdminOrdersService {
 
       pickupDate: DateTime.tryParse(pickupDate),
 
-      status: _isPreorder(pickupDate, row['created_at'])
-          ? 'Предзаказ'
-          : _mapStatus(status),
+      // Предзаказ — это тип заказа, а не отдельный статус.
+      // Реальный статус БД сохраняем без подмены:
+      // processing -> Новый
+      // confirmed -> Подтверждён
+      // completed -> Выполнен
+      status: _mapStatus(status),
 
       total: _toDouble(row['total']),
 
@@ -599,22 +602,87 @@ class AdminOrdersService {
 
   /// Изменяет статус реального заказа в Supabase.
   ///
-  /// Новый рабочий цикл заказа:
+  /// Рабочий цикл:
   /// processing -> confirmed -> completed
+  ///
+  /// Важно: UPDATE выполняется с SELECT изменённой строки.
+  /// Это позволяет обнаружить ситуацию, когда RLS не разрешает
+  /// обновление и Supabase возвращает 0 изменённых строк без ошибки.
   Future<void> updateOrderStatus({
     required String orderId,
     required String status,
   }) async {
-    if (orderId.trim().isEmpty) {
+    final normalizedOrderId = orderId.trim();
+    final normalizedStatus = status.trim();
+
+    if (normalizedOrderId.isEmpty) {
       throw Exception('Не указан id заказа');
     }
 
-    await _supabase
-        .from('orders')
-        .update({
-          'status': status,
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-        })
-        .eq('id', orderId);
+    if (normalizedStatus.isEmpty) {
+      throw Exception('Не указан новый статус заказа');
+    }
+
+    debugPrint(
+      'ADMIN ORDER STATUS UPDATE START: '
+      'id=$normalizedOrderId, status=$normalizedStatus',
+    );
+
+    final currentUser = _supabase.auth.currentUser;
+
+    debugPrint(
+      'ADMIN AUTH DEBUG: '
+      'userId=${currentUser?.id}, '
+      'email=${currentUser?.email}, '
+      'phone=${currentUser?.phone}',
+    );
+
+    try {
+      final result = await _supabase
+          .from('orders')
+          .update({
+            'status': normalizedStatus,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', normalizedOrderId)
+          .select('id,status')
+          .maybeSingle();
+
+      debugPrint('ADMIN ORDER STATUS UPDATE RESPONSE: $result');
+
+      if (result == null) {
+        throw Exception(
+          'Supabase не изменил заказ. '
+          'Возможна проблема с RLS UPDATE policy '
+          'или неверный id заказа.',
+        );
+      }
+
+      final savedId = result['id']?.toString() ?? '';
+      final savedStatus = result['status']?.toString() ?? '';
+
+      debugPrint(
+        'ADMIN ORDER STATUS UPDATE SAVED: '
+        'id=$savedId, status=$savedStatus',
+      );
+
+      if (savedStatus != normalizedStatus) {
+        throw Exception(
+          'Статус не сохранён. '
+          'Ожидался "$normalizedStatus", получен "$savedStatus".',
+        );
+      }
+    } on PostgrestException catch (e) {
+      debugPrint(
+        'ADMIN ORDER STATUS POSTGREST ERROR: '
+        'code=${e.code}, message=${e.message}, '
+        'details=${e.details}, hint=${e.hint}',
+      );
+
+      throw Exception('Ошибка Supabase: ${e.message}');
+    } catch (e) {
+      debugPrint('ADMIN ORDER STATUS ERROR: $e');
+      rethrow;
+    }
   }
 }

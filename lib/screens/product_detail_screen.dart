@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/product.dart';
+import '../services/product_service.dart';
 import '../providers/cart_provider.dart';
 import '../providers/favorites_provider.dart';
 import '../theme/app_theme.dart';
@@ -26,6 +27,41 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late final PageController _galleryController = PageController();
   int _galleryIndex = 0;
 
+  Product? _loadedProduct;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFreshProduct();
+  }
+
+  Future<void> _loadFreshProduct() async {
+    try {
+      final freshProduct =
+          await ProductService.instance.getProduct(widget.product.id);
+
+      if (!mounted || freshProduct == null) {
+        return;
+      }
+
+      setState(() {
+        _loadedProduct = freshProduct;
+      });
+
+      debugPrint(
+        'DEBUG PRODUCT DETAIL FRESH: '
+        'id=${freshProduct.id}, '
+        'name=${freshProduct.name}, '
+        'rating=${freshProduct.rating}, '
+        'reviewsCount=${freshProduct.reviewsCount}',
+      );
+    } catch (error) {
+      debugPrint(
+        'DEBUG PRODUCT DETAIL FRESH LOAD ERROR: $error',
+      );
+    }
+  }
+
   @override
   void dispose() {
     _galleryController.dispose();
@@ -34,7 +70,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final product = widget.product;
+    final product = _loadedProduct ?? widget.product;
     final cart = context.watch<CartProvider>();
     final favorites = context.watch<FavoritesProvider>();
     final isFavorite = favorites.isFavorite(product);
@@ -45,52 +81,61 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: _GalleryHeader(
-                  images: gallery,
-                  controller: _galleryController,
-                  currentIndex: _galleryIndex,
-                  onPageChanged: (i) => setState(() => _galleryIndex = i),
-                  isFavorite: isFavorite,
-                  onBack: () => Navigator.of(context).maybePop(),
-                  onToggleFavorite: () {
-                    final wasFavorite = isFavorite;
-                    favorites.toggle(product);
-                    FadeToast.show(
-                      context,
-                      wasFavorite
-                          ? 'Удалено из избранного'
-                          : 'Добавлено в избранное',
-                    );
-                  },
-                ),
+          Column(
+            children: [
+              // -----------------------------------------------------------------
+              // FIXED GALLERY
+              // -----------------------------------------------------------------
+              _GalleryHeader(
+                images: gallery,
+                controller: _galleryController,
+                currentIndex: _galleryIndex,
+                onPageChanged: (i) => setState(() => _galleryIndex = i),
+                isFavorite: isFavorite,
+                onBack: () => Navigator.of(context).maybePop(),
+                onToggleFavorite: () {
+                  final wasFavorite = isFavorite;
+                  favorites.toggle(product);
+                  FadeToast.show(
+                    context,
+                    wasFavorite
+                        ? 'Удалено из избранного'
+                        : 'Добавлено в избранное',
+                  );
+                },
               ),
-              SliverToBoxAdapter(
-                child: Container(
-                  transform: Matrix4.translationValues(0, -24, 0),
-                  decoration: const BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(28),
-                    ),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 140),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (product.badge != null)
-                        _BadgeRow(badge: product.badge!),
-                      if (product.badge != null) const SizedBox(height: 14),
 
-                      Text(
-                        product.name,
-                        style: AppTextStyles.productDetailTitle,
+              // -----------------------------------------------------------------
+              // SCROLLABLE PRODUCT CONTENT
+              // -----------------------------------------------------------------
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 140),
+                  child: Container(
+                    transform: Matrix4.translationValues(0, -24, 0),
+                    decoration: const BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(28),
                       ),
-                      const SizedBox(height: 10),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (product.badge != null)
+                          _BadgeRow(badge: product.badge!),
+                        if (product.badge != null)
+                          const SizedBox(height: 14),
 
-                      if (product.rating != null) ...[
+                        Text(
+                          product.name,
+                          style: AppTextStyles.productDetailTitle,
+                        ),
+
+                        const SizedBox(height: 10),
+
                         InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () {
@@ -101,7 +146,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   productName: product.name,
                                   productPrice: formatPrice(product.price),
                                   productImage: product.imageUrl,
-                                  rating: product.rating!,
+                                  rating: product.rating ?? 0,
                                   reviewCount: product.reviewsCount ?? 0,
                                 ),
                               ),
@@ -113,64 +158,57 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               horizontal: 2,
                             ),
                             child: _RatingRow(
-                              rating: product.rating!,
-                              reviewsCount: product.reviewsCount,
+                              rating: product.rating,
+                              reviewsCount: product.reviewsCount ?? 0,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                      ],
 
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
+                        const SizedBox(height: 16),
+
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              formatPrice(product.price),
+                              style: AppTextStyles.productDetailPrice,
+                            ),
+                          ],
+                        ),
+
+                        if (product.description != null) ...[
+                          const SizedBox(height: 16),
                           Text(
-                            formatPrice(product.price),
-                            style: AppTextStyles.productDetailPrice,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'за ${product.weightLabel}',
-                            style: AppTextStyles.rowLabelMuted,
+                            product.description!,
+                            style: AppTextStyles.descriptionText,
                           ),
                         ],
-                      ),
 
-                      if (product.description != null) ...[
-                        const SizedBox(height: 16),
-                        Text(
-                          product.description!,
-                          style: AppTextStyles.descriptionText,
-                        ),
+                        if (product.hasNutritionInfo) ...[
+                          const SizedBox(height: 22),
+                          _NutritionCard(product: product),
+                        ],
+
+                        if (product.composition != null) ...[
+                          const SizedBox(height: 10),
+                          _InfoRow(
+                            icon: Icons.eco_outlined,
+                            label: 'Состав',
+                            value: product.composition!,
+                          ),
+                        ],
                       ],
-
-                      if (product.hasNutritionInfo) ...[
-                        const SizedBox(height: 22),
-                        _NutritionCard(product: product),
-                      ],
-
-                      const SizedBox(height: 14),
-                      _InfoRow(
-                        icon: Icons.inventory_2_outlined,
-                        label: 'Вес',
-                        value: product.weightLabel,
-                      ),
-
-                      if (product.composition != null) ...[
-                        const SizedBox(height: 10),
-                        _InfoRow(
-                          icon: Icons.eco_outlined,
-                          label: 'Состав',
-                          value: product.composition!,
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
               ),
             ],
           ),
+
+          // -----------------------------------------------------------------
+          // FIXED BOTTOM ACTION BAR
+          // -----------------------------------------------------------------
           Positioned(
             left: 0,
             right: 0,
@@ -186,10 +224,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   onIncrement: () => cart.increment(product),
                   onDecrement: () => cart.decrement(product),
                   onNotifyMe: () {
+                    if (!favorites.isFavorite(product)) {
+                      favorites.toggle(product);
+                    }
+
                     FadeToast.show(
                       context,
-                      'Сообщим, когда товар появится в наличии',
-                      icon: Icons.notifications_active,
+                      'Товар добавлен в избранное',
+                      icon: Icons.favorite,
                     );
                   },
                 ),
@@ -379,13 +421,43 @@ class _BadgeRow extends StatelessWidget {
 }
 
 class _RatingRow extends StatelessWidget {
-  final double rating;
-  final int? reviewsCount;
+  final double? rating;
+  final int reviewsCount;
 
-  const _RatingRow({required this.rating, this.reviewsCount});
+  const _RatingRow({
+    required this.rating,
+    required this.reviewsCount,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (rating == null || reviewsCount == 0) {
+      return Row(
+        children: [
+          Text(
+            'Отзывы',
+            style: AppTextStyles.ratingValue,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '•',
+            style: AppTextStyles.rowLabelMuted,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '0',
+            style: AppTextStyles.rowLabelMuted,
+          ),
+        ],
+      );
+    }
+
+    final reviewLabel = reviewsCount == 1
+        ? '1 отзыв'
+        : reviewsCount < 5
+            ? '$reviewsCount отзыва'
+            : '$reviewsCount отзывов';
+
     return Row(
       children: [
         const Icon(
@@ -394,15 +466,20 @@ class _RatingRow extends StatelessWidget {
           color: AppColors.accentGradientEnd,
         ),
         const SizedBox(width: 4),
-        Text(rating.toStringAsFixed(1), style: AppTextStyles.ratingValue),
-        if (reviewsCount != null) ...[
-          const SizedBox(width: 8),
-          Text('($reviewsCount)', style: AppTextStyles.rowLabelMuted),
-          const SizedBox(width: 8),
-          Text('•', style: AppTextStyles.rowLabelMuted),
-          const SizedBox(width: 8),
-          Text('$reviewsCount отзывов', style: AppTextStyles.rowLabelMuted),
-        ],
+        Text(
+          rating!.toStringAsFixed(1),
+          style: AppTextStyles.ratingValue,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '•',
+          style: AppTextStyles.rowLabelMuted,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          reviewLabel,
+          style: AppTextStyles.rowLabelMuted,
+        ),
       ],
     );
   }

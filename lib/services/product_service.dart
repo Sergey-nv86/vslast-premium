@@ -163,8 +163,6 @@ class ProductService {
       'fat_per_100g': product.fatPer100g,
       'carbs_per_100g': product.carbsPer100g,
       'composition': product.composition,
-      'rating': product.rating,
-      'reviews_count': product.reviewsCount,
       'is_active': true,
     };
 
@@ -240,8 +238,6 @@ class ProductService {
       'fat_per_100g': product.fatPer100g,
       'carbs_per_100g': product.carbsPer100g,
       'composition': product.composition,
-      'rating': product.rating,
-      'reviews_count': product.reviewsCount,
       'updated_at': DateTime.now().toIso8601String(),
     };
 
@@ -600,7 +596,9 @@ class ProductService {
   }
 
   ProductCategory _parseCategory(String? slug) {
-    switch (slug?.trim().toLowerCase()) {
+    final normalizedSlug = slug?.trim().toLowerCase();
+
+    switch (normalizedSlug) {
       case 'bread':
         return ProductCategory.bread;
 
@@ -614,7 +612,10 @@ class ProductService {
         return ProductCategory.desserts;
 
       default:
-        return ProductCategory.bread;
+        throw ProductServiceException(
+          'Неизвестная категория товара: "$slug". '
+          'Товар не должен автоматически попадать в категорию "Хлеб".',
+        );
     }
   }
 

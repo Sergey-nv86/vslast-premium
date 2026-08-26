@@ -51,14 +51,6 @@ class CartProvider extends ChangeNotifier {
 
   SupabaseClient get _supabase => Supabase.instance.client;
 
-  /// Минимально допустимая дата предзаказа:
-  /// сегодня + 2 календарных дня.
-  DateTime get minimumPreorderDate {
-    final now = DateTime.now();
-
-    return DateTime(now.year, now.month, now.day).add(const Duration(days: 2));
-  }
-
   /// Установить общую дату предзаказа.
   void setPreorderDate(DateTime date) {
     _preorderDate = DateTime(date.year, date.month, date.day);

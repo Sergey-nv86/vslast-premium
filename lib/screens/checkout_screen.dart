@@ -49,13 +49,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   DeliveryMethod _deliveryMethod = DeliveryMethod.pickup;
   PaymentMethod _paymentMethod = PaymentMethod.onlineSbp;
 
-  DateTime _pickupDate = _minimumPickupDate();
-
-  static DateTime _minimumPickupDate() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    return today.add(const Duration(days: 2));
-  }
+  DateTime _pickupDate = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+  );
 
   late String _pickupTimeSlot;
 

@@ -2,6 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'main_screen.dart';
+
 import '../providers/auth_provider.dart';
 import '../providers/location_provider.dart';
 import '../theme/app_theme.dart';
@@ -257,7 +259,15 @@ class _AuthScreenState extends State<AuthScreen> {
         auth.city.isNotEmpty ? auth.city : _selectedCity,
       );
 
-      Navigator.of(context).maybePop();
+      // После успешного входа AuthScreen был открыт через
+      // SplashScreen.pushReplacement(), поэтому под ним нет
+      // предыдущего экрана. maybePop() здесь ничего не делает.
+      //
+      // Переходим напрямую в нужный режим и очищаем navigation stack.
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (route) => false,
+      );
 
       return;
     }
