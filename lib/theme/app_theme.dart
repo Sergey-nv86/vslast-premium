@@ -10,35 +10,76 @@ class AppColors {
   static const Color cardBackground = Color(0xFFFFFFFF);
   static const Color primaryBrown = Color(0xFF1A1A1A);
   static const Color primaryBrownDark = Color(0xFF111111);
-  static const Color surfaceMuted = Color(0xFFF5E6D3);
+  static const Color caramel = Color(0xFFC4956A);
+  static const Color cream = Color(0xFFF5E6D3);
+  static const Color sage = Color(0xFF4A7C59);
+  static const Color brickRed = Color(0xFFB5423F);
+  static const Color surfaceMuted = cream;
   static const Color surfaceMutedDark = Color(0xFFEAD8C2);
   static const Color textPrimary = Color(0xFF1A1A1A);
   static const Color textSecondary = Color(0xFF6B6560);
   static const Color rowLabelMuted = textSecondary;
   static const Color textOnPrimary = Color(0xFFFFFFFF);
 
-  static const Color accentSky = Color(0xFFF5E6D3);
-  static const Color accentLavender = Color(0xFFF5E6D3);
-  static const Color accentRose = Color(0xFFF5E6D3);
-  static const Color accentVanilla = Color(0xFFF5E6D3);
+  static const Color accentSky = cream;
+  static const Color accentLavender = cream;
+  static const Color accentRose = cream;
+  static const Color accentVanilla = cream;
 
-  static const Color badgeHit = Color(0xFFF5E6D3);
-  static const Color badgeNew = Color(0xFFF5E6D3);
-  static const Color badgePromo = Color(0xFFF5E6D3);
+  static const Color badgeHit = cream;
+  static const Color badgeNew = cream;
+  static const Color badgePromo = cream;
 
   static const Color divider = Color(0xFFE8E4E0);
   static const Color shadow = Color(0x0F1A1A1A);
-  static const Color linkAccent = Color(0xFFC4956A);
+  static const Color linkAccent = caramel;
 
-  static const Color statusPendingBg = Color(0xFFF5E6D3);
+  static const Color statusPendingBg = cream;
   static const Color statusPendingText = Color(0xFF7B6044);
   static const Color statusSuccessBg = Color(0xFFE5EFE7);
-  static const Color statusSuccessText = Color(0xFF4A7C59);
+  static const Color statusSuccessText = sage;
 
-  static const Color accentGradientStart = Color(0xFF1A1A1A);
-  static const Color accentGradientEnd = Color(0xFF1A1A1A);
-  static const Color success = Color(0xFF4A7C59);
-  static const Color danger = Color(0xFFB5423F);
+  static const Color accentGradientStart = primaryBrown;
+  static const Color accentGradientEnd = primaryBrown;
+  static const Color success = sage;
+  static const Color danger = brickRed;
+}
+
+class AppSpacing {
+  AppSpacing._();
+  static const double xxs = 4;
+  static const double xs = 8;
+  static const double sm = 12;
+  static const double md = 16;
+  static const double lg = 20;
+  static const double xl = 24;
+  static const double xxl = 32;
+}
+
+class AppRadii {
+  AppRadii._();
+  static const double button = 12;
+  static const double card = 20;
+  static const double sheet = 24;
+  static const double pill = 999;
+}
+
+class AppShadows {
+  AppShadows._();
+  static const List<BoxShadow> card = [
+    BoxShadow(
+      color: Color(0x0F1A1A1A),
+      blurRadius: 24,
+      offset: Offset(0, 4),
+    ),
+  ];
+  static const List<BoxShadow> button = [
+    BoxShadow(
+      color: Color(0x1FC4956A),
+      blurRadius: 8,
+      offset: Offset(0, 2),
+    ),
+  ];
 }
 
 class AppTextStyles {
