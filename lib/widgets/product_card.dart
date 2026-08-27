@@ -29,31 +29,32 @@ class ProductCard extends StatelessWidget {
     final isFavorite = favorites.isFavorite(product);
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GestureDetector(
           onTap: () => onOpenDetails(product),
           behavior: HitTestBehavior.opaque,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(18),
             child: AspectRatio(
-              aspectRatio: 1.15,
+              aspectRatio: 1.28,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   ProductImage(
                     imageUrl: product.imageUrl,
                     fit: BoxFit.cover,
-                    iconSize: 36,
+                    iconSize: 32,
                   ),
                   Positioned(
-                    top: 10,
-                    left: 10,
+                    top: 8,
+                    left: 8,
                     child: _Badge(product: product),
                   ),
                   Positioned(
-                    top: 10,
-                    right: 10,
+                    top: 8,
+                    right: 8,
                     child: _FavoriteButton(
                       isFavorite: isFavorite,
                       onTap: () {
@@ -74,7 +75,7 @@ class ProductCard extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(2, 8, 2, 2),
+          padding: const EdgeInsets.fromLTRB(2, 7, 2, 0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,37 +84,37 @@ class ProductCard extends StatelessWidget {
                 onTap: () => onOpenDetails(product),
                 child: Text(
                   product.name,
-                  style: AppTextStyles.productName,
+                  style: AppTextStyles.productName.copyWith(fontSize: 14),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               Row(
                 children: [
                   Flexible(
                     child: Text(
                       _weightLabel(product),
-                      style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 12),
+                      style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Text('·', style: AppTextStyles.rowLabelMuted),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Text(
                     formatPrice(product.price),
-                    style: AppTextStyles.productPrice.copyWith(fontSize: 16),
+                    style: AppTextStyles.productPrice.copyWith(fontSize: 15),
                     maxLines: 1,
                   ),
                 ],
               ),
-              const SizedBox(height: 7),
+              const SizedBox(height: 5),
               if (!product.inStock)
                 SizedBox(
                   width: double.infinity,
-                  height: 42,
+                  height: 38,
                   child: OutlinedButton.icon(
                     onPressed: () {
                       Navigator.of(context).push(
@@ -122,24 +123,36 @@ class ProductCard extends StatelessWidget {
                         ),
                       );
                     },
-                    icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                    icon: const Icon(Icons.calendar_today_outlined, size: 15),
                     label: const Text('Предзаказ'),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.button),
+                      ),
+                    ),
                   ),
                 )
               else if (quantity == 0)
                 SizedBox(
                   width: double.infinity,
-                  height: 42,
+                  height: 38,
                   child: FilledButton.icon(
                     onPressed: () => cart.add(product),
-                    icon: const Icon(Icons.add_shopping_cart_outlined, size: 17),
+                    icon: const Icon(Icons.add_shopping_cart_outlined, size: 16),
                     label: const Text('В корзину'),
+                    style: FilledButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.button),
+                      ),
+                    ),
                   ),
                 )
               else
                 SizedBox(
                   width: double.infinity,
-                  height: 42,
+                  height: 38,
                   child: _QuantityStepper(
                     quantity: quantity,
                     onDecrement: () => cart.decrement(product),
@@ -181,17 +194,17 @@ class _Badge extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.accentLight.withValues(alpha: .96),
-        borderRadius: BorderRadius.circular(999),
+        color: AppColors.cream.withValues(alpha: .96),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppColors.textPrimary),
-          const SizedBox(width: 5),
-          Text(label, style: AppTextStyles.badgeLabel),
+          Icon(icon, size: 13, color: AppColors.textSecondary),
+          const SizedBox(width: 4),
+          Text(label, style: AppTextStyles.badgeLabel.copyWith(fontSize: 9)),
         ],
       ),
     );
@@ -206,19 +219,15 @@ class _FavoriteButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: .92),
+      color: Colors.white.withValues(alpha: .94),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: SizedBox(
-          width: 38,
-          height: 38,
-          child: Icon(
-            isFavorite ? Icons.favorite : Icons.favorite_border,
-            size: 19,
-            color: isFavorite ? AppColors.danger : AppColors.textPrimary,
-          ),
+        child: const SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(Icons.favorite_border, size: 18),
         ),
       ),
     );
@@ -240,12 +249,12 @@ class _QuantityStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final height = 42.0 * scale.clamp(.9, 1.15);
+    final height = 38.0 * scale.clamp(.9, 1.1);
     return Container(
       height: height,
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.button),
         border: Border.all(color: AppColors.divider),
       ),
       child: Row(
@@ -269,19 +278,15 @@ class _StepButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: filled ? AppColors.textPrimary : Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
+      color: filled ? AppColors.caramel : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(
-            icon,
-            size: 17,
-            color: filled ? Colors.white : AppColors.textPrimary,
-          ),
+        borderRadius: BorderRadius.circular(10),
+        child: const SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(Icons.add, size: 16),
         ),
       ),
     );
