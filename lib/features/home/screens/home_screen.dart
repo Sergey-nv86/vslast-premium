@@ -14,16 +14,6 @@ import '../widgets/home_filter_sheet.dart';
 import '../widgets/home_header.dart';
 import '../widgets/popular_section.dart';
 
-/// Главная:
-///
-/// HomeHeader — постоянный верхний слой.
-/// Ниже него находится один CustomScrollView:
-///   PopularSection → прокручивается и уезжает вверх
-///   CategoryBar   → pinned внутри viewport каталога
-///   категории + товары
-///
-/// Scroll-spy переключает активный чип по текущей секции товаров.
-/// Контекстная корзина — отдельный слой поверх контента.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -34,9 +24,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   static const double _horizontalPadding = 18;
   static const double _gridSpacing = 10;
-  // ProductCard now uses a 1.15 image ratio plus compact controls.
-  static const double _cardTextBlockHeight = 125;
-
+  static const double _cardTextBlockHeight = 116;
+  static const double _cardImageRatio = 1.28;
   static const double _headerPhotoHeight = 160;
   static const double _pinnedBarHeight = 56;
   static const double _spyThreshold = _pinnedBarHeight + 12;
@@ -59,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _updateActiveCategory();
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {});
     }
@@ -98,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _visibleProducts.where((p) => p.category == category).toList();
 
   Map<ProductCategory, double> _categoryHeaderOffsets(double itemWidth) {
-    const popularHeight = 196.0;
+    const popularHeight = 168.0;
     const beforePopular = 12.0;
     const afterPopular = 14.0;
     double y = beforePopular + popularHeight + afterPopular + _pinnedBarHeight + 10;
@@ -109,11 +98,10 @@ class _HomeScreenState extends State<HomeScreen> {
       final products = _productsFor(category);
       final rows = (products.length + 1) ~/ 2;
       final gridHeight = rows > 0
-          ? rows * (itemWidth * 1.15 + _cardTextBlockHeight) +
+          ? rows * (itemWidth / _cardImageRatio + _cardTextBlockHeight) +
               (rows - 1) * _gridSpacing
           : 0.0;
-      const sectionTitleHeight = 31.0;
-      y += sectionTitleHeight + gridHeight + 14;
+      y += 31.0 + gridHeight + 14;
     }
     return result;
   }
@@ -132,11 +120,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _updateActiveCategory() {
     if (!_scrollController.hasClients || _categoriesShown.isEmpty) return;
-
-    final viewportWidth =
-        _viewportKey.currentContext?.size?.width ?? MediaQuery.sizeOf(context).width;
-    final itemWidth =
-        (viewportWidth - _horizontalPadding * 2 - _gridSpacing) / 2;
+    final viewportWidth = _viewportKey.currentContext?.size?.width ?? MediaQuery.sizeOf(context).width;
+    final itemWidth = (viewportWidth - _horizontalPadding * 2 - _gridSpacing) / 2;
     final offsets = _categoryHeaderOffsets(itemWidth);
     final probeY = _scrollController.offset + _spyThreshold;
 
@@ -150,32 +135,21 @@ class _HomeScreenState extends State<HomeScreen> {
         best = category;
       }
     }
-
     best ??= _categoriesShown.first;
-    if (best != _activeCategory && mounted) {
-      setState(() => _activeCategory = best);
-    }
+    if (best != _activeCategory && mounted) setState(() => _activeCategory = best);
   }
 
   void _scrollToCategory(ProductCategory category) {
     if (!_scrollController.hasClients || !_categoriesShown.contains(category)) return;
-
-    final viewportWidth =
-        _viewportKey.currentContext?.size?.width ?? MediaQuery.sizeOf(context).width;
-    final itemWidth =
-        (viewportWidth - _horizontalPadding * 2 - _gridSpacing) / 2;
+    final viewportWidth = _viewportKey.currentContext?.size?.width ?? MediaQuery.sizeOf(context).width;
+    final itemWidth = (viewportWidth - _horizontalPadding * 2 - _gridSpacing) / 2;
     final headerY = _categoryHeaderOffsets(itemWidth)[category];
     if (headerY == null) return;
-
     final targetOffset = (headerY - _pinnedBarHeight).clamp(
       _scrollController.position.minScrollExtent,
       _scrollController.position.maxScrollExtent,
     );
-
-    if (_activeCategory != category && mounted) {
-      setState(() => _activeCategory = category);
-    }
-
+    if (_activeCategory != category && mounted) setState(() => _activeCategory = category);
     _scrollController.animateTo(
       targetOffset,
       duration: const Duration(milliseconds: 320),
@@ -221,8 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
             bottom: 0,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final itemWidth =
-                    (constraints.maxWidth - _horizontalPadding * 2 - _gridSpacing) / 2;
+                final itemWidth = (constraints.maxWidth - _horizontalPadding * 2 - _gridSpacing) / 2;
                 return CustomScrollView(
                   key: _viewportKey,
                   controller: _scrollController,
@@ -251,14 +224,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         SliverToBoxAdapter(
                           key: _sectionKeys[category],
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              _horizontalPadding, 4, _horizontalPadding, 8,
-                            ),
+                            padding: const EdgeInsets.fromLTRB(_horizontalPadding, 4, _horizontalPadding, 8),
                             child: Text(
                               category.label,
                               style: AppTextStyles.sectionLabel.copyWith(
-                                color: AppColors.textPrimary,
-                                fontSize: 16,
+                                color: AppColors.textSecondary,
+                                fontSize: 15,
                               ),
                             ),
                           ),
@@ -273,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   crossAxisCount: 2,
                                   mainAxisSpacing: _gridSpacing,
                                   crossAxisSpacing: _gridSpacing,
-                                  mainAxisExtent: itemWidth * 1.15 + _cardTextBlockHeight,
+                                  mainAxisExtent: itemWidth / _cardImageRatio + _cardTextBlockHeight,
                                 ),
                                 delegate: SliverChildBuilderDelegate(
                                   (context, index) => ProductCard(
@@ -299,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Positioned(
               left: 18,
               right: 18,
-              bottom: 76,
+              bottom: 92,
               child: CartSummaryBar(
                 itemsCount: cart.totalCount,
                 totalSum: cart.totalSum,
@@ -346,11 +317,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           const Icon(Icons.search_off_rounded, size: 36, color: AppColors.textSecondary),
           const SizedBox(height: 10),
-          Text(
-            'Ничего не найдено по выбранным фильтрам',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.rowLabelMuted,
-          ),
+          Text('Ничего не найдено по выбранным фильтрам', textAlign: TextAlign.center, style: AppTextStyles.rowLabelMuted),
           const SizedBox(height: 12),
           TextButton(
             onPressed: () => setState(() => _filter = const HomeFilterState()),
@@ -365,31 +332,20 @@ class _HomeScreenState extends State<HomeScreen> {
 class _CategoryBarDelegate extends SliverPersistentHeaderDelegate {
   final double height;
   final Widget child;
-
   const _CategoryBarDelegate({required this.height, required this.child});
-
-  @override
-  double get minExtent => height;
-
-  @override
-  double get maxExtent => height;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
-
-  @override
-  bool shouldRebuild(covariant _CategoryBarDelegate oldDelegate) =>
-      height != oldDelegate.height || child != oldDelegate.child;
+  @override double get minExtent => height;
+  @override double get maxExtent => height;
+  @override Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+  @override bool shouldRebuild(covariant _CategoryBarDelegate oldDelegate) => height != oldDelegate.height || child != oldDelegate.child;
 }
 
 class _FilterPill extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
   const _FilterPill({required this.active, required this.onTap});
-
   @override
   Widget build(BuildContext context) {
-    final foreground = active ? Colors.white : AppColors.textPrimary;
+    final foreground = active ? Colors.white : AppColors.textSecondary;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -405,10 +361,7 @@ class _FilterPill extends StatelessWidget {
           children: [
             Icon(Icons.tune_rounded, size: 16, color: foreground),
             const SizedBox(width: 6),
-            Text(
-              'Фильтр',
-              style: TextStyle(color: foreground, fontWeight: FontWeight.w600, fontSize: 13),
-            ),
+            Text('Фильтр', style: TextStyle(color: foreground, fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
       ),
@@ -421,10 +374,9 @@ class _CategoryChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   const _CategoryChip({required this.label, required this.selected, required this.onTap});
-
   @override
   Widget build(BuildContext context) {
-    final foreground = selected ? Colors.white : AppColors.textPrimary;
+    final foreground = selected ? Colors.white : AppColors.textSecondary;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -436,10 +388,7 @@ class _CategoryChip extends StatelessWidget {
           border: Border.all(color: selected ? AppColors.caramel : AppColors.divider),
         ),
         alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(color: foreground, fontWeight: FontWeight.w600, fontSize: 13),
-        ),
+        child: Text(label, style: TextStyle(color: foreground, fontWeight: FontWeight.w600, fontSize: 13)),
       ),
     );
   }
