@@ -12,15 +12,10 @@ import '../widgets/product_card.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
 
-/// Каталог «Всласть».
+/// Premium-каталог «Всласть».
 ///
-/// Верхний заголовок «Каталог» уезжает при прокрутке.
-/// SearchBar + CategoryBar закреплены одним общим
-/// SliverPersistentHeader.
-///
-/// Использование одного pinned-header вместо двух соседних pinned headers
-/// устраняет конфликт SliverGeometry:
-/// layoutExtent > paintExtent.
+/// Сохраняет существующий scroll-spy и единый pinned header.
+/// UI использует адаптивную сетку, Premium search и явные состояния.
 class CatalogScreen extends StatefulWidget {
   final bool autofocusSearch;
 
@@ -34,119 +29,101 @@ class _CatalogScreenState extends State<CatalogScreen> {
   static const double _horizontalPadding = 20;
   static const double _topHeaderHeight = 70;
   static const double _searchHeight = 76;
-  static const double _categoryHeight = 54;
+  static const double _categoryHeight = 58;
   static const double _pinnedHeaderHeight = _searchHeight + _categoryHeight;
-
-  static const double _gridCrossAxisSpacing = 10;
-  static const double _gridMainAxisSpacing = 10;
-  static const int _gridCrossAxisCount = 3;
-
-  /// Высота текста карточки + цена/кнопка.
-  static const double _cardTextBlockHeight = 80;
+  static const double _gridCrossAxisSpacing = 12;
+  static const double _gridMainAxisSpacing = 16;
+  static const double _cardTextBlockHeight = 112;
 
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   final GlobalKey _viewportKey = GlobalKey();
 
   ProductCategory? _activeCategory;
-
   List<Product> _products = [];
+  bool _isLoading = true;
+  Object? _loadError;
 
   List<ProductCategory> get _shownCategories {
     final query = _searchController.text.trim().toLowerCase();
-
     return ProductCategory.values.where((category) {
       return _products.any((product) {
         if (product.category != category) return false;
-        if (query.isEmpty) return true;
-        return product.name.toLowerCase().contains(query);
+        return query.isEmpty || product.name.toLowerCase().contains(query);
       });
     }).toList();
   }
 
   List<Product> _productsFor(ProductCategory category) {
     final query = _searchController.text.trim().toLowerCase();
-
     return _products.where((product) {
       if (product.category != category) return false;
-      if (query.isEmpty) return true;
-      return product.name.toLowerCase().contains(query);
+      return query.isEmpty || product.name.toLowerCase().contains(query);
     }).toList();
   }
 
-  /// Расчётная позиция каждого заголовка категории в координатах
-  /// CustomScrollView.
-  ///
-  /// Не используем GlobalKey/RenderBox: SliverGrid ленивый, поэтому
-  /// дальние заголовки могут отсутствовать в render tree.
+  int _crossAxisCount(double width) {
+    if (width >= 1200) return 4;
+    if (width >= 760) return 3;
+    return 2;
+  }
+
+  double _itemWidth(double width) {
+    final count = _crossAxisCount(width);
+    return (width - _horizontalPadding * 2 - _gridCrossAxisSpacing * (count - 1)) / count;
+  }
+
   Map<ProductCategory, double> _categoryOffsets(double viewportWidth) {
-    final itemWidth =
-        (viewportWidth -
-            _horizontalPadding * 2 -
-            _gridCrossAxisSpacing * (_gridCrossAxisCount - 1)) /
-        _gridCrossAxisCount;
-
-    // До первого заголовка:
-    // 70 — «Каталог», 130 — pinned Search + CategoryBar, 2 — spacer.
+    final count = _crossAxisCount(viewportWidth);
+    final itemWidth = _itemWidth(viewportWidth);
     double y = _topHeaderHeight + _pinnedHeaderHeight + 2;
-
     final result = <ProductCategory, double>{};
 
     for (final category in _shownCategories) {
       result[category] = y;
-
       final products = _productsFor(category);
-      final rows =
-          (products.length + _gridCrossAxisCount - 1) ~/ _gridCrossAxisCount;
-
+      final rows = (products.length + count - 1) ~/ count;
       final gridHeight = rows == 0
           ? 0.0
-          : rows * (itemWidth + _cardTextBlockHeight) +
-                (rows - 1) * _gridMainAxisSpacing;
-
-      // Заголовок: Padding(top 8 + bottom 8) + строка текста ~22.
-      const sectionHeaderHeight = 38.0;
-
-      // После каждой сетки в текущем build есть bottom padding 14.
-      y += sectionHeaderHeight + gridHeight + 14;
+          : rows * (itemWidth + _cardTextBlockHeight) + (rows - 1) * _gridMainAxisSpacing;
+      y += 42 + gridHeight + 18;
     }
-
     return result;
   }
 
   @override
   void initState() {
     super.initState();
-
     _scrollController.addListener(_updateActiveCategory);
     _searchController.addListener(_onSearchChanged);
-
     _loadProducts();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _updateActiveCategory();
     });
   }
 
   Future<void> _loadProducts() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
     try {
       final products = await ProductService.instance.getProducts();
-
       if (!mounted) return;
-
       setState(() {
         _products = products;
+        _isLoading = false;
       });
-
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _updateActiveCategory();
-        }
+        if (mounted) _updateActiveCategory();
       });
     } catch (error) {
       if (!mounted) return;
-
-      setState(() {});
+      setState(() {
+        _isLoading = false;
+        _loadError = error;
+      });
     }
   }
 
@@ -161,82 +138,55 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   void _onSearchChanged() {
     if (!mounted) return;
-
-    setState(() {
-      _activeCategory = null;
-    });
-
+    setState(() => _activeCategory = null);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _updateActiveCategory();
     });
   }
 
   void _updateActiveCategory() {
-    if (!mounted || !_scrollController.hasClients) return;
-
+    if (!mounted || !_scrollController.hasClients || _isLoading) return;
     final categories = _shownCategories;
     if (categories.isEmpty) {
-      if (_activeCategory != null) {
-        setState(() => _activeCategory = null);
-      }
+      if (_activeCategory != null) setState(() => _activeCategory = null);
       return;
     }
 
-    final viewportWidth =
-        _viewportKey.currentContext?.size?.width ??
-        MediaQuery.sizeOf(context).width;
-
-    final offsets = _categoryOffsets(viewportWidth);
-
-    // Верхняя граница контента, которая видна ПОД pinned Search + CategoryBar.
+    final width = _viewportKey.currentContext?.size?.width ?? MediaQuery.sizeOf(context).width;
+    final offsets = _categoryOffsets(width);
     final probe = _scrollController.offset + _pinnedHeaderHeight;
-
     ProductCategory active = categories.first;
 
     for (final category in categories) {
       final y = offsets[category];
-      if (y == null) continue;
-      if (y <= probe) {
+      if (y != null && y <= probe) {
         active = category;
       } else {
         break;
       }
     }
 
-    if (active != _activeCategory) {
-      setState(() => _activeCategory = active);
-    }
+    if (active != _activeCategory) setState(() => _activeCategory = active);
   }
 
   void _scrollToCategory(ProductCategory category) {
-    if (!_scrollController.hasClients) return;
-    if (!_shownCategories.contains(category)) return;
-
-    final viewportWidth =
-        _viewportKey.currentContext?.size?.width ??
-        MediaQuery.sizeOf(context).width;
-
-    final categoryY = _categoryOffsets(viewportWidth)[category];
+    if (!_scrollController.hasClients || !_shownCategories.contains(category)) return;
+    final width = _viewportKey.currentContext?.size?.width ?? MediaQuery.sizeOf(context).width;
+    final categoryY = _categoryOffsets(width)[category];
     if (categoryY == null) return;
 
-    // Ставим заголовок категории непосредственно под pinned CategoryBar.
     final target = (categoryY - _pinnedHeaderHeight).clamp(
       _scrollController.position.minScrollExtent,
       _scrollController.position.maxScrollExtent,
     );
-
     setState(() => _activeCategory = category);
-
-    _scrollController
-        .animateTo(
-          target.toDouble(),
-          duration: const Duration(milliseconds: 320),
-          curve: Curves.easeOutCubic,
-        )
-        .then((_) {
-          if (!mounted) return;
-          _updateActiveCategory();
-        });
+    _scrollController.animateTo(
+      target.toDouble(),
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    ).then((_) {
+      if (mounted) _updateActiveCategory();
+    });
   }
 
   void _scrollToTop() {
@@ -254,14 +204,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
   }
 
   void _openCart() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const CartScreen()));
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CartScreen()),
+    );
   }
 
   void _goHome() {
     final navigator = Navigator.of(context);
-
     if (navigator.canPop()) {
       navigator.pop();
     } else {
@@ -269,19 +218,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
     }
   }
 
-  SliverGridDelegateWithFixedCrossAxisCount _gridDelegate(
-    BuildContext context,
-  ) {
+  SliverGridDelegateWithFixedCrossAxisCount _gridDelegate(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-
-    final itemWidth =
-        (width -
-            _horizontalPadding * 2 -
-            _gridCrossAxisSpacing * (_gridCrossAxisCount - 1)) /
-        _gridCrossAxisCount;
-
+    final count = _crossAxisCount(width);
+    final itemWidth = _itemWidth(width);
     return SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: _gridCrossAxisCount,
+      crossAxisCount: count,
       mainAxisSpacing: _gridMainAxisSpacing,
       crossAxisSpacing: _gridCrossAxisSpacing,
       mainAxisExtent: itemWidth + _cardTextBlockHeight,
@@ -304,59 +246,21 @@ class _CatalogScreenState extends State<CatalogScreen> {
               controller: _scrollController,
               physics: const BouncingScrollPhysics(),
               slivers: [
-                // «Каталог» — обычный верхний блок.
-                // Он уезжает при вертикальной прокрутке.
                 SliverToBoxAdapter(
                   child: SizedBox(
                     height: _topHeaderHeight,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        _horizontalPadding,
-                        8,
-                        _horizontalPadding,
-                        18,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(_horizontalPadding, 8, _horizontalPadding, 18),
                       child: Row(
                         children: [
-                          GestureDetector(
-                            onTap: _goHome,
-                            behavior: HitTestBehavior.opaque,
-                            child: Container(
-                              width: 44,
-                              height: 44,
-                              margin: const EdgeInsets.only(right: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.divider,
-                                  width: 1,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.chevron_left,
-                                size: 24,
-                                color: AppColors.primaryBrown,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'Каталог',
-                              style: AppTextStyles.screenTitle,
-                            ),
-                          ),
+                          _BackButton(onTap: _goHome),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text('Каталог', style: AppTextStyles.screenTitle)),
                         ],
                       ),
                     ),
                   ),
                 ),
-
-                // Search + категории закрепляются ВМЕСТЕ.
-                //
-                // Это принципиально: не используем два соседних
-                // SliverPersistentHeader. Именно их комбинация давала
-                // layoutExtent=76 / paintExtent=75.
                 SliverPersistentHeader(
                   pinned: true,
                   delegate: _CatalogPinnedHeaderDelegate(
@@ -367,12 +271,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                         SizedBox(
                           height: _searchHeight,
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              _horizontalPadding,
-                              8,
-                              _horizontalPadding,
-                              12,
-                            ),
+                            padding: const EdgeInsets.fromLTRB(_horizontalPadding, 8, _horizontalPadding, 12),
                             child: _SearchHeader(
                               controller: _searchController,
                               autofocus: widget.autofocusSearch,
@@ -392,31 +291,29 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     ),
                   ),
                 ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 2)),
-
-                if (categories.isEmpty)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 80),
-                      child: _EmptyState(),
-                    ),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                if (_isLoading)
+                  const SliverPadding(
+                    padding: EdgeInsets.fromLTRB(_horizontalPadding, 8, _horizontalPadding, 24),
+                    sliver: SliverToBoxAdapter(child: _CatalogLoadingState()),
                   )
+                else if (_loadError != null)
+                  SliverToBoxAdapter(
+                    child: _CatalogErrorState(onRetry: _loadProducts),
+                  )
+                else if (categories.isEmpty)
+                  const SliverToBoxAdapter(child: _CatalogEmptyState()),
                 else
                   for (final category in categories) ...[
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          _horizontalPadding,
-                          8,
-                          _horizontalPadding,
-                          8,
-                        ),
+                        padding: const EdgeInsets.fromLTRB(_horizontalPadding, 8, _horizontalPadding, 10),
                         child: Text(
                           category.label,
                           style: AppTextStyles.productName.copyWith(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                            height: 1.2,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -426,37 +323,32 @@ class _CatalogScreenState extends State<CatalogScreen> {
                         _horizontalPadding,
                         0,
                         _horizontalPadding,
-                        category == categories.last && cart.isEmpty ? 24 : 14,
+                        category == categories.last && cart.isEmpty ? 28 : 18,
                       ),
                       sliver: Builder(
                         builder: (context) {
                           final products = _productsFor(category);
-
                           return SliverGrid(
                             gridDelegate: _gridDelegate(context),
-                            delegate: SliverChildBuilderDelegate((
-                              context,
-                              index,
-                            ) {
-                              return ProductCard(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) => ProductCard(
                                 product: products[index],
                                 onOpenDetails: _openProductDetails,
-                              );
-                            }, childCount: products.length),
+                              ),
+                              childCount: products.length,
+                            ),
                           );
                         },
                       ),
                     ),
                   ],
-
-                const SliverToBoxAdapter(child: SizedBox(height: 96)),
+                const SliverToBoxAdapter(child: SizedBox(height: 112)),
               ],
             ),
-
             if (!cart.isEmpty)
               Positioned(
-                left: 18,
-                right: 18,
+                left: 16,
+                right: 16,
                 bottom: 8,
                 child: CartSummaryBar(
                   itemsCount: cart.totalCount,
@@ -471,37 +363,44 @@ class _CatalogScreenState extends State<CatalogScreen> {
   }
 }
 
-/// Единый pinned-header каталога.
-///
-/// minExtent и maxExtent всегда одинаковы.
-/// Внутренний SizedBox имеет ровно ту же высоту.
-///
-/// Это предотвращает Flutter-ошибку:
-/// SliverGeometry is not valid:
-/// "layoutExtent" exceeds the "paintExtent".
+class _BackButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BackButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: const SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(Icons.chevron_left, size: 24, color: AppColors.primaryBrown),
+        ),
+      ),
+    );
+  }
+}
+
 class _CatalogPinnedHeaderDelegate extends SliverPersistentHeaderDelegate {
   final double height;
   final Widget child;
 
-  const _CatalogPinnedHeaderDelegate({
-    required this.height,
-    required this.child,
-  });
+  const _CatalogPinnedHeaderDelegate({required this.height, required this.child});
 
   @override
   double get minExtent => height;
-
   @override
   double get maxExtent => height;
 
   @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Material(
       color: AppColors.background,
+      elevation: overlapsContent ? 1 : 0,
       child: SizedBox(
         width: double.infinity,
         height: height,
@@ -525,32 +424,47 @@ class _SearchHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
-        borderRadius: BorderRadius.circular(18),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8E4E0)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A1A1A1A), blurRadius: 12, offset: Offset(0, 2)),
+        ],
       ),
       child: Row(
         children: [
-          const Icon(Icons.search, size: 22, color: AppColors.textSecondary),
+          const Padding(
+            padding: EdgeInsets.only(left: 16),
+            child: Icon(Icons.search, size: 22, color: AppColors.textSecondary),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: controller,
               autofocus: autofocus,
-              style: AppTextStyles.searchHint.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
+              textInputAction: TextInputAction.search,
+              style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 16),
                 hintText: 'Поиск хлеба, тортов, десертов...',
-                hintStyle: AppTextStyles.searchHint,
+                hintStyle: AppTextStyles.searchHint.copyWith(color: AppColors.textSecondary),
               ),
             ),
           ),
+          if (controller.text.isNotEmpty)
+            IconButton(
+              tooltip: 'Очистить',
+              onPressed: controller.clear,
+              icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
+            )
+          else
+            const Padding(
+              padding: EdgeInsets.only(right: 10),
+              child: Icon(Icons.qr_code_scanner_rounded, size: 21, color: AppColors.primaryBrown),
+            ),
         ],
       ),
     );
@@ -570,34 +484,41 @@ class _CategoryBar extends StatelessWidget {
     required this.onAllTap,
   });
 
+  IconData _icon(ProductCategory category) {
+    switch (category) {
+      case ProductCategory.bread:
+        return Icons.bakery_dining_outlined;
+      case ProductCategory.pastry:
+        return Icons.cake_outlined;
+      case ProductCategory.cakes:
+        return Icons.cake_outlined;
+      case ProductCategory.desserts:
+        return Icons.icecream_outlined;
+      case ProductCategory.coffee:
+        return Icons.local_cafe_outlined;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.background,
-      padding: const EdgeInsets.fromLTRB(
-        _CatalogScreenState._horizontalPadding,
-        7,
-        0,
-        7,
-      ),
+      padding: const EdgeInsets.fromLTRB(_CatalogScreenState._horizontalPadding, 6, 0, 6),
       child: ListView(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.only(right: 20),
         children: [
-          CategoryChip(
-            label: 'Все',
-            selected: activeCategory == null,
-            onTap: onAllTap,
-          ),
-          const SizedBox(width: 6),
+          CategoryChip(label: 'Все', selected: activeCategory == null, onTap: onAllTap),
+          const SizedBox(width: 8),
           ...categories.map(
             (category) => Padding(
-              padding: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.only(right: 8),
               child: CategoryChip(
                 label: category.label,
                 selected: activeCategory == category,
                 onTap: () => onCategoryTap(category),
+                icon: _icon(category),
               ),
             ),
           ),
@@ -607,32 +528,66 @@ class _CategoryBar extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+class _CatalogLoadingState extends StatelessWidget {
+  const _CatalogLoadingState();
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: [
-        const Icon(
-          Icons.search_off_rounded,
-          size: 52,
-          color: AppColors.textSecondary,
-        ),
-        const SizedBox(height: 14),
-        Text(
-          'Ничего не найдено',
-          style: AppTextStyles.productName.copyWith(
-            color: AppColors.textSecondary,
+      children: List.generate(
+        3,
+        (_) => Container(
+          height: 180,
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceMuted,
+            borderRadius: BorderRadius.circular(20),
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
-          'Попробуйте изменить запрос.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-      ],
+      ),
+    );
+  }
+}
+
+class _CatalogErrorState extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _CatalogErrorState({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 72, 24, 72),
+      child: Column(
+        children: [
+          const Icon(Icons.cloud_off_outlined, size: 48, color: AppColors.textSecondary),
+          const SizedBox(height: 16),
+          Text('Не удалось загрузить каталог', style: AppTextStyles.sectionTitle, textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+          Text('Проверьте соединение и попробуйте ещё раз.', style: AppTextStyles.bodySecondary, textAlign: TextAlign.center),
+          const SizedBox(height: 20),
+          FilledButton(onPressed: onRetry, child: const Text('Повторить')),
+        ],
+      ),
+    );
+  }
+}
+
+class _CatalogEmptyState extends StatelessWidget {
+  const _CatalogEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 72, 24, 72),
+      child: Column(
+        children: [
+          const Icon(Icons.search_off_rounded, size: 52, color: AppColors.textSecondary),
+          const SizedBox(height: 16),
+          Text('Ничего не найдено', style: AppTextStyles.sectionTitle),
+          const SizedBox(height: 8),
+          Text('Попробуйте изменить запрос или выбрать другую категорию.', style: AppTextStyles.bodySecondary, textAlign: TextAlign.center),
+        ],
+      ),
     );
   }
 }
