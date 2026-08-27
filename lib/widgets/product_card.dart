@@ -37,7 +37,7 @@ class ProductCard extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: AspectRatio(
-              aspectRatio: 4 / 5,
+              aspectRatio: 1.15,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -74,8 +74,9 @@ class ProductCard extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(2, 10, 2, 2),
+          padding: const EdgeInsets.fromLTRB(2, 8, 2, 2),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               GestureDetector(
@@ -108,11 +109,11 @@ class ProductCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 7),
               if (!product.inStock)
                 SizedBox(
                   width: double.infinity,
-                  height: 44,
+                  height: 42,
                   child: OutlinedButton.icon(
                     onPressed: () {
                       Navigator.of(context).push(
@@ -122,13 +123,13 @@ class ProductCard extends StatelessWidget {
                       );
                     },
                     icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                    label: const Text('На завтра'),
+                    label: const Text('Предзаказ'),
                   ),
                 )
               else if (quantity == 0)
                 SizedBox(
                   width: double.infinity,
-                  height: 44,
+                  height: 42,
                   child: FilledButton.icon(
                     onPressed: () => cart.add(product),
                     icon: const Icon(Icons.add_shopping_cart_outlined, size: 17),
@@ -138,7 +139,7 @@ class ProductCard extends StatelessWidget {
               else
                 SizedBox(
                   width: double.infinity,
-                  height: 44,
+                  height: 42,
                   child: _QuantityStepper(
                     quantity: quantity,
                     onDecrement: () => cart.decrement(product),
@@ -239,7 +240,7 @@ class _QuantityStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final height = 44.0 * scale.clamp(.9, 1.15);
+    final height = 42.0 * scale.clamp(.9, 1.15);
     return Container(
       height: height,
       decoration: BoxDecoration(
