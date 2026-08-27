@@ -474,7 +474,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final entries = cart.items.entries.toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFFAF8F5),
       body: SafeArea(
         child: entries.isEmpty
             ? _EmptyCartState(onBack: () => Navigator.of(context).maybePop())
@@ -484,6 +484,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                     sliver: const SliverToBoxAdapter(child: _Header()),
                   ),
+
+                  if (cart.isPreorder)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                      sliver: const SliverToBoxAdapter(
+                        child: _PreorderBanner(),
+                      ),
+                    ),
 
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -699,11 +707,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 17),
                             decoration: BoxDecoration(
                               color: _isSubmitting
-                                  ? AppColors.primaryBrown.withValues(
-                                      alpha: 0.6,
-                                    )
-                                  : AppColors.primaryBrown,
-                              borderRadius: BorderRadius.circular(26),
+                                  ? const Color(0x991A1A1A)
+                                  : const Color(0xFF1A1A1A),
+                              borderRadius: BorderRadius.circular(16),
                             ),
                             alignment: Alignment.center,
                             child: _isSubmitting
@@ -762,7 +768,13 @@ class _Header extends StatelessWidget {
         Expanded(
           child: Text(
             'Оформление заказа',
-            style: AppTextStyles.screenTitleSmall,
+            style: const TextStyle(
+              fontFamily: 'Playfair Display',
+              fontSize: 28,
+              height: 1.15,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF1A1A1A),
+            ),
           ),
         ),
       ],
@@ -782,7 +794,7 @@ class _Section extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: AppTextStyles.sectionLabel),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         child,
       ],
     );
@@ -805,8 +817,12 @@ class _CommentRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.surfaceMuted,
-          borderRadius: BorderRadius.circular(18),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(0xFFE8E4E0),
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
@@ -814,7 +830,7 @@ class _CommentRow extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: const BoxDecoration(
-                color: AppColors.primaryBrown,
+                color: Color(0xFFC4956A),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.add, size: 16, color: Colors.white),
@@ -855,8 +871,12 @@ class _DropdownField extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.surfaceMuted,
-          borderRadius: BorderRadius.circular(14),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFE8E4E0),
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
@@ -958,8 +978,19 @@ class _PriceSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
-        borderRadius: BorderRadius.circular(18),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE8E4E0),
+          width: 1,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F1A1A1A),
+            blurRadius: 20,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -979,8 +1010,22 @@ class _PriceSummary extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Итого', style: AppTextStyles.totalLabel),
-              Text(formatPrice(total), style: AppTextStyles.totalValue),
+              const Text(
+                'Итого',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              Text(
+                formatPrice(total),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
             ],
           ),
         ],
@@ -999,6 +1044,60 @@ class _PriceSummary extends StatelessWidget {
   }
 }
 
+class _PreorderBanner extends StatelessWidget {
+  const _PreorderBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5E6D3),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFC4956A),
+          width: 1,
+        ),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.event_available_outlined,
+            size: 22,
+            color: Color(0xFFC4956A),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Предзаказ',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Дата и время предзаказа уже выбраны в корзине.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    color: Color(0xFF6B6560),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _InfoNote extends StatelessWidget {
   const _InfoNote();
 
@@ -1007,7 +1106,7 @@ class _InfoNote extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
+        color: const Color(0xFFF5E6D3),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -1016,7 +1115,7 @@ class _InfoNote extends StatelessWidget {
           const Icon(
             Icons.info_outline,
             size: 18,
-            color: AppColors.textSecondary,
+            color: Color(0xFF4A7C59),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1040,7 +1139,7 @@ class _EmptyCartState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       child: Column(
         children: [
           const _Header(),
