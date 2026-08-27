@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
 import '../providers/favorites_provider.dart';
+import '../screens/preorder_screen.dart';
 import '../theme/app_theme.dart';
 import '../utils/toast.dart';
-import '../screens/preorder_screen.dart';
 import 'product_image.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
-
-  /// Открытие карточки товара (экран «Карточка товара»).
   final ValueChanged<Product> onOpenDetails;
-
-  /// Масштаб степпера количества (кнопка "+" / "−N+"). По умолчанию 1.0 —
-  /// используется одинаково на Главной, в «Каталоге» и в «Избранном».
   final double controlScale;
 
   const ProductCard({
@@ -25,47 +21,24 @@ class ProductCard extends StatelessWidget {
     this.controlScale = 1.0,
   });
 
-  Color _badgeColor(ProductBadge badge) {
-    switch (badge) {
-      case ProductBadge.hit:
-        return AppColors.badgeHit;
-      case ProductBadge.newItem:
-        return AppColors.badgeNew;
-      case ProductBadge.promo:
-        return AppColors.badgePromo;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     final favorites = context.watch<FavoritesProvider>();
     final quantity = cart.quantityOf(product);
     final isFavorite = favorites.isFavorite(product);
-    // Высота строки "цена + кнопка" растёт вместе с controlScale, чтобы
-    // увеличенный степпер не обрезался фиксированной высотой строки.
-    final priceRowHeight = controlScale <= 1.0
-        ? 26.0
-        : 26.0 * controlScale + 6.0;
+    final imageRadius = BorderRadius.circular(20);
 
-    // Карточка больше не в белой "плашке" с тенью — фото (со скруглёнными
-    // углами) и текст лежат прямо на фоне экрана, как в референсе.
-    // Высота текстового блока ниже подобрана под увеличенный шрифт
-    // (см. AppTextStyles.productName/productPrice) — при дальнейшем
-    // изменении шрифтов не забудьте обновить _cardTextBlockHeight в
-    // showcase_section.dart и catalog_screen.dart (см. комментарий там же).
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Изображение + бейдж + избранное. Только эта область открывает
-        // карточку товара, чтобы не конфликтовать с нажатием на сердечко.
         GestureDetector(
           onTap: () => onOpenDetails(product),
           behavior: HitTestBehavior.opaque,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: imageRadius,
             child: AspectRatio(
-              aspectRatio: 1,
+              aspectRatio: 4 / 5,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -74,25 +47,11 @@ class ProductCard extends StatelessWidget {
                     fit: BoxFit.cover,
                     iconSize: 36,
                   ),
-                  if (product.badge != null)
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _badgeColor(product.badge!),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          product.badge!.label,
-                          style: AppTextStyles.badgeLabel,
-                        ),
-                      ),
-                    ),
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: _Badge(product: product),
+                  ),
                   Positioned(
                     top: 10,
                     right: 10,
@@ -116,90 +75,115 @@ class ProductCard extends StatelessWidget {
           ),
         ),
         Padding(
-          // Внимание: сумма высот этого блока (паддинги + название + цена)
-          // рассчитана под _cardTextBlockHeight в showcase_section.dart,
-          // catalog_screen.dart и favorite_screen.dart. При изменении
-          // паддингов/шрифтов здесь — обновите константу везде.
-          padding: const EdgeInsets.fromLTRB(2, 8, 2, 4),
+          padding: const EdgeInsets.fromLTRB(2, 10, 2, 2),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               GestureDetector(
                 onTap: () => onOpenDetails(product),
-                behavior: HitTestBehavior.opaque,
-                child: SizedBox(
-                  height: 36,
-                  child: Text(
-                    product.name,
-                    style: AppTextStyles.productName,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                child: Text(
+                  product.name,
+                  style: AppTextStyles.productName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(height: 5),
-              SizedBox(
-                height: priceRowHeight,
-                child: !product.inStock
-                    ? SizedBox(
-                        width: double.infinity,
-                        child: _PreorderButton(
-                          controlScale: controlScale,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    PreorderScreen(product: product),
-                              ),
-                            );
-                          },
-                        ),
-                      )
-                    : quantity == 0
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              formatPrice(product.price),
-                              style: AppTextStyles.productPrice,
-                              maxLines: 1,
-                              softWrap: false,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          _RoundIconButton(
-                            icon: Icons.add,
-                            controlScale: controlScale,
-                            onTap: () => cart.add(product),
-                          ),
-                        ],
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              formatPrice(product.price),
-                              style: AppTextStyles.productPrice,
-                              maxLines: 1,
-                              softWrap: false,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          _QuantityStepper(
-                            quantity: quantity,
-                            controlScale: controlScale,
-                            onDecrement: () => cart.decrement(product),
-                            onIncrement: () => cart.increment(product),
-                          ),
-                        ],
-                      ),
+              const SizedBox(height: 3),
+              Text(
+                _weightLabel(product),
+                style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 12),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
+              const SizedBox(height: 7),
+              if (!product.inStock)
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PreorderScreen(product: product),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                    label: const Text('На завтра'),
+                  ),
+                )
+              else if (quantity == 0)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        formatPrice(product.price),
+                        style: AppTextStyles.productPrice,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    _AddButton(
+                      onTap: () => cart.add(product),
+                      scale: controlScale,
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        formatPrice(product.price),
+                        style: AppTextStyles.productPrice,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    _QuantityStepper(
+                      quantity: quantity,
+                      onDecrement: () => cart.decrement(product),
+                      onIncrement: () => cart.increment(product),
+                      scale: controlScale,
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  String _weightLabel(Product product) {
+    final label = product.weightLabel?.trim();
+    if (label != null && label.isNotEmpty) return label;
+    return product.isWeighed ? 'Весовой товар' : 'Порция';
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final Product product;
+  const _Badge({required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    final badge = product.badge;
+    if (badge == null) return const SizedBox.shrink();
+    final icon = switch (badge) {
+      ProductBadge.hit => 'Хит недели',
+      ProductBadge.newItem => 'Новинка',
+      ProductBadge.promo => 'Акция',
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(icon, style: AppTextStyles.badgeLabel),
     );
   }
 }
@@ -207,62 +191,48 @@ class ProductCard extends StatelessWidget {
 class _FavoriteButton extends StatelessWidget {
   final bool isFavorite;
   final VoidCallback onTap;
-
   const _FavoriteButton({required this.isFavorite, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    // Раньше сердечко сидело в белом круглом "пятне" и слишком перетягивало
-    // внимание на фото товара. Теперь — просто иконка (чуть крупнее и с
-    // мягкой тенью вместо подложки), она остаётся читаемой на любом фоне,
-    // но не выглядит отдельным элементом интерфейса.
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 24,
-        height: 24,
-        child: Icon(
-          isFavorite ? Icons.favorite : Icons.favorite_border,
-          size: 18,
-          color: isFavorite ? AppColors.badgePromo : Colors.white,
-          shadows: const [
-            Shadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 1)),
-          ],
+    return Material(
+      color: Colors.white.withValues(alpha: .92),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Icon(
+            isFavorite ? Icons.favorite : Icons.favorite_border,
+            size: 19,
+            color: isFavorite ? AppColors.danger : AppColors.textPrimary,
+          ),
         ),
       ),
     );
   }
 }
 
-class _RoundIconButton extends StatelessWidget {
-  final IconData icon;
+class _AddButton extends StatelessWidget {
   final VoidCallback onTap;
-  final double controlScale;
-
-  const _RoundIconButton({
-    required this.icon,
-    required this.onTap,
-    this.controlScale = 1.0,
-  });
+  final double scale;
+  const _AddButton({required this.onTap, required this.scale});
 
   @override
   Widget build(BuildContext context) {
-    final size = 26.0 * controlScale;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: const BoxDecoration(
-          color: AppColors.primaryBrown,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          size: 14.0 * controlScale,
-          color: AppColors.textOnPrimary,
+    final size = 44.0 * scale.clamp(.9, 1.15);
+    return Material(
+      color: AppColors.textPrimary,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          width: size,
+          height: 44,
+          child: const Icon(Icons.add, color: Colors.white, size: 20),
         ),
       ),
     );
@@ -273,119 +243,60 @@ class _QuantityStepper extends StatelessWidget {
   final int quantity;
   final VoidCallback onDecrement;
   final VoidCallback onIncrement;
-  final double controlScale;
+  final double scale;
 
   const _QuantityStepper({
     required this.quantity,
     required this.onDecrement,
     required this.onIncrement,
-    this.controlScale = 1.0,
+    required this.scale,
   });
 
   @override
   Widget build(BuildContext context) {
+    final height = 44.0 * scale.clamp(.9, 1.15);
     return Container(
+      height: height,
       decoration: BoxDecoration(
         color: AppColors.surfaceMuted,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: 1 * controlScale,
-        vertical: 1 * controlScale,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _StepperButton(
-            icon: Icons.remove,
-            onTap: onDecrement,
-            filled: false,
-            controlScale: controlScale,
+          _StepButton(icon: Icons.remove, onTap: onDecrement),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text('$quantity', style: AppTextStyles.rowValue),
           ),
-          SizedBox(
-            width: 14.0 * controlScale,
-            child: Text(
-              '$quantity',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.productName.copyWith(
-                fontSize: 11.0 * controlScale,
-              ),
-            ),
-          ),
-          _StepperButton(
-            icon: Icons.add,
-            onTap: onIncrement,
-            filled: true,
-            controlScale: controlScale,
-          ),
+          _StepButton(icon: Icons.add, onTap: onIncrement, filled: true),
         ],
       ),
     );
   }
 }
 
-class _StepperButton extends StatelessWidget {
+class _StepButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool filled;
-  final double controlScale;
-
-  const _StepperButton({
-    required this.icon,
-    required this.onTap,
-    required this.filled,
-    this.controlScale = 1.0,
-  });
+  const _StepButton({required this.icon, required this.onTap, this.filled = false});
 
   @override
   Widget build(BuildContext context) {
-    final size = 18.0 * controlScale;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: filled ? AppColors.primaryBrown : Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          size: 10.0 * controlScale,
-          color: filled ? AppColors.textOnPrimary : AppColors.primaryBrown,
-        ),
-      ),
-    );
-  }
-}
-
-class _PreorderButton extends StatelessWidget {
-  final VoidCallback onTap;
-  final double controlScale;
-
-  const _PreorderButton({required this.onTap, this.controlScale = 1.0});
-
-  @override
-  Widget build(BuildContext context) {
-    final height = controlScale <= 1.0 ? 26.0 : 26.0 * controlScale + 6.0;
-    return SizedBox(
-      width: double.infinity,
-      child: GestureDetector(
+    return Material(
+      color: filled ? AppColors.textPrimary : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
         onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          height: height,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.primaryBrown,
-            borderRadius: BorderRadius.circular(height / 2),
-          ),
-          child: Text(
-            'Предзаказ',
-            style: AppTextStyles.preorderButton.copyWith(
-              fontSize: 11.0 * controlScale.clamp(1.0, 1.3),
-            ),
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(
+            icon,
+            size: 17,
+            color: filled ? Colors.white : AppColors.textPrimary,
           ),
         ),
       ),
