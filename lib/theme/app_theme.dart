@@ -8,12 +8,16 @@ class AppColors {
 
   static const Color background = Color(0xFFFAF8F5);
   static const Color cardBackground = Color(0xFFFFFFFF);
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color border = Color(0xFFE8E4E0);
   static const Color primaryBrown = Color(0xFF1A1A1A);
   static const Color primaryBrownDark = Color(0xFF111111);
   static const Color caramel = Color(0xFFC4956A);
   static const Color cream = Color(0xFFF5E6D3);
   static const Color sage = Color(0xFF4A7C59);
   static const Color brickRed = Color(0xFFB5423F);
+  static const Color accent = caramel;
+  static const Color accentLight = cream;
   static const Color surfaceMuted = cream;
   static const Color surfaceMutedDark = Color(0xFFEAD8C2);
   static const Color textPrimary = Color(0xFF1A1A1A);
@@ -30,7 +34,7 @@ class AppColors {
   static const Color badgeNew = cream;
   static const Color badgePromo = cream;
 
-  static const Color divider = Color(0xFFE8E4E0);
+  static const Color divider = border;
   static const Color shadow = Color(0x0F1A1A1A);
   static const Color linkAccent = caramel;
 
@@ -141,7 +145,11 @@ class AppTextStyles {
     height: 32 / 24,
   );
   static TextStyle sectionLabel = GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary);
+  static TextStyle sectionTitle = GoogleFonts.playfairDisplay(fontSize: 20, fontWeight: FontWeight.w500, color: AppColors.textPrimary, height: 1.2);
   static TextStyle sectionCounter = GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.textSecondary);
+  static TextStyle body = GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.textPrimary, height: 1.4);
+  static TextStyle bodySecondary = GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w400, color: AppColors.textSecondary, height: 1.4);
+  static TextStyle button = GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textOnPrimary);
   static TextStyle orderItemName = GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary, height: 1.25);
   static TextStyle orderItemPrice = GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary);
   static TextStyle receiptQty = GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w400, color: AppColors.textSecondary);
