@@ -110,8 +110,8 @@ class ProductCard extends StatelessWidget {
   }
 
   String _weightLabel(Product product) {
-    final label = product.weightLabel?.trim();
-    if (label != null && label.isNotEmpty) return label;
+    final label = product.weightLabel.trim();
+    if (label.isNotEmpty) return label;
     return product.isWeighed ? 'Весовой товар' : 'Порция';
   }
 }

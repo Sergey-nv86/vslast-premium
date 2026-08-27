@@ -36,8 +36,8 @@ class _PopularItem extends StatelessWidget {
   const _PopularItem({required this.product, required this.onTap});
 
   String _weight(Product product) {
-    final value = product.weightLabel?.trim();
-    if (value != null && value.isNotEmpty) return value;
+    final value = product.weightLabel.trim();
+    if (value.isNotEmpty) return value;
     return product.isWeighed ? 'Весовой товар' : 'Порция';
   }
 
