@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../models/product.dart';
 import '../../../screens/product_detail_screen.dart';
@@ -26,24 +25,16 @@ class PopularSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text('Популярное', style: AppTextStyles.screenTitleSmall),
-            const Spacer(),
-            Text('Смотреть всё', style: AppTextStyles.linkText),
-            const SizedBox(width: 4),
-            const Icon(Icons.arrow_forward, size: 16, color: AppColors.caramel),
-          ],
-        ),
-        const SizedBox(height: 12),
+        Text('Популярное', style: AppTextStyles.screenTitleSmall),
+        const SizedBox(height: 10),
         SizedBox(
-          height: 250,
+          height: 196,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 4),
             itemCount: products.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
               final product = products[index];
               return _PopularItem(
@@ -73,7 +64,7 @@ class _PopularItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 160,
+      width: 136,
       child: Material(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(AppRadii.card),
@@ -83,26 +74,36 @@ class _PopularItem extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadii.card),
           child: Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(7),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
+                SizedBox(
+                  height: 112,
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        ProductImage(imageUrl: product.imageUrl, fit: BoxFit.cover, iconSize: 28),
+                        ProductImage(
+                          imageUrl: product.imageUrl,
+                          fit: BoxFit.cover,
+                          iconSize: 24,
+                        ),
                         if (product.badge != null)
                           Positioned(
-                            top: 8,
-                            left: 8,
+                            top: 6,
+                            left: 6,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.cream,
-                                borderRadius: BorderRadius.circular(AppRadii.pill),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadii.pill,
+                                ),
                               ),
                               child: Text(
                                 product.badge == ProductBadge.hit
@@ -110,7 +111,9 @@ class _PopularItem extends StatelessWidget {
                                     : product.badge == ProductBadge.newItem
                                         ? 'Новинка'
                                         : 'Акция',
-                                style: AppTextStyles.badgeLabel,
+                                style: AppTextStyles.badgeLabel.copyWith(
+                                  fontSize: 10,
+                                ),
                               ),
                             ),
                           ),
@@ -118,19 +121,19 @@ class _PopularItem extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 9),
+                const SizedBox(height: 7),
                 Text(
                   product.name,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.productName,
+                  style: AppTextStyles.productName.copyWith(fontSize: 13),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   '${_weight(product)} · ${formatPrice(product.price)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.rowLabelMuted,
+                  style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 11),
                 ),
               ],
             ),
