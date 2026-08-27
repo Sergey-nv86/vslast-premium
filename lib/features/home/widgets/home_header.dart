@@ -58,7 +58,12 @@ class HomeHeader extends StatelessWidget {
     final displayName = auth.displayName.trim();
     final name = displayName.isNotEmpty && displayName != 'Пользователь' ? displayName.split(' ').first : '';
     final hour = DateTime.now().hour;
-    final greeting = switch (hour) { >= 5 && < 12 => 'Доброе утро', >= 12 && < 18 => 'Добрый день', >= 18 => 'Добрый вечер', _ => 'Доброй ночи' };
+    final greeting = switch (hour) {
+      >= 5 && < 12 => 'Доброе утро',
+      >= 12 && < 18 => 'Добрый день',
+      >= 18 => 'Добрый вечер',
+      _ => 'Доброй ночи',
+    };
     return name.isEmpty ? greeting : '$greeting,\n$name!';
   }
 
@@ -69,13 +74,16 @@ class HomeHeader extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: top + photoHeight,
-      child: Stack(fit: StackFit.expand, children: [
-        const ProductImage(imageUrl: 'assets/images/hero_banner.jpg', fit: BoxFit.cover, iconSize: 40),
-        Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomLeft, end: Alignment.topRight, colors: [Colors.white.withValues(alpha: .84), Colors.white.withValues(alpha: .30), Colors.transparent], stops: const [0, .52, 1])))),
-        Positioned(left: AppSpacing.lg, top: top + 18, right: 70, child: Text(_greeting(context), style: AppTextStyles.screenTitleSmall.copyWith(color: AppColors.primaryBrown, fontSize: 22, height: 1.05))),
-        Positioned(left: AppSpacing.lg, bottom: 16, right: AppSpacing.lg, child: Text('Испечено с любовью для Вас', style: AppTextStyles.rowLabelMuted.copyWith(color: AppColors.primaryBrown, fontSize: 13, fontWeight: FontWeight.w600))),
-        Positioned(right: AppSpacing.lg, top: top + 10, child: Material(color: Colors.white.withValues(alpha: .94), shape: const CircleBorder(), child: InkWell(customBorder: const CircleBorder(), onTap: () => _openProfileMenu(context), child: const SizedBox(width: 40, height: 40, child: Icon(Icons.person_outline, size: 20, color: AppColors.primaryBrown)))),
-      ]),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const ProductImage(imageUrl: 'assets/images/hero_banner.jpg', fit: BoxFit.cover, iconSize: 40),
+          Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomLeft, end: Alignment.topRight, colors: [Colors.white.withValues(alpha: .84), Colors.white.withValues(alpha: .30), Colors.transparent], stops: const [0, .52, 1])))),
+          Positioned(left: AppSpacing.lg, top: top + 18, right: 70, child: Text(_greeting(context), style: AppTextStyles.screenTitleSmall.copyWith(color: AppColors.primaryBrown, fontSize: 22, height: 1.05))),
+          Positioned(left: AppSpacing.lg, bottom: 16, right: AppSpacing.lg, child: Text('Испечено с любовью для Вас', style: AppTextStyles.rowLabelMuted.copyWith(color: AppColors.primaryBrown, fontSize: 13, fontWeight: FontWeight.w600))),
+          Positioned(right: AppSpacing.lg, top: top + 10, child: Material(color: Colors.white.withValues(alpha: .94), shape: const CircleBorder(), child: InkWell(customBorder: const CircleBorder(), onTap: () => _openProfileMenu(context), child: const SizedBox(width: 40, height: 40, child: Icon(Icons.person_outline, size: 20, color: AppColors.primaryBrown)))),
+        ],
+      ),
     );
   }
 }
