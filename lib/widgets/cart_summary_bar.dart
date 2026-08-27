@@ -18,19 +18,25 @@ class CartSummaryBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.only(bottom: 8),
+      minimum: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppRadii.pill),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         elevation: 0,
         shadowColor: Colors.transparent,
         child: Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: AppColors.cardBackground,
-            borderRadius: BorderRadius.circular(AppRadii.pill),
-            border: Border.all(color: AppColors.divider),
-            boxShadow: AppShadows.card,
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.caramel.withValues(alpha: .45)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x18000000),
+                blurRadius: 18,
+                offset: Offset(0, 5),
+              ),
+            ],
           ),
           child: Row(
             children: [
@@ -44,7 +50,7 @@ class CartSummaryBar extends StatelessWidget {
                 child: const Icon(
                   Icons.shopping_bag_outlined,
                   size: 20,
-                  color: AppColors.textPrimary,
+                  color: AppColors.caramel,
                 ),
               ),
               const SizedBox(width: 10),
@@ -58,19 +64,24 @@ class CartSummaryBar extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Material(
-                color: AppColors.textPrimary,
-                borderRadius: BorderRadius.circular(AppRadii.pill),
+                color: AppColors.caramel,
+                borderRadius: BorderRadius.circular(14),
                 child: InkWell(
                   onTap: onTap,
-                  borderRadius: BorderRadius.circular(AppRadii.pill),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Корзина', style: AppTextStyles.cartBarButton),
-                        SizedBox(width: 6),
-                        Icon(Icons.arrow_forward, size: 16, color: Colors.white),
+                        Text(
+                          'Корзина',
+                          style: AppTextStyles.cartBarButton.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.arrow_forward, size: 16, color: Colors.white),
                       ],
                     ),
                   ),
