@@ -27,7 +27,6 @@ class ProductCard extends StatelessWidget {
     final favorites = context.watch<FavoritesProvider>();
     final quantity = cart.quantityOf(product);
     final isFavorite = favorites.isFavorite(product);
-    final imageRadius = BorderRadius.circular(20);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -36,7 +35,7 @@ class ProductCard extends StatelessWidget {
           onTap: () => onOpenDetails(product),
           behavior: HitTestBehavior.opaque,
           child: ClipRRect(
-            borderRadius: imageRadius,
+            borderRadius: BorderRadius.circular(20),
             child: AspectRatio(
               aspectRatio: 4 / 5,
               child: Stack(
@@ -89,13 +88,27 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 3),
-              Text(
-                _weightLabel(product),
-                style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 12),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      _weightLabel(product),
+                      style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text('·', style: AppTextStyles.rowLabelMuted),
+                  const SizedBox(width: 6),
+                  Text(
+                    formatPrice(product.price),
+                    style: AppTextStyles.productPrice.copyWith(fontSize: 16),
+                    maxLines: 1,
+                  ),
+                ],
               ),
-              const SizedBox(height: 7),
+              const SizedBox(height: 8),
               if (!product.inStock)
                 SizedBox(
                   width: double.infinity,
@@ -113,42 +126,25 @@ class ProductCard extends StatelessWidget {
                   ),
                 )
               else if (quantity == 0)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        formatPrice(product.price),
-                        style: AppTextStyles.productPrice,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    _AddButton(
-                      onTap: () => cart.add(product),
-                      scale: controlScale,
-                    ),
-                  ],
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: FilledButton.icon(
+                    onPressed: () => cart.add(product),
+                    icon: const Icon(Icons.add_shopping_cart_outlined, size: 17),
+                    label: const Text('В корзину'),
+                  ),
                 )
               else
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        formatPrice(product.price),
-                        style: AppTextStyles.productPrice,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    _QuantityStepper(
-                      quantity: quantity,
-                      onDecrement: () => cart.decrement(product),
-                      onIncrement: () => cart.increment(product),
-                      scale: controlScale,
-                    ),
-                  ],
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: _QuantityStepper(
+                    quantity: quantity,
+                    onDecrement: () => cart.decrement(product),
+                    onIncrement: () => cart.increment(product),
+                    scale: controlScale,
+                  ),
                 ),
             ],
           ),
@@ -172,18 +168,31 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     final badge = product.badge;
     if (badge == null) return const SizedBox.shrink();
-    final icon = switch (badge) {
+    final label = switch (badge) {
       ProductBadge.hit => 'Хит недели',
       ProductBadge.newItem => 'Новинка',
       ProductBadge.promo => 'Акция',
     };
+    final icon = switch (badge) {
+      ProductBadge.hit => Icons.local_fire_department_outlined,
+      ProductBadge.newItem => Icons.auto_awesome_outlined,
+      ProductBadge.promo => Icons.local_offer_outlined,
+    };
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
+        color: AppColors.accentLight.withValues(alpha: .96),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(icon, style: AppTextStyles.badgeLabel),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.textPrimary),
+          const SizedBox(width: 5),
+          Text(label, style: AppTextStyles.badgeLabel),
+        ],
+      ),
     );
   }
 }
@@ -215,30 +224,6 @@ class _FavoriteButton extends StatelessWidget {
   }
 }
 
-class _AddButton extends StatelessWidget {
-  final VoidCallback onTap;
-  final double scale;
-  const _AddButton({required this.onTap, required this.scale});
-
-  @override
-  Widget build(BuildContext context) {
-    final size = 44.0 * scale.clamp(.9, 1.15);
-    return Material(
-      color: AppColors.textPrimary,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: SizedBox(
-          width: size,
-          height: 44,
-          child: const Icon(Icons.add, color: Colors.white, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
 class _QuantityStepper extends StatelessWidget {
   final int quantity;
   final VoidCallback onDecrement;
@@ -258,17 +243,15 @@ class _QuantityStepper extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _StepButton(icon: Icons.remove, onTap: onDecrement),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text('$quantity', style: AppTextStyles.rowValue),
-          ),
+          Text('$quantity', style: AppTextStyles.rowValue),
           _StepButton(icon: Icons.add, onTap: onIncrement, filled: true),
         ],
       ),
@@ -291,8 +274,8 @@ class _StepButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: SizedBox(
-          width: 36,
-          height: 36,
+          width: 40,
+          height: 40,
           child: Icon(
             icon,
             size: 17,
