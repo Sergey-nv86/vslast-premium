@@ -190,27 +190,9 @@ class _PromotionsScreenState extends State<PromotionsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              _horizontalPadding,
-              16,
-              _horizontalPadding,
-              4,
-            ),
-            child: Text(
-              'Акции и спецпредложения',
-              style: GoogleFonts.alice(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
           SizedBox(
-            height: 132,
+            height: 165,
+            width: double.infinity,
             child: PageView.builder(
               controller: _bannerController,
               itemCount: promotions.length,
@@ -218,10 +200,8 @@ class _PromotionsScreenState extends State<PromotionsScreen> {
                 setState(() => _activeIndex = index);
               },
               itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: _horizontalPadding,
-                  ),
+                return SizedBox(
+                  width: double.infinity,
                   child: _PromoBanner(promotion: promotions[index]),
                 );
               },
@@ -238,9 +218,11 @@ class _PromotionsScreenState extends State<PromotionsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
             child: Text(
               'Ассортимент к акции',
-              style: AppTextStyles.rowLabel.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+                height: 1.25,
               ),
             ),
           ),
@@ -296,22 +278,6 @@ class _PromotionsScreenState extends State<PromotionsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              _horizontalPadding,
-              16,
-              _horizontalPadding,
-              4,
-            ),
-            child: Text(
-              'Акции и спецпредложения',
-              style: GoogleFonts.alice(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
           Expanded(
             child: Center(
               child: Padding(
@@ -353,7 +319,10 @@ class _PromoBanner extends StatelessWidget {
     final image = _bannerImage();
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.only(
+        topLeft: Radius.circular(20),
+        topRight: Radius.circular(20),
+      ),
       child: image != null
           ? Stack(
               fit: StackFit.expand,

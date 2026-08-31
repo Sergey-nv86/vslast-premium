@@ -48,53 +48,53 @@ class VslastTextStyles {
   VslastTextStyles._();
 
   static TextStyle get h1 => GoogleFonts.playfairDisplay(
-        fontSize: 32,
-        height: 40 / 32,
-        fontWeight: FontWeight.w500,
-        color: VslastColors.textPrimary,
-      );
+    fontSize: 32,
+    height: 40 / 32,
+    fontWeight: FontWeight.w500,
+    color: VslastColors.textPrimary,
+  );
 
   static TextStyle get h2 => GoogleFonts.playfairDisplay(
-        fontSize: 24,
-        height: 32 / 24,
-        fontWeight: FontWeight.w500,
-        color: VslastColors.textPrimary,
-      );
+    fontSize: 24,
+    height: 32 / 24,
+    fontWeight: FontWeight.w500,
+    color: VslastColors.textPrimary,
+  );
 
   static TextStyle get h3 => GoogleFonts.inter(
-        fontSize: 17,
-        height: 24 / 17,
-        fontWeight: FontWeight.w500,
-        color: VslastColors.textPrimary,
-      );
+    fontSize: 17,
+    height: 24 / 17,
+    fontWeight: FontWeight.w500,
+    color: VslastColors.textPrimary,
+  );
 
   static TextStyle get body => GoogleFonts.inter(
-        fontSize: 16,
-        height: 24 / 16,
-        fontWeight: FontWeight.w400,
-        color: VslastColors.textPrimary,
-      );
+    fontSize: 16,
+    height: 24 / 16,
+    fontWeight: FontWeight.w400,
+    color: VslastColors.textPrimary,
+  );
 
   static TextStyle get bodyMedium => GoogleFonts.inter(
-        fontSize: 16,
-        height: 24 / 16,
-        fontWeight: FontWeight.w500,
-        color: VslastColors.textPrimary,
-      );
+    fontSize: 16,
+    height: 24 / 16,
+    fontWeight: FontWeight.w500,
+    color: VslastColors.textPrimary,
+  );
 
   static TextStyle get caption => GoogleFonts.inter(
-        fontSize: 13,
-        height: 16 / 13,
-        fontWeight: FontWeight.w400,
-        color: VslastColors.textSecondary,
-      );
+    fontSize: 13,
+    height: 16 / 13,
+    fontWeight: FontWeight.w400,
+    color: VslastColors.textSecondary,
+  );
 
   static TextStyle get micro => GoogleFonts.inter(
-        fontSize: 11,
-        height: 12 / 11,
-        fontWeight: FontWeight.w500,
-        color: VslastColors.textSecondary,
-      );
+    fontSize: 11,
+    height: 12 / 11,
+    fontWeight: FontWeight.w500,
+    color: VslastColors.textSecondary,
+  );
 }
 
 class VslastDesignSystem {
@@ -105,19 +105,20 @@ class VslastDesignSystem {
 
     return base.copyWith(
       scaffoldBackgroundColor: VslastColors.background,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: VslastColors.accent,
-        brightness: Brightness.light,
-      ).copyWith(
-        primary: VslastColors.textPrimary,
-        onPrimary: VslastColors.surface,
-        secondary: VslastColors.accent,
-        onSecondary: VslastColors.textPrimary,
-        surface: VslastColors.surface,
-        onSurface: VslastColors.textPrimary,
-        error: VslastColors.danger,
-        onError: VslastColors.surface,
-      ),
+      colorScheme:
+          ColorScheme.fromSeed(
+            seedColor: VslastColors.accent,
+            brightness: Brightness.light,
+          ).copyWith(
+            primary: VslastColors.textPrimary,
+            onPrimary: VslastColors.surface,
+            secondary: VslastColors.accent,
+            onSecondary: VslastColors.textPrimary,
+            surface: VslastColors.surface,
+            onSurface: VslastColors.textPrimary,
+            error: VslastColors.danger,
+            onError: VslastColors.surface,
+          ),
       textTheme: GoogleFonts.interTextTheme(base.textTheme).copyWith(
         displayLarge: VslastTextStyles.h1,
         headlineMedium: VslastTextStyles.h2,
@@ -137,7 +138,10 @@ class VslastDesignSystem {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: VslastColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(VslastRadii.field),
           borderSide: const BorderSide(color: VslastColors.divider),

@@ -94,7 +94,11 @@ class OrdersService {
       case 'confirmed':
         return OrderStatus.awaitingPayment;
 
+      case 'pending_confirmation':
       case 'processing':
+      case 'new':
+      case 'pending':
+      case 'awaiting_confirmation':
       default:
         return OrderStatus.processing;
     }
@@ -145,7 +149,11 @@ class OrdersService {
       case 'done':
         return 'Спасибо за покупку!';
 
+      case 'pending_confirmation':
       case 'processing':
+      case 'new':
+      case 'pending':
+      case 'awaiting_confirmation':
       default:
         if (deliveryMethod == 'delivery') {
           return 'Заказ отправлен администратору.\nОжидает подтверждения доставки.';

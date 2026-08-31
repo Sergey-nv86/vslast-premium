@@ -40,9 +40,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year &&
-        a.month == b.month &&
-        a.day == b.day;
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   String _monthName(int month) {
@@ -90,10 +88,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       Duration(days: date.weekday - DateTime.monday),
     );
 
-    return List.generate(
-      7,
-      (index) => monday.add(Duration(days: index)),
-    );
+    return List.generate(7, (index) => monday.add(Duration(days: index)));
   }
 
   void _selectDate(DateTime date) {
@@ -118,10 +113,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        'График',
-                        style: AppTextStyles.screenTitle,
-                      ),
+                      child: Text('График', style: AppTextStyles.screenTitle),
                     ),
                     Container(
                       width: 42,
@@ -129,9 +121,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.divider,
-                        ),
+                        border: Border.all(color: AppColors.divider),
                       ),
                       child: IconButton(
                         padding: EdgeInsets.zero,
@@ -150,14 +140,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               ),
             ),
 
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 24),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
             // ----------------------------------------------------------
             // БЛИЖАЙШИЙ ЗАКАЗ
             // ----------------------------------------------------------
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -210,10 +197,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       const SizedBox(height: 6),
                       const Text(
                         'Выберите дату ниже',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
                     ],
                   ),
@@ -221,14 +205,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               ),
             ),
 
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 28),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 28)),
 
             // ----------------------------------------------------------
             // МЕСЯЦ
             // ----------------------------------------------------------
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -252,14 +233,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               ),
             ),
 
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 14),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 14)),
 
             // ----------------------------------------------------------
             // НЕДЕЛЯ
             // ----------------------------------------------------------
-
             SliverToBoxAdapter(
               child: SizedBox(
                 height: 82,
@@ -270,10 +248,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   separatorBuilder: (_, _) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final date = week[index];
-                    final selected = _isSameDay(
-                      date,
-                      _selectedDate,
-                    );
+                    final selected = _isSameDay(date, _selectedDate);
                     final isToday = _isSameDay(date, today);
 
                     return GestureDetector(
@@ -282,9 +257,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
                         width: 54,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 9,
-                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 9),
                         decoration: BoxDecoration(
                           color: selected
                               ? AppColors.primaryBrown
@@ -341,14 +314,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               ),
             ),
 
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 30),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
 
             // ----------------------------------------------------------
             // ВЫБРАННАЯ ДАТА
             // ----------------------------------------------------------
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -362,14 +332,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               ),
             ),
 
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 12),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
             // ----------------------------------------------------------
             // ИНТЕРВАЛЫ
             // ----------------------------------------------------------
-
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               sliver: SliverList.separated(
@@ -386,9 +353,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(17),
-                      border: Border.all(
-                        color: AppColors.divider,
-                      ),
+                      border: Border.all(color: AppColors.divider),
                     ),
                     child: Row(
                       children: [
@@ -426,14 +391,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               ),
             ),
 
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 28),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 28)),
 
             // ----------------------------------------------------------
             // ИНФОРМАЦИЯ
             // ----------------------------------------------------------
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
@@ -457,9 +419,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           'Здесь будет отображаться график получения '
                           'ваших заказов. Вы сможете быстро увидеть '
                           'дату, на которую вы хотите оформить предзаказ.',
-                          style: AppTextStyles.rowLabel.copyWith(
-                            height: 1.4,
-                          ),
+                          style: AppTextStyles.rowLabel.copyWith(height: 1.4),
                         ),
                       ),
                     ],

@@ -41,7 +41,11 @@ class PremiumPrimaryButton extends StatelessWidget {
         : Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [Icon(icon, size: 18), const SizedBox(width: 8), Text(label)],
+            children: [
+              Icon(icon, size: 18),
+              const SizedBox(width: 8),
+              Text(label),
+            ],
           );
 
     final button = SizedBox(
@@ -126,11 +130,14 @@ class PremiumSurface extends StatelessWidget {
     );
 
     if (onTap == null) return surface;
-    return Material(color: Colors.transparent, child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(PremiumUI.radiusCard),
-      child: surface,
-    ));
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(PremiumUI.radiusCard),
+        child: surface,
+      ),
+    );
   }
 }
 
@@ -158,7 +165,10 @@ class PremiumBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[Icon(icon, size: 14, color: AppColors.accent), const SizedBox(width: 4)],
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: AppColors.accent),
+            const SizedBox(width: 4),
+          ],
           Text(label, style: AppTextStyles.badgeLabel),
         ],
       ),
@@ -190,7 +200,13 @@ class PremiumSearchField extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
-        boxShadow: const [BoxShadow(color: Color(0x0A1A1A1A), blurRadius: 12, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A1A1A1A),
+            blurRadius: 12,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: TextField(
         controller: controller,
@@ -198,19 +214,30 @@ class PremiumSearchField extends StatelessWidget {
         style: AppTextStyles.body,
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+          hintStyle: AppTextStyles.body.copyWith(
+            color: AppColors.textSecondary,
+          ),
           prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
           suffixIcon: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (onScan != null)
-                IconButton(onPressed: onScan, icon: const Icon(Icons.qr_code_scanner_outlined)),
+                IconButton(
+                  onPressed: onScan,
+                  icon: const Icon(Icons.qr_code_scanner_outlined),
+                ),
               if (onClear != null)
-                IconButton(onPressed: onClear, icon: const Icon(Icons.close_rounded)),
+                IconButton(
+                  onPressed: onClear,
+                  icon: const Icon(Icons.close_rounded),
+                ),
             ],
           ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
         ),
       ),
     );

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../data/mock_products.dart';
 import '../models/product.dart';
 import '../providers/favorites_provider.dart';
+import '../services/product_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/product_card.dart';
 import 'product_detail_screen.dart';
@@ -45,8 +45,16 @@ class FavoriteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final favorites = context.watch<FavoritesProvider>();
-    final favoriteProducts = mockProducts
-        .where((p) => favorites.isFavorite(p))
+
+    // Избранное должно использовать тот же реальный список товаров,
+    // который загружает каталог из Supabase.
+    //
+    // ProductService хранит последний успешно загруженный список
+    // в кеше после Splash / загрузки каталога.
+    final products = ProductService.instance.cachedProducts ?? const <Product>[];
+
+    final favoriteProducts = products
+        .where(favorites.isFavorite)
         .toList();
 
     return Scaffold(

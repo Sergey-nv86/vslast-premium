@@ -21,15 +21,9 @@ class DefaultFirebaseOptions {
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for android - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
@@ -60,5 +54,22 @@ class DefaultFirebaseOptions {
     authDomain: 'vslast-premium.firebaseapp.com',
     storageBucket: 'vslast-premium.firebasestorage.app',
     measurementId: 'G-8653ZX27G4',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBJhCtQMaxiMZtPFBkTjTziyejSDgPDNfA',
+    appId: '1:1078788985612:ios:8dffcf13a15f9df3e6af29',
+    messagingSenderId: '1078788985612',
+    projectId: 'vslast-premium',
+    storageBucket: 'vslast-premium.firebasestorage.app',
+    iosBundleId: 'com.example.vslastPremium',
+  );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyDebGsc27s7PXd_ICR6HCer93Ajv0hem8g',
+    appId: '1:1078788985612:android:2351617d8275453ae6af29',
+    messagingSenderId: '1078788985612',
+    projectId: 'vslast-premium',
+    storageBucket: 'vslast-premium.firebasestorage.app',
   );
 }

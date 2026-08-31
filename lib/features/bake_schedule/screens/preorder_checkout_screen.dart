@@ -9,14 +9,10 @@ import '../../../widgets/selectable_option_card.dart';
 class PreorderCheckoutScreen extends StatefulWidget {
   final Map<DateTime, Map<Product, int>> selections;
 
-  const PreorderCheckoutScreen({
-    super.key,
-    required this.selections,
-  });
+  const PreorderCheckoutScreen({super.key, required this.selections});
 
   @override
-  State<PreorderCheckoutScreen> createState() =>
-      _PreorderCheckoutScreenState();
+  State<PreorderCheckoutScreen> createState() => _PreorderCheckoutScreenState();
 }
 
 class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
@@ -64,18 +60,14 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
   }
 
   Future<void> _selectDeliveryAddress() async {
-    final controller = TextEditingController(
-      text: _deliveryAddress ?? '',
-    );
+    final controller = TextEditingController(text: _deliveryAddress ?? '');
 
     final address = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return Padding(
@@ -89,10 +81,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Адрес доставки',
-                style: AppTextStyles.sectionLabel,
-              ),
+              Text('Адрес доставки', style: AppTextStyles.sectionLabel),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
@@ -123,9 +112,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
                   },
                   behavior: HitTestBehavior.opaque,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 14,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
                       color: AppColors.primaryBrown,
                       borderRadius: BorderRadius.circular(24),
@@ -155,18 +142,14 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
   }
 
   Future<void> _editComment() async {
-    final controller = TextEditingController(
-      text: _comment ?? '',
-    );
+    final controller = TextEditingController(text: _comment ?? '');
 
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return Padding(
@@ -180,10 +163,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Комментарий к заказу',
-                style: AppTextStyles.sectionLabel,
-              ),
+              Text('Комментарий к заказу', style: AppTextStyles.sectionLabel),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
@@ -204,16 +184,11 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
                 width: double.infinity,
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.pop(
-                      context,
-                      controller.text.trim(),
-                    );
+                    Navigator.pop(context, controller.text.trim());
                   },
                   behavior: HitTestBehavior.opaque,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 14,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
                       color: AppColors.primaryBrown,
                       borderRadius: BorderRadius.circular(24),
@@ -250,8 +225,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
     }
 
     if (_deliveryMethod == 'delivery' &&
-        (_deliveryAddress == null ||
-            _deliveryAddress!.trim().isEmpty)) {
+        (_deliveryAddress == null || _deliveryAddress!.trim().isEmpty)) {
       _showError('Укажите адрес доставки');
       return;
     }
@@ -259,9 +233,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
     final user = Supabase.instance.client.auth.currentUser;
 
     if (user == null) {
-      _showError(
-        'Для оформления предзаказа необходимо войти в аккаунт',
-      );
+      _showError('Для оформления предзаказа необходимо войти в аккаунт');
       return;
     }
 
@@ -273,11 +245,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
       final selections = <DateTime, Map<String, int>>{};
 
       for (final entry in _selections.entries) {
-        final date = DateTime(
-          entry.key.year,
-          entry.key.month,
-          entry.key.day,
-        );
+        final date = DateTime(entry.key.year, entry.key.month, entry.key.day);
 
         final items = <String, int>{};
 
@@ -290,8 +258,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
         }
       }
 
-      final orders =
-          await BakeScheduleService.instance.createPreorders(
+      final orders = await BakeScheduleService.instance.createPreorders(
         selections: selections,
         comment: _comment,
       );
@@ -311,7 +278,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
             orders.length == 1
                 ? 'Создан предзаказ на выбранную дату.'
                 : 'Создано предзаказов: ${orders.length}. '
-                    'Каждый предзаказ привязан к своей дате.',
+                      'Каждый предзаказ привязан к своей дате.',
           ),
           actions: [
             TextButton(
@@ -344,10 +311,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
   }
 
@@ -379,12 +343,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
         child: CustomScrollView(
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                8,
-                20,
-                0,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               sliver: SliverToBoxAdapter(
                 child: Row(
                   children: [
@@ -397,9 +356,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.divider,
-                          ),
+                          border: Border.all(color: AppColors.divider),
                         ),
                         child: const Icon(
                           Icons.chevron_left,
@@ -423,16 +380,10 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
             ),
 
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                26,
-                20,
-                0,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
               sliver: SliverToBoxAdapter(
                 child: Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
                       child: Text(
@@ -455,12 +406,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
 
             for (final date in _dates)
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  18,
-                  20,
-                  0,
-                ),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
                 sliver: SliverToBoxAdapter(
                   child: _DayOrderCard(
                     date: date,
@@ -471,12 +417,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
               ),
 
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                22,
-                20,
-                0,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
               sliver: SliverToBoxAdapter(
                 child: _Section(
                   title: 'Способ получения',
@@ -487,8 +428,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
                           icon: Icons.shopping_bag_outlined,
                           title: 'Самовывоз',
                           subtitle: 'ул. Пионерская, 12',
-                          selected:
-                              _deliveryMethod == 'pickup',
+                          selected: _deliveryMethod == 'pickup',
                           onTap: () {
                             setState(() {
                               _deliveryMethod = 'pickup';
@@ -502,11 +442,8 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
                         child: SelectableOptionCard(
                           icon: Icons.delivery_dining_outlined,
                           title: 'Доставка',
-                          subtitle:
-                              _deliveryAddress ??
-                              'Указать адрес',
-                          selected:
-                              _deliveryMethod == 'delivery',
+                          subtitle: _deliveryAddress ?? 'Указать адрес',
+                          selected: _deliveryMethod == 'delivery',
                           onTap: _selectDeliveryAddress,
                         ),
                       ),
@@ -517,12 +454,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
             ),
 
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                22,
-                20,
-                0,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
               sliver: SliverToBoxAdapter(
                 child: _Section(
                   title: 'Способ оплаты',
@@ -532,10 +464,8 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
                         child: SelectableOptionCard(
                           icon: Icons.qr_code,
                           title: 'СБП онлайн',
-                          subtitle:
-                              'Администратор выставит QR-код',
-                          selected:
-                              _paymentMethod == 'onlineSbp',
+                          subtitle: 'Администратор выставит QR-код',
+                          selected: _paymentMethod == 'onlineSbp',
                           onTap: () {
                             setState(() {
                               _paymentMethod = 'onlineSbp';
@@ -549,8 +479,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
                           icon: Icons.account_balance_wallet_outlined,
                           title: 'При получении',
                           subtitle: 'Наличными или картой',
-                          selected:
-                              _paymentMethod == 'cash',
+                          selected: _paymentMethod == 'cash',
                           onTap: () {
                             setState(() {
                               _paymentMethod = 'cash';
@@ -565,12 +494,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
             ),
 
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                22,
-                20,
-                0,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
               sliver: SliverToBoxAdapter(
                 child: GestureDetector(
                   onTap: _editComment,
@@ -613,12 +537,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
             ),
 
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                26,
-                20,
-                0,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
               sliver: SliverToBoxAdapter(
                 child: _PriceSummary(
                   itemsTotal: _itemsTotal,
@@ -628,12 +547,7 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
             ),
 
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                14,
-                20,
-                0,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
               sliver: SliverToBoxAdapter(
                 child: Text(
                   'После подтверждения будет создан отдельный '
@@ -647,25 +561,16 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
             ),
 
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                20,
-                20,
-                24,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               sliver: SliverToBoxAdapter(
                 child: GestureDetector(
                   onTap: _submitting ? null : _submit,
                   behavior: HitTestBehavior.opaque,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 17,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 17),
                     decoration: BoxDecoration(
                       color: _submitting
-                          ? AppColors.primaryBrown.withValues(
-                              alpha: 0.6,
-                            )
+                          ? AppColors.primaryBrown.withValues(alpha: 0.6)
                           : AppColors.primaryBrown,
                       borderRadius: BorderRadius.circular(26),
                     ),
@@ -676,16 +581,14 @@ class _PreorderCheckoutScreenState extends State<PreorderCheckoutScreen> {
                             height: 22,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(
+                              valueColor: AlwaysStoppedAnimation<Color>(
                                 Colors.white,
                               ),
                             ),
                           )
                         : Text(
                             'Подтвердить предзаказ',
-                            style:
-                                AppTextStyles.cartBarButton,
+                            style: AppTextStyles.cartBarButton,
                           ),
                   ),
                 ),
@@ -764,9 +667,7 @@ class _DayOrderCard extends StatelessWidget {
                   ),
                   Text(
                     '${entry.value} × ${entry.key.price} ₽',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                    ),
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -781,20 +682,14 @@ class _Section extends StatelessWidget {
   final String title;
   final Widget child;
 
-  const _Section({
-    required this.title,
-    required this.child,
-  });
+  const _Section({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: AppTextStyles.sectionLabel,
-        ),
+        Text(title, style: AppTextStyles.sectionLabel),
         const SizedBox(height: 10),
         child,
       ],
@@ -806,10 +701,7 @@ class _PriceSummary extends StatelessWidget {
   final int itemsTotal;
   final int daysCount;
 
-  const _PriceSummary({
-    required this.itemsTotal,
-    required this.daysCount,
-  });
+  const _PriceSummary({required this.itemsTotal, required this.daysCount});
 
   @override
   Widget build(BuildContext context) {
@@ -823,18 +715,14 @@ class _PriceSummary extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(
-                child: Text('Товары'),
-              ),
+              const Expanded(child: Text('Товары')),
               Text('$itemsTotal ₽'),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              const Expanded(
-                child: Text('Даты'),
-              ),
+              const Expanded(child: Text('Даты')),
               Text('$daysCount'),
             ],
           ),
@@ -844,10 +732,7 @@ class _PriceSummary extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Итого',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),
               ),
               Text(

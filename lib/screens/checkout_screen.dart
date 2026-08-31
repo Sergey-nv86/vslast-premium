@@ -47,7 +47,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   ];
 
   DeliveryMethod _deliveryMethod = DeliveryMethod.pickup;
-  PaymentMethod _paymentMethod = PaymentMethod.onlineSbp;
+  PaymentMethod _paymentMethod = PaymentMethod.cash;
 
   DateTime _pickupDate = DateTime(
     DateTime.now().year,
@@ -120,6 +120,65 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _pickTimeSlot() async {
+    final now = DateTime.now();
+
+    // Для сегодняшней даты нельзя выбрать уже начавшийся
+    // или завершившийся интервал.
+    final isToday =
+        _pickupDate.year == now.year &&
+        _pickupDate.month == now.month &&
+        _pickupDate.day == now.day;
+
+    List<String> availableSlots = _timeSlots;
+
+    if (isToday) {
+      availableSlots = _timeSlots.where((slot) {
+        // Формат: HH:00 – HH:00
+        final startText = slot.substring(0, 5);
+        final parts = startText.split(':');
+
+        final hour = int.parse(parts[0]);
+        final minute = int.parse(parts[1]);
+
+        final slotStart = DateTime(now.year, now.month, now.day, hour, minute);
+
+        // Интервал доступен только если он ещё не начался.
+        return !slotStart.isBefore(now);
+      }).toList();
+    }
+
+    if (availableSlots.isEmpty) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'На сегодня доступных интервалов больше нет. '
+              'Выберите другую дату.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+      return;
+    }
+
+    // Если ранее выбранный интервал уже недоступен,
+    // автоматически выбираем ближайший доступный.
+    var selectedSlot = _pickupTimeSlot;
+
+    if (!availableSlots.contains(selectedSlot)) {
+      selectedSlot = availableSlots.first;
+
+      if (mounted) {
+        setState(() {
+          _pickupTimeSlot = selectedSlot;
+        });
+      }
+    }
+
     final selected = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.white,
@@ -127,7 +186,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return _TimeSlotSheet(slots: _timeSlots, selected: _pickupTimeSlot);
+        return _TimeSlotSheet(slots: availableSlots, selected: selectedSlot);
       },
     );
 
@@ -135,6 +194,85 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() {
         _pickupTimeSlot = selected;
       });
+    }
+  }
+
+  Future<void> _pickPreorderTimeSlot(CartProvider cart) async {
+    final now = DateTime.now();
+
+    final selectedDate = cart.preorderDate ?? DateTime.now();
+
+    final isToday =
+        selectedDate.year == now.year &&
+        selectedDate.month == now.month &&
+        selectedDate.day == now.day;
+
+    List<String> availableSlots = _timeSlots;
+
+    if (isToday) {
+      availableSlots = _timeSlots.where((slot) {
+        final startText = slot.substring(0, 5);
+        final parts = startText.split(':');
+        final hour = int.parse(parts[0]);
+        final minute = int.parse(parts[1]);
+
+        final slotStart = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          hour,
+          minute,
+        );
+
+        return !slotStart.isBefore(now);
+      }).toList();
+    }
+
+    if (availableSlots.isEmpty) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'На сегодня доступных интервалов больше нет. '
+              'Выберите другую дату.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      return;
+    }
+
+    final current = cart.preorderTime;
+    final selectedSlot =
+        current != null && availableSlots.contains(current)
+            ? current
+            : availableSlots.first;
+
+    if (current == null || !availableSlots.contains(current)) {
+      cart.setPreorderTime(selectedSlot);
+    }
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
+      ),
+      builder: (context) {
+        return _TimeSlotSheet(
+          slots: availableSlots,
+          selected: selectedSlot,
+        );
+      },
+    );
+
+    if (selected != null && mounted) {
+      cart.setPreorderTime(selected);
     }
   }
 
@@ -154,72 +292,127 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _editComment() async {
-    final controller = TextEditingController(text: _comment);
-
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Комментарий к заказу', style: AppTextStyles.sectionLabel),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                maxLines: 3,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: 'Например: не звонить в домофон',
-                  filled: true,
-                  fillColor: AppColors.surfaceMuted,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        final controller = TextEditingController(text: _comment);
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: AppColors.divider,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        Text(
+                          'Комментарий к заказу',
+                          style: const TextStyle(
+                            fontFamily: 'PlayfairDisplay',
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.primaryBrown,
+                          ),
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        TextField(
+                          controller: controller,
+                          autofocus: true,
+                          maxLines: 4,
+                          minLines: 3,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: InputDecoration(
+                            hintText: 'Например: не звонить в домофон',
+                            hintStyle: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                            filled: true,
+                            fillColor: AppColors.surfaceMuted,
+                            contentPadding: const EdgeInsets.all(16),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(
+                                color: AppColors.primaryBrown,
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(
+                                sheetContext,
+                              ).pop(controller.text.trim());
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.cream,
+                              foregroundColor: AppColors.primaryBrown,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(26),
+                              ),
+                            ),
+                            child: const Text(
+                              'Сохранить',
+                              style: TextStyle(
+                                fontFamily: 'PlayfairDisplay',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context, controller.text.trim());
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryBrown,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Сохранить',
-                      style: AppTextStyles.cartBarButton,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
-
-    controller.dispose();
 
     if (result != null && mounted) {
       setState(() {
@@ -598,16 +791,41 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 icon: Icons.calendar_today_outlined,
                                 label: cart.isPreorder
                                     ? (cart.preorderDate == null
-                                          ? 'Дата из корзины'
+                                          ? 'Выбрать дату'
                                           : formatPickupDateLabel(
                                               cart.preorderDate!,
                                             ))
                                     : formatPickupDateLabel(_pickupDate),
-                                onTap: cart.isPreorder
-                                    ? () {}
-                                    : () {
-                                        _pickDate();
-                                      },
+                                onTap: () async {
+                                  if (cart.isPreorder) {
+                                    final currentDate =
+                                        cart.preorderDate ?? DateTime.now();
+
+                                    final now = DateTime.now();
+                                    final today = DateTime(
+                                      now.year,
+                                      now.month,
+                                      now.day,
+                                    );
+
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate:
+                                          currentDate.isBefore(today)
+                                              ? today
+                                              : currentDate,
+                                      firstDate: today,
+                                      lastDate:
+                                          today.add(const Duration(days: 30)),
+                                    );
+
+                                    if (picked != null && mounted) {
+                                      cart.setPreorderDate(picked);
+                                    }
+                                  } else {
+                                    await _pickDate();
+                                  }
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -615,13 +833,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               child: _DropdownField(
                                 icon: Icons.access_time,
                                 label: cart.isPreorder
-                                    ? (cart.preorderTime ?? 'Время из корзины')
+                                    ? (cart.preorderTime ?? 'Выбрать время')
                                     : _pickupTimeSlot,
-                                onTap: cart.isPreorder
-                                    ? () {}
-                                    : () {
-                                        _pickTimeSlot();
-                                      },
+                                onTap: () async {
+                                  if (cart.isPreorder) {
+                                    await _pickPreorderTimeSlot(cart);
+                                  } else {
+                                    await _pickTimeSlot();
+                                  }
+                                },
                               ),
                             ),
                           ],
@@ -707,8 +927,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 17),
                             decoration: BoxDecoration(
                               color: _isSubmitting
-                                  ? const Color(0x991A1A1A)
-                                  : const Color(0xFF1A1A1A),
+                                  ? const Color(0x99C4956A)
+                                  : const Color(0xFFC4956A),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             alignment: Alignment.center,
@@ -723,9 +943,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       ),
                                     ),
                                   )
-                                : Text(
+                                : const Text(
                                     'Заказать',
-                                    style: AppTextStyles.cartBarButton,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
                                   ),
                           ),
                         ),
@@ -769,8 +993,8 @@ class _Header extends StatelessWidget {
           child: Text(
             'Оформление заказа',
             style: const TextStyle(
-              fontFamily: 'Playfair Display',
-              fontSize: 28,
+              fontFamily: 'PlayfairDisplay',
+              fontSize: 22.0,
               height: 1.15,
               fontWeight: FontWeight.w500,
               color: Color(0xFF1A1A1A),
@@ -819,10 +1043,7 @@ class _CommentRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(0xFFE8E4E0),
-            width: 1,
-          ),
+          border: Border.all(color: const Color(0xFFE8E4E0), width: 1),
         ),
         child: Row(
           children: [
@@ -873,10 +1094,7 @@ class _DropdownField extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFE8E4E0),
-            width: 1,
-          ),
+          border: Border.all(color: const Color(0xFFE8E4E0), width: 1),
         ),
         child: Row(
           children: [
@@ -980,10 +1198,7 @@ class _PriceSummary extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFE8E4E0),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0xFFE8E4E0), width: 1),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0F1A1A1A),
@@ -1054,10 +1269,7 @@ class _PreorderBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF5E6D3),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFC4956A),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0xFFC4956A), width: 1),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1112,11 +1324,7 @@ class _InfoNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.info_outline,
-            size: 18,
-            color: Color(0xFF4A7C59),
-          ),
+          const Icon(Icons.info_outline, size: 18, color: Color(0xFF4A7C59)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

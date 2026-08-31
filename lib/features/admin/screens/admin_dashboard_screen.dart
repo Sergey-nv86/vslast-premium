@@ -8,6 +8,8 @@ import 'admin_promotions_screen.dart';
 
 import '../../../screens/main_screen.dart';
 import 'admin_loyalty_screen.dart';
+import 'admin_clients_screen.dart';
+import '../services/admin_clients_service.dart';
 import '../../../services/admin_orders_service.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -34,10 +36,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _todayOrdersCount = 0;
   int _todayNewOrdersCount = 0;
 
+  bool _clientsStatsLoading = true;
+  int _clientsCount = 0;
+  int _newClientsCount = 0;
+
   @override
   void initState() {
     super.initState();
     _loadOrderStats();
+    _loadClientStats();
+  }
+
+  Future<void> _loadClientStats() async {
+    try {
+      final stats = await AdminClientsService.instance.fetchClientStats();
+
+      if (!mounted) return;
+
+      setState(() {
+        _clientsCount = stats['total'] ?? 0;
+        _newClientsCount = stats['new'] ?? 0;
+        _clientsStatsLoading = false;
+      });
+    } catch (e) {
+      debugPrint('ADMIN DASHBOARD CLIENTS ERROR: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _clientsStatsLoading = false;
+      });
+    }
   }
 
   Future<void> _loadOrderStats() async {
@@ -247,7 +276,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Row(
             children: [
               Expanded(
-                child: _Metric('Активные клиенты', '128', Icons.people_outline),
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AdminClientsScreen(),
+                    ),
+                  ),
+                  behavior: HitTestBehavior.opaque,
+                  child: _ClientsMetric(
+                    loading: _clientsStatsLoading,
+                    total: _clientsCount,
+                    newCount: _newClientsCount,
+                  ),
+                ),
               ),
 
               SizedBox(width: 10),
@@ -676,6 +717,89 @@ class _MetricOrders extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ClientsMetric extends StatelessWidget {
+  final bool loading;
+  final int total;
+  final int newCount;
+
+  const _ClientsMetric({
+    required this.loading,
+    required this.total,
+    required this.newCount,
+  });
+
+  static const brown = Color(0xFF8B5E3C);
+  static const dark = Color(0xFF3B281F);
+  static const muted = Color(0xFF806F65);
+  static const border = Color(0xFFEADFD5);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: const BoxDecoration(
+              color: Color(0xFFF1E8E0),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.people_outline, size: 21, color: brown),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Клиенты',
+                  style: TextStyle(fontSize: 12, color: muted),
+                ),
+                const SizedBox(height: 2),
+                if (loading)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: brown,
+                    ),
+                  )
+                else
+                  Text(
+                    '$total',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: dark,
+                    ),
+                  ),
+                const SizedBox(height: 1),
+                if (!loading)
+                  Text(
+                    '+$newCount за неделю',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: brown,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

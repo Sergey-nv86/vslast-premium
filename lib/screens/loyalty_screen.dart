@@ -243,22 +243,26 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
       case 'premium':
         return const [
           _Privilege(
-            iconAsset: 'assets/icons/gift.svg',
+            icon: Icons.card_giftcard_rounded,
+            accentColor: Color(0xFFD98A3A),
             title: 'Подарок ко дню рождения',
             description: 'Специальный подарок от «Всласть»',
           ),
           _Privilege(
-            iconAsset: 'assets/icons/bread.svg',
+            icon: Icons.bakery_dining_rounded,
+            accentColor: Color(0xFFB8793D),
             title: 'Ранний доступ к новинкам',
             description: 'Попробуйте новые продукты раньше остальных',
           ),
           _Privilege(
-            iconAsset: 'assets/icons/premium.svg',
+            icon: Icons.auto_awesome_rounded,
+            accentColor: Color(0xFFC28A24),
             title: 'Специальные предложения',
             description: 'Персональные предложения для вашего уровня',
           ),
           _Privilege(
-            iconAsset: 'assets/icons/crown_1.svg',
+            icon: Icons.workspace_premium_rounded,
+            accentColor: Color(0xFFD09A2E),
             title: 'Приоритетный предзаказ',
             description: 'Закажите сезонные и праздничные коллекции заранее',
           ),
@@ -267,17 +271,20 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
       case 'gold':
         return const [
           _Privilege(
-            iconAsset: 'assets/icons/gift.svg',
+            icon: Icons.card_giftcard_rounded,
+            accentColor: Color(0xFFD98A3A),
             title: 'Подарок ко дню рождения',
             description: 'Специальный подарок от «Всласть»',
           ),
           _Privilege(
-            iconAsset: 'assets/icons/bread.svg',
+            icon: Icons.bakery_dining_rounded,
+            accentColor: Color(0xFFB8793D),
             title: 'Первыми узнаёте о новинках',
             description: 'Будьте среди первых, кто узнает о новинках',
           ),
           _Privilege(
-            iconAsset: 'assets/icons/premium.svg',
+            icon: Icons.auto_awesome_rounded,
+            accentColor: Color(0xFFC28A24),
             title: 'Персональные предложения',
             description: 'Специальные предложения для вашего уровня',
           ),
@@ -287,17 +294,20 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
       default:
         return const [
           _Privilege(
-            iconAsset: 'assets/icons/zvezda.svg',
+            icon: Icons.stars_rounded,
+            accentColor: Color(0xFFD6A54B),
             title: '1% бонусами с каждой покупки',
             description: 'Получайте бонусы за каждую покупку',
           ),
           _Privilege(
-            iconAsset: 'assets/icons/premium.svg',
+            icon: Icons.auto_awesome_rounded,
+            accentColor: Color(0xFFC28A24),
             title: 'Бонусы для следующих покупок',
             description: 'Используйте накопленные бонусы при оплате',
           ),
           _Privilege(
-            iconAsset: 'assets/icons/crown_1.svg',
+            icon: Icons.workspace_premium_rounded,
+            accentColor: Color(0xFFD09A2E),
             title: 'Персональные предложения',
             description: 'Получайте специальные предложения «Всласть»',
           ),
@@ -333,14 +343,11 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-
-          // КАРТА
+          // КАРТА — от самого верха экрана
           _buildLoyaltyCard(),
 
           const SizedBox(height: 10),
@@ -383,42 +390,6 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
           const SizedBox(height: 8),
         ],
       ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: () => Navigator.of(context).maybePop(),
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFE7DFD2)),
-            ),
-            child: const Icon(
-              Icons.chevron_left_rounded,
-              color: brown,
-              size: 20,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Center(
-            child: Text(
-              'Карта лояльности',
-              style: GoogleFonts.alice(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: brown,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 36),
-      ],
     );
   }
 
@@ -851,14 +822,17 @@ class _BalanceCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 34,
-            height: 34,
-            padding: const EdgeInsets.all(7),
+            width: 42,
+            height: 42,
             decoration: const BoxDecoration(
               color: _LoyaltyScreenState.lightGold,
               shape: BoxShape.circle,
             ),
-            child: _goldIcon('assets/icons/zvezda.svg', 18),
+            child: const Icon(
+              Icons.stars_rounded,
+              size: 24,
+              color: Color(0xFFD6A54B),
+            ),
           ),
 
           const SizedBox(height: 5),
@@ -945,14 +919,17 @@ class _LevelCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 34,
-            height: 34,
-            padding: const EdgeInsets.all(7),
+            width: 42,
+            height: 42,
             decoration: const BoxDecoration(
               color: _LoyaltyScreenState.lightGold,
               shape: BoxShape.circle,
             ),
-            child: _goldIcon('assets/icons/crown_1.svg', 18),
+            child: const Icon(
+              Icons.workspace_premium_rounded,
+              size: 24,
+              color: Color(0xFFD09A2E),
+            ),
           ),
 
           const SizedBox(height: 5),
@@ -1039,14 +1016,16 @@ class _LevelCard extends StatelessWidget {
 // ==================================================================
 
 class _Privilege {
-  final String iconAsset;
+  final IconData icon;
   final String title;
   final String description;
+  final Color accentColor;
 
   const _Privilege({
-    required this.iconAsset,
+    required this.icon,
     required this.title,
     required this.description,
+    required this.accentColor,
   });
 }
 
@@ -1074,14 +1053,18 @@ class _BenefitTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 42,
+            height: 42,
             padding: const EdgeInsets.all(7),
-            decoration: const BoxDecoration(
-              color: _LoyaltyScreenState.lightGold,
+            decoration: BoxDecoration(
+              color: privilege.accentColor.withValues(alpha: .18),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: privilege.accentColor.withValues(alpha: .32),
+                width: 1,
+              ),
             ),
-            child: _goldIcon(privilege.iconAsset, 18),
+            child: Icon(privilege.icon, size: 26, color: privilege.accentColor),
           ),
 
           const SizedBox(width: 8),
@@ -1453,17 +1436,6 @@ class FullQrScreen extends StatelessWidget {
 // HELPERS
 // ==================================================================
 
-Widget _goldIcon(String asset, double size) {
-  return SvgPicture.asset(
-    asset,
-    width: size,
-    height: size,
-    colorFilter: const ColorFilter.mode(
-      _LoyaltyScreenState.brown,
-      BlendMode.srcIn,
-    ),
-  );
-}
 
 String _formatThousands(int value) {
   final negative = value < 0;

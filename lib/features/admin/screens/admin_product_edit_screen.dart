@@ -207,7 +207,11 @@ class _AdminProductEditScreenState extends State<AdminProductEditScreen>
 
     try {
       if (source == ImageSource.gallery) {
-        final images = await _imagePicker.pickMultiImage(imageQuality: 90);
+        final images = await _imagePicker.pickMultiImage(
+          imageQuality: 84,
+          maxWidth: 1600,
+          maxHeight: 1600,
+        );
 
         if (images.isEmpty || !mounted) {
           return;
@@ -222,7 +226,9 @@ class _AdminProductEditScreenState extends State<AdminProductEditScreen>
 
       final image = await _imagePicker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 90,
+        imageQuality: 84,
+        maxWidth: 1600,
+        maxHeight: 1600,
       );
 
       if (image == null || !mounted) {

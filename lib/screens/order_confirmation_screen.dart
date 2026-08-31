@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/order.dart';
 import '../providers/tab_navigation_controller.dart';
@@ -23,6 +24,104 @@ class OrderConfirmationScreen extends StatelessWidget {
   /// до MainScreen и переключаем активную вкладку на "Главная" (иначе
   /// IndexedStack оставит прежнюю вкладку), затем поверх пушим "Мои заказы" —
   /// так системное "назад" с этого экрана корректно вернёт на Главную.
+  Future<void> _contactByOrder(BuildContext context) async {
+    const phone = '+79129399754';
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFFFAF8F5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Text(
+            'Связаться с нами',
+            style: TextStyle(
+              fontFamily: 'PlayfairDisplay',
+              fontSize: 22,
+              height: 1.15,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          content: const Text(
+            'По вопросам вашего заказа позвоните нам:',
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.4,
+              color: Color(0xFF6B6560),
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          actions: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Color(0xFFE8E4E0)),
+                  ),
+                  child: const Text(
+                    '+7 912 939-97-54',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final uri = Uri(scheme: 'tel', path: phone);
+
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF5E6D3),
+                      foregroundColor: const Color(0xFF1A1A1A),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Позвонить',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text(
+                    'Закрыть',
+                    style: TextStyle(color: Color(0xFF6B6560), fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _goToOrders(BuildContext context) {
     context.read<TabNavigationController>().goToHome();
     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -77,7 +176,13 @@ class OrderConfirmationScreen extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             'Спасибо, что выбрали Всласть ❤️',
-                            style: AppTextStyles.rowLabelMuted,
+                            style: const TextStyle(
+                              fontFamily: 'PlayfairDisplay',
+                              fontSize: 16.0,
+                              height: 1.25,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF6B6560),
+                            ),
                           ),
                         ],
                       ),
@@ -213,9 +318,7 @@ class OrderConfirmationScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               sliver: SliverToBoxAdapter(
                 child: GestureDetector(
-                  onTap: () {
-                    // TODO: подключить переход в чат/поддержку по заказу.
-                  },
+                  onTap: () => _contactByOrder(context),
                   behavior: HitTestBehavior.opaque,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -261,13 +364,17 @@ class OrderConfirmationScreen extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 17),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryBrown,
+                        color: const Color(0xFFF5E6D3),
                         borderRadius: BorderRadius.circular(26),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         'Перейти в мои заказы',
-                        style: AppTextStyles.cartBarButton,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1A1A1A),
+                        ),
                       ),
                     ),
                   ),
@@ -296,17 +403,20 @@ class _StatusCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Container(
-            width: 92,
-            height: 92,
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceMuted,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.bakery_dining_outlined,
-              size: 40,
-              color: AppColors.primaryBrown,
+          SizedBox(
+            width: 220,
+            height: 90,
+            child: Image.asset(
+              'assets/images/logo_light.png',
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.bakery_dining_outlined,
+                  size: 40,
+                  color: AppColors.primaryBrown,
+                );
+              },
             ),
           ),
           const SizedBox(height: 14),

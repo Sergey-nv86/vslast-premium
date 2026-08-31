@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/location_provider.dart';
 import '../../../screens/auth_screen.dart';
+import '../../../screens/about_screen.dart';
 import '../../../screens/favorite_screen.dart';
 import '../../../screens/orders_screen.dart';
 import '../../../screens/profile_screen.dart';
@@ -38,7 +39,7 @@ class HomeHeader extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               _ProfileMenuTile(
-                icon: Icons.person_outline,
+                icon: Icons.menu,
                 label: 'Профиль',
                 onTap: () {
                   Navigator.pop(sheetContext);
@@ -81,12 +82,58 @@ class HomeHeader extends StatelessWidget {
                   );
                 },
               ),
+              _ProfileMenuTile(
+                icon: Icons.info_outline,
+                label: 'О нас',
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AboutScreen(),
+                    ),
+                  );
+                },
+              ),
+              _ProfileMenuTile(
+                icon: Icons.phone_outlined,
+                label: 'Контакты',
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _showComingSoon(context, 'Контакты');
+                },
+              ),
+              _ProfileMenuTile(
+                icon: Icons.handshake_outlined,
+                label: 'Сотрудничество',
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _showComingSoon(context, 'Сотрудничество');
+                },
+              ),
               const SizedBox(height: AppSpacing.xs),
             ],
           ),
         );
       },
     );
+  }
+
+  void _showComingSoon(BuildContext context, String title) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            '$title — раздел будет доступен в ближайшее время',
+            style: const TextStyle(
+              fontFamily: 'PlayfairDisplay',
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   void _pickCity(BuildContext context) {
@@ -118,10 +165,7 @@ class HomeHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Ваш город',
-                    style: AppTextStyles.sectionLabel,
-                  ),
+                  child: Text('Ваш город', style: AppTextStyles.sectionLabel),
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -198,50 +242,43 @@ class HomeHeader extends StatelessWidget {
               ),
             ),
           ),
+          // Прозрачное меню в левом верхнем углу Hero.
+          // Цвет линий совпадает с цветом приветствия.
           Positioned(
             left: AppSpacing.lg,
-            top: top + 18,
-            right: 70,
+            top: top + 2,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(22),
+                onTap: () => _openProfileMenu(context),
+                child: const SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Center(
+                    child: Icon(
+                      Icons.menu,
+                      size: 25,
+                      color: AppColors.primaryBrown,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Приветствие опущено ниже, чтобы визуально освободить
+          // верхнюю часть Hero под меню.
+          Positioned(
+            left: AppSpacing.lg,
+            top: top + 58,
+            right: 24,
             child: Text(
               _greeting(context),
               style: AppTextStyles.screenTitleSmall.copyWith(
                 color: AppColors.primaryBrown,
                 fontSize: 22,
                 height: 1.05,
-              ),
-            ),
-          ),
-          Positioned(
-            left: AppSpacing.lg,
-            right: AppSpacing.lg,
-            bottom: 16,
-            child: Text(
-              'Испечено с любовью для Вас',
-              style: AppTextStyles.rowLabelMuted.copyWith(
-                color: AppColors.primaryBrown,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Positioned(
-            right: AppSpacing.lg,
-            top: top + 10,
-            child: Material(
-              color: Colors.white.withValues(alpha: 0.94),
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () => _openProfileMenu(context),
-                child: const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Icon(
-                    Icons.person_outline,
-                    size: 20,
-                    color: AppColors.primaryBrown,
-                  ),
-                ),
               ),
             ),
           ),
@@ -283,24 +320,26 @@ class _ProfileMenuTile extends StatelessWidget {
                 color: AppColors.cream,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: AppColors.primaryBrown,
-              ),
+              child: Icon(icon, size: 18, color: AppColors.primaryBrown),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: Text(label, style: AppTextStyles.rowLabel),
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: 'PlayfairDisplay',
+                  fontSize: 18.0,
+                  fontWeight: FontWeight.w500,
+                  height: 1.2,
+                  color: AppColors.primaryBrown,
+                ),
+              ),
             ),
             if (value != null) ...[
               Text(value!, style: AppTextStyles.rowLabelMuted),
               const SizedBox(width: AppSpacing.xs),
             ],
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.textSecondary,
-            ),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
           ],
         ),
       ),

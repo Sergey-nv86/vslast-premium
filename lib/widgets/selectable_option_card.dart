@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 
-/// Карточка-переключатель для «Способ получения» и «Способ оплаты».
+/// Premium-карточка выбора для «Способ получения» и «Способ оплаты».
 class SelectableOptionCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -20,48 +21,106 @@ class SelectableOptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? AppColors.primaryBrown : AppColors.divider,
-            width: selected ? 1.4 : 1,
-          ),
-        ),
-        child: Stack(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, size: 22, color: AppColors.primaryBrown),
-                const SizedBox(height: 10),
-                Text(title, style: AppTextStyles.optionTitle),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: AppTextStyles.optionSubtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$title. $subtitle',
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 13),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFFF5E6D3)
+                : AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected ? const Color(0xFFC4956A) : AppColors.divider,
+              width: selected ? 1.2 : 1,
             ),
-            if (selected)
-              const Positioned(
-                top: 0,
-                right: 0,
-                child: Icon(
-                  Icons.check_circle,
-                  size: 18,
-                  color: AppColors.primaryBrown,
+            boxShadow: selected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x0D8B5E3C),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? Colors.white.withValues(alpha: 0.72)
+                            : const Color(0xFFF8F4EE),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        icon,
+                        size: 21,
+                        color: AppColors.primaryBrown,
+                      ),
+                    ),
+                    const SizedBox(height: 11),
+                    Text(
+                      title,
+                      style: AppTextStyles.optionTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: AppTextStyles.optionSubtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
-          ],
+              Positioned(
+                top: 0,
+                right: 0,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 160),
+                  child: selected
+                      ? Container(
+                          key: const ValueKey('selected'),
+                          width: 22,
+                          height: 22,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryBrown,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const SizedBox(
+                          key: ValueKey('unselected'),
+                          width: 22,
+                          height: 22,
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

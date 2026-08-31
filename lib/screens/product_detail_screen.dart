@@ -37,8 +37,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Future<void> _loadFreshProduct() async {
     try {
-      final freshProduct =
-          await ProductService.instance.getProduct(widget.product.id);
+      final freshProduct = await ProductService.instance.getProduct(
+        widget.product.id,
+      );
 
       if (!mounted || freshProduct == null) {
         return;
@@ -56,9 +57,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         'reviewsCount=${freshProduct.reviewsCount}',
       );
     } catch (error) {
-      debugPrint(
-        'DEBUG PRODUCT DETAIL FRESH LOAD ERROR: $error',
-      );
+      debugPrint('DEBUG PRODUCT DETAIL FRESH LOAD ERROR: $error');
     }
   }
 
@@ -126,8 +125,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       children: [
                         if (product.badge != null)
                           _BadgeRow(badge: product.badge!),
-                        if (product.badge != null)
-                          const SizedBox(height: 14),
+                        if (product.badge != null) const SizedBox(height: 14),
 
                         Text(
                           product.name,
@@ -424,30 +422,18 @@ class _RatingRow extends StatelessWidget {
   final double? rating;
   final int reviewsCount;
 
-  const _RatingRow({
-    required this.rating,
-    required this.reviewsCount,
-  });
+  const _RatingRow({required this.rating, required this.reviewsCount});
 
   @override
   Widget build(BuildContext context) {
     if (rating == null || reviewsCount == 0) {
       return Row(
         children: [
-          Text(
-            'Отзывы',
-            style: AppTextStyles.ratingValue,
-          ),
+          Text('Отзывы', style: AppTextStyles.ratingValue),
           const SizedBox(width: 8),
-          Text(
-            '•',
-            style: AppTextStyles.rowLabelMuted,
-          ),
+          Text('•', style: AppTextStyles.rowLabelMuted),
           const SizedBox(width: 8),
-          Text(
-            '0',
-            style: AppTextStyles.rowLabelMuted,
-          ),
+          Text('0', style: AppTextStyles.rowLabelMuted),
         ],
       );
     }
@@ -455,8 +441,8 @@ class _RatingRow extends StatelessWidget {
     final reviewLabel = reviewsCount == 1
         ? '1 отзыв'
         : reviewsCount < 5
-            ? '$reviewsCount отзыва'
-            : '$reviewsCount отзывов';
+        ? '$reviewsCount отзыва'
+        : '$reviewsCount отзывов';
 
     return Row(
       children: [
@@ -466,20 +452,11 @@ class _RatingRow extends StatelessWidget {
           color: AppColors.accentGradientEnd,
         ),
         const SizedBox(width: 4),
-        Text(
-          rating!.toStringAsFixed(1),
-          style: AppTextStyles.ratingValue,
-        ),
+        Text(rating!.toStringAsFixed(1), style: AppTextStyles.ratingValue),
         const SizedBox(width: 8),
-        Text(
-          '•',
-          style: AppTextStyles.rowLabelMuted,
-        ),
+        Text('•', style: AppTextStyles.rowLabelMuted),
         const SizedBox(width: 8),
-        Text(
-          reviewLabel,
-          style: AppTextStyles.rowLabelMuted,
-        ),
+        Text(reviewLabel, style: AppTextStyles.rowLabelMuted),
       ],
     );
   }
@@ -675,75 +652,37 @@ class _BottomActionBar extends StatelessWidget {
       return Row(
         children: [
           Expanded(
-            child: GestureDetector(
-              onTap: () {
-                Navigator.of(context).push(
+            child: SizedBox(
+              height: 38,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => PreorderScreen(product: product),
                   ),
-                );
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      AppColors.accentGradientStart,
-                      AppColors.accentGradientEnd,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Предзаказ', style: AppTextStyles.cartBarButton),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Товара временно нет в наличии',
-                      style: AppTextStyles.rowLabelMuted.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
+                icon: const Icon(Icons.calendar_today_outlined, size: 15),
+                label: const Text('Предзаказ'),
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.button),
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 10),
-          GestureDetector(
-            onTap: onNotifyMe,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppColors.accentGradientEnd,
-                  width: 1.2,
+          SizedBox(
+            height: 38,
+            child: OutlinedButton.icon(
+              onPressed: onNotifyMe,
+              icon: const Icon(Icons.notifications_none, size: 16),
+              label: const Text('Уведомить'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.button),
                 ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.notifications_none,
-                    size: 18,
-                    color: AppColors.accentGradientEnd,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Уведомить\nо наличии',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.rowValue.copyWith(
-                      color: AppColors.accentGradientEnd,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
               ),
             ),
           ),
@@ -752,105 +691,97 @@ class _BottomActionBar extends StatelessWidget {
     }
 
     if (quantity == 0) {
-      return GestureDetector(
-        onTap: onAdd,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 17),
-          decoration: BoxDecoration(
-            color: AppColors.primaryBrown,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.shopping_bag_outlined,
-                size: 18,
-                color: Colors.white,
+      return Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 38,
+              child: OutlinedButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add_shopping_cart_outlined, size: 16),
+                label: const Text('В корзину'),
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.button),
+                  ),
+                ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Добавить в корзину · ${formatPrice(product.price)}',
-                style: AppTextStyles.cartBarButton,
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(width: 10),
+          Text(formatPrice(product.price), style: AppTextStyles.productPrice),
+        ],
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.primaryBrown,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          Text(
-            'В корзине',
-            style: AppTextStyles.cartBarButton.copyWith(fontSize: 14),
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadii.button),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Row(
+              children: [
+                _DetailStepButton(icon: Icons.remove, onTap: onDecrement),
+                Expanded(
+                  child: Text(
+                    '$quantity',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.rowValue,
+                  ),
+                ),
+                _DetailStepButton(
+                  icon: Icons.add,
+                  onTap: onIncrement,
+                  filled: true,
+                ),
+              ],
+            ),
           ),
-          const Spacer(),
-          _StepperControl(
-            onDecrement: onDecrement,
-            onIncrement: onIncrement,
-            quantity: quantity,
-          ),
-          const SizedBox(width: 14),
-          Text(
-            formatPrice(product.price * quantity),
-            style: AppTextStyles.cartBarButton,
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          formatPrice(product.price * quantity),
+          style: AppTextStyles.productPrice,
+        ),
+      ],
     );
   }
 }
 
-class _StepperControl extends StatelessWidget {
-  final int quantity;
-  final VoidCallback onDecrement;
-  final VoidCallback onIncrement;
+class _DetailStepButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool filled;
 
-  const _StepperControl({
-    required this.quantity,
-    required this.onDecrement,
-    required this.onIncrement,
+  const _DetailStepButton({
+    required this.icon,
+    required this.onTap,
+    this.filled = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _button(Icons.remove, onDecrement),
-        SizedBox(
-          width: 28,
-          child: Text(
-            '$quantity',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.cartBarButton.copyWith(fontSize: 15),
+    return Material(
+      color: filled ? AppColors.caramel : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(
+            icon,
+            size: 16,
+            color: filled ? Colors.white : AppColors.textSecondary,
           ),
         ),
-        _button(Icons.add, onIncrement),
-      ],
-    );
-  }
-
-  Widget _button(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.16),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, size: 16, color: Colors.white),
       ),
     );
   }

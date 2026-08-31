@@ -74,7 +74,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       child: FutureBuilder<List<OrderListItem>>(
                         future: _ordersFuture,
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
                             return const _OrdersLoadingState();
                           }
 
@@ -95,7 +96,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                               ...orders.asMap().entries.map(
                                 (entry) => Padding(
                                   padding: EdgeInsets.only(
-                                    bottom: entry.key == orders.length - 1 ? 0 : 16,
+                                    bottom: entry.key == orders.length - 1
+                                        ? 0
+                                        : 16,
                                   ),
                                   child: OrderHistoryCard(
                                     order: entry.value,
@@ -287,7 +290,10 @@ class _RoundButton extends StatelessWidget {
                 right: -3,
                 top: -3,
                 child: Container(
-                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   alignment: Alignment.center,
                   decoration: const BoxDecoration(
@@ -322,7 +328,9 @@ class _OrdersLoadingState extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFC4956A).withValues(alpha: 0.12)),
+        border: Border.all(
+          color: const Color(0xFFC4956A).withValues(alpha: 0.12),
+        ),
       ),
       child: Column(
         children: [
@@ -359,7 +367,9 @@ class _OrdersErrorState extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFB5423F).withValues(alpha: 0.14)),
+        border: Border.all(
+          color: const Color(0xFFB5423F).withValues(alpha: 0.14),
+        ),
       ),
       child: Column(
         children: [
@@ -377,7 +387,10 @@ class _OrdersErrorState extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          Text('Не удалось загрузить заказы', style: AppTextStyles.sectionLabel),
+          Text(
+            'Не удалось загрузить заказы',
+            style: AppTextStyles.sectionLabel,
+          ),
           const SizedBox(height: 8),
           Text(
             'Проверьте подключение к интернету и попробуйте снова.',
@@ -402,7 +415,9 @@ class _EmptyOrdersState extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFC4956A).withValues(alpha: 0.12)),
+        border: Border.all(
+          color: const Color(0xFFC4956A).withValues(alpha: 0.12),
+        ),
       ),
       child: Column(
         children: [

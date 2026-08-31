@@ -430,19 +430,9 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
         backgroundColor: bg,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Отзывы',
-          style: TextStyle(
-            color: text,
-            fontSize: 21,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: text),
-        ),
+        toolbarHeight: 0,
+        leading: null,
+        automaticallyImplyLeading: false,
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -455,7 +445,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               // PRODUCT HEADER
               // -----------------------------------------------------------------
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                 sliver: SliverToBoxAdapter(
                   child: _ProductHeader(
                     productName: widget.productName,
@@ -485,19 +475,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               // -----------------------------------------------------------------
               // TITLE
               // -----------------------------------------------------------------
-              const SliverPadding(
-                padding: EdgeInsets.fromLTRB(16, 24, 16, 12),
-                sliver: SliverToBoxAdapter(
-                  child: Text(
-                    'Отзывы клиентов',
-                    style: TextStyle(
-                      color: text,
-                      fontSize: 21,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
 
               // -----------------------------------------------------------------
               // LOADING
@@ -722,7 +699,7 @@ class _ProductHeader extends StatelessWidget {
       image = const Icon(
         Icons.image_outlined,
         color: _ReviewsScreenState.secondary,
-        size: 30,
+        size: 42,
       );
     } else if (productImage!.startsWith('http')) {
       image = Image.network(
@@ -732,7 +709,7 @@ class _ProductHeader extends StatelessWidget {
           return const Icon(
             Icons.image_not_supported_outlined,
             color: _ReviewsScreenState.secondary,
-            size: 30,
+            size: 42,
           );
         },
       );
@@ -740,112 +717,162 @@ class _ProductHeader extends StatelessWidget {
       image = Image.asset(productImage!, fit: BoxFit.cover);
     }
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _ReviewsScreenState.border),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              width: 82,
-              height: 82,
-              child: Container(color: _ReviewsScreenState.bg, child: image),
-            ),
-          ),
-
-          const SizedBox(width: 13),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ------------------------------------------------------------
+        // PRODUCT IMAGE — TOP OF SCREEN
+        // ------------------------------------------------------------
+        ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: AspectRatio(
+            aspectRatio: 1.15,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                Text(
-                  productName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _ReviewsScreenState.text,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                Container(color: _ReviewsScreenState.bg, child: image),
 
-                const SizedBox(height: 5),
-
-                Text(
-                  productPrice,
-                  style: const TextStyle(
-                    color: _ReviewsScreenState.text,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-
-                const SizedBox(height: 5),
-
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      color: _ReviewsScreenState.star,
-                      size: 18,
-                    ),
-
-                    const SizedBox(width: 3),
-
-                    Text(
-                      rating > 0 ? rating.toStringAsFixed(1) : '—',
-                      style: const TextStyle(
-                        color: _ReviewsScreenState.text,
-                        fontWeight: FontWeight.w700,
+                // --------------------------------------------------
+                // BACK BUTTON
+                // --------------------------------------------------
+                Positioned(
+                  left: 14,
+                  top: 14,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).maybePop(),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFFFAF6F0,
+                          ).withValues(alpha: 0.96),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x24000000),
+                              blurRadius: 10,
+                              offset: Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 18,
+                          color: _ReviewsScreenState.text,
+                        ),
                       ),
                     ),
-
-                    const SizedBox(width: 5),
-
-                    Text(
-                      '($reviewCount)',
-                      style: const TextStyle(
-                        color: _ReviewsScreenState.secondary,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
+        ),
 
-          const SizedBox(width: 7),
+        const SizedBox(height: 16),
 
-          SizedBox(
-            width: 110,
-            child: FilledButton(
-              onPressed: onWrite,
-              style: FilledButton.styleFrom(
-                backgroundColor: _ReviewsScreenState.text,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              ),
-              child: const Text(
-                'Написать отзыв',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+        // ------------------------------------------------------------
+        // PRODUCT INFO
+        // ------------------------------------------------------------
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    productName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _ReviewsScreenState.text,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  Text(
+                    productPrice,
+                    style: const TextStyle(
+                      color: _ReviewsScreenState.text,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.star_rounded,
+                        color: _ReviewsScreenState.star,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        rating > 0 ? rating.toStringAsFixed(1) : '—',
+                        style: const TextStyle(
+                          color: _ReviewsScreenState.text,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '($reviewCount)',
+                        style: const TextStyle(
+                          color: _ReviewsScreenState.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
-      ),
+
+            const SizedBox(width: 12),
+
+            // ----------------------------------------------------------
+            // WRITE REVIEW
+            // ----------------------------------------------------------
+            SizedBox(
+              width: 126,
+              height: 44,
+              child: FilledButton.icon(
+                onPressed: onWrite,
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text(
+                  'Написать отзыв',
+                  textAlign: TextAlign.center,
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFE8D8C4),
+                  foregroundColor: _ReviewsScreenState.text,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 0,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

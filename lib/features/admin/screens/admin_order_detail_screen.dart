@@ -680,12 +680,12 @@ class AdminOrderDetailScreen extends StatelessWidget {
     // order.status содержит отображаемый русский статус.
     // Для Supabase и Dropdown используем реальные значения БД.
     String selectedStatus = switch (order.status) {
-      'Новый' => 'processing',
-      'Предзаказ' => 'processing',
+      'Новый' => 'pending_confirmation',
+      'Предзаказ' => 'pending_confirmation',
       'Подтверждён' => 'confirmed',
       'Выполнен' => 'completed',
       'Отменён' => 'cancelled',
-      _ => 'processing',
+      _ => 'pending_confirmation',
     };
 
     final result = await showDialog<String>(
@@ -703,21 +703,15 @@ class AdminOrderDetailScreen extends StatelessWidget {
                 ),
                 items: const [
                   DropdownMenuItem(
-                    value: 'processing',
+                    value: 'pending_confirmation',
                     child: Text('Новый'),
                   ),
                   DropdownMenuItem(
                     value: 'confirmed',
                     child: Text('Подтверждён'),
                   ),
-                  DropdownMenuItem(
-                    value: 'completed',
-                    child: Text('Выполнен'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'cancelled',
-                    child: Text('Отменён'),
-                  ),
+                  DropdownMenuItem(value: 'completed', child: Text('Выполнен')),
+                  DropdownMenuItem(value: 'cancelled', child: Text('Отменён')),
                 ],
                 onChanged: (value) {
                   if (value == null) return;
@@ -749,12 +743,12 @@ class AdminOrderDetailScreen extends StatelessWidget {
     }
 
     final currentStatus = switch (order.status) {
-      'Новый' => 'processing',
-      'Предзаказ' => 'processing',
+      'Новый' => 'pending_confirmation',
+      'Предзаказ' => 'pending_confirmation',
       'Подтверждён' => 'confirmed',
       'Выполнен' => 'completed',
       'Отменён' => 'cancelled',
-      _ => 'processing',
+      _ => 'pending_confirmation',
     };
 
     if (result == currentStatus) {

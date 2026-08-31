@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,14 +11,20 @@ import 'providers/favorites_provider.dart';
 import 'providers/location_provider.dart';
 import 'providers/tab_navigation_controller.dart';
 import 'theme/premium_design_system.dart';
+import 'services/push_notification_service.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
   );
+
+  await PushNotificationService.instance.initialize();
 
   runApp(const VslastPremiumApp());
 }

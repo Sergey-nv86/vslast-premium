@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../models/product.dart';
 import '../../../services/bake_schedule_service.dart';
@@ -22,7 +23,6 @@ class _BakeScheduleScreenState extends State<BakeScheduleScreen> {
 
   bool _loading = true;
   final bool _submitting = false;
-
 
   static const _weekDays = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
 
@@ -167,9 +167,7 @@ class _BakeScheduleScreenState extends State<BakeScheduleScreen> {
 
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => PreorderCheckoutScreen(
-          selections: selections,
-        ),
+        builder: (_) => PreorderCheckoutScreen(selections: selections),
       ),
     );
 
@@ -220,7 +218,14 @@ class _BakeScheduleScreenState extends State<BakeScheduleScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: Text('График запеков', style: AppTextStyles.screenTitle),
+        title: Text(
+          'График запеков',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 22,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -303,9 +308,9 @@ class _BakeScheduleScreenState extends State<BakeScheduleScreen> {
                   children: [
                     Text(
                       _weekDays[index],
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
                         color: selected
                             ? Colors.white
                             : AppColors.textSecondary,
@@ -314,9 +319,9 @@ class _BakeScheduleScreenState extends State<BakeScheduleScreen> {
                     const SizedBox(height: 3),
                     Text(
                       '${date.day}',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
                         color: selected ? Colors.white : AppColors.textPrimary,
                       ),
                     ),
@@ -346,11 +351,22 @@ class _BakeScheduleScreenState extends State<BakeScheduleScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
       children: [
-        Text(_formatDate(_selectedDate), style: AppTextStyles.sectionLabel),
+        Text(
+          _formatDate(_selectedDate),
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           'Хлеб, который будет выпекаться в этот день',
-          style: AppTextStyles.rowLabelMuted,
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+          ),
         ),
         const SizedBox(height: 16),
 
@@ -387,8 +403,9 @@ class _BakeScheduleScreenState extends State<BakeScheduleScreen> {
           Text(
             'Можно выбрать хлеб на несколько разных дней. '
             'Все выбранные позиции попадут в одну форму предзаказа.',
-            style: TextStyle(
-              fontSize: 12,
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
               height: 1.4,
               color: AppColors.textSecondary,
             ),

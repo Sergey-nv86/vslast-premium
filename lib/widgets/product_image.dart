@@ -7,7 +7,12 @@ import '../theme/app_theme.dart';
 /// Поддерживает:
 /// - локальные Flutter assets;
 /// - http/https URL из Supabase Storage;
-/// - пустой или некорректный URL с fallback-placeholder.
+/// - безопасный fallback при пустом или некорректном URL.
+///
+/// Без flutter_cache_manager / sqflite.
+/// Это исключает ошибку iOS:
+/// "attempt to write a readonly database".
+
 class ProductImage extends StatelessWidget {
   final String imageUrl;
   final BoxFit fit;
@@ -24,7 +29,9 @@ class ProductImage extends StatelessWidget {
 
   bool get _isNetworkImage {
     final url = imageUrl.trim().toLowerCase();
-    return url.startsWith('http://') || url.startsWith('https://');
+
+    return url.startsWith('http://') ||
+        url.startsWith('https://');
   }
 
   Widget _placeholder() {
@@ -39,43 +46,62 @@ class ProductImage extends StatelessWidget {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _image() {
     final url = imageUrl.trim();
 
     if (url.isEmpty) {
       return _placeholder();
     }
 
-    Widget image;
-
     if (_isNetworkImage) {
-      image = Image.network(
+      return Image.network(
         url,
         fit: fit,
-        errorBuilder: (context, error, stackTrace) {
-          return _placeholder();
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) {
+        filterQuality: FilterQuality.medium,
+        frameBuilder: (
+          context,
+          child,
+          frame,
+          wasSynchronouslyLoaded,
+        ) {
+          if (wasSynchronouslyLoaded || frame != null) {
             return child;
           }
 
           return _placeholder();
         },
-      );
-    } else {
-      image = Image.asset(
-        url,
-        fit: fit,
-        errorBuilder: (context, error, stackTrace) {
+        errorBuilder: (
+          context,
+          error,
+          stackTrace,
+        ) {
           return _placeholder();
         },
       );
     }
 
+    return Image.asset(
+      url,
+      fit: fit,
+      errorBuilder: (
+        context,
+        error,
+        stackTrace,
+      ) {
+        return _placeholder();
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final image = _image();
+
     if (borderRadius != null) {
-      return ClipRRect(borderRadius: borderRadius!, child: image);
+      return ClipRRect(
+        borderRadius: borderRadius!,
+        child: image,
+      );
     }
 
     return image;

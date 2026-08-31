@@ -21,9 +21,9 @@ class _CartScreenState extends State<CartScreen> {
   String? _promoCode;
 
   void _openCheckout(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CheckoutScreen()));
   }
 
   Future<void> _editPromoCode() async {
@@ -107,13 +107,23 @@ class _CartScreenState extends State<CartScreen> {
                     sliver: SliverToBoxAdapter(
                       child: Row(
                         children: [
-                          _BackButton(onTap: () => Navigator.of(context).maybePop()),
+                          _BackButton(
+                            onTap: () => Navigator.of(context).maybePop(),
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Корзина', style: AppTextStyles.screenTitle),
+                                Text(
+                                  'Корзина',
+                                  style: const TextStyle(
+                                    fontFamily: 'PlayfairDisplay',
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
                                 const SizedBox(height: 2),
                                 Text(
                                   '${cart.totalCount} ${pluralizeItems(cart.totalCount)}',
@@ -129,37 +139,40 @@ class _CartScreenState extends State<CartScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final entry = entries[index];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x0F1A1A1A),
-                                  blurRadius: 20,
-                                  offset: Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: OrderItemTile(
-                              product: entry.key,
-                              quantity: entry.value,
-                            ),
-                          );
-                        },
-                        childCount: entries.length,
-                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final entry = entries[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x0F1A1A1A),
+                                blurRadius: 20,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: OrderItemTile(
+                            product: entry.key,
+                            quantity: entry.value,
+                          ),
+                        );
+                      }, childCount: entries.length),
                     ),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
                     sliver: SliverToBoxAdapter(
-                      child: _PromoCodeRow(code: _promoCode, onTap: _editPromoCode),
+                      child: _PromoCodeRow(
+                        code: _promoCode,
+                        onTap: _editPromoCode,
+                      ),
                     ),
                   ),
                   SliverPadding(
@@ -175,7 +188,9 @@ class _CartScreenState extends State<CartScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
                     sliver: SliverToBoxAdapter(
                       child: _PrimaryButton(
-                        label: cart.isPreorder ? 'Оформить предзаказ' : 'Оформить заказ',
+                        label: cart.isPreorder
+                            ? 'Оформить предзаказ'
+                            : 'Оформить заказ',
                         onTap: () => _openCheckout(context),
                       ),
                     ),
@@ -205,7 +220,11 @@ class _BackButton extends StatelessWidget {
           child: const SizedBox(
             width: 44,
             height: 44,
-            child: Icon(Icons.arrow_back_ios_new_rounded, size: 19, color: AppColors.primaryBrown),
+            child: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 19,
+              color: AppColors.primaryBrown,
+            ),
           ),
         ),
       ),
@@ -216,6 +235,7 @@ class _BackButton extends StatelessWidget {
 class _PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
+
   const _PrimaryButton({required this.label, required this.onTap});
 
   @override
@@ -224,13 +244,27 @@ class _PrimaryButton extends StatelessWidget {
       width: double.infinity,
       height: 52,
       child: Material(
-        color: AppColors.primaryBrown,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.cream,
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Center(
-            child: Text(label, style: AppTextStyles.cartBarButton),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.caramel.withValues(alpha: .55),
+              ),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: AppTextStyles.cartBarButton.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -257,9 +291,13 @@ class _PromoCodeRow extends StatelessWidget {
           child: Row(
             children: [
               Icon(
-                hasCode ? Icons.check_circle_outline : Icons.local_offer_outlined,
+                hasCode
+                    ? Icons.check_circle_outline
+                    : Icons.local_offer_outlined,
                 size: 21,
-                color: hasCode ? AppColors.statusSuccessText : AppColors.primaryBrown,
+                color: hasCode
+                    ? AppColors.statusSuccessText
+                    : AppColors.primaryBrown,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -273,10 +311,16 @@ class _PromoCodeRow extends StatelessWidget {
               if (!hasCode)
                 Text(
                   'Применить',
-                  style: AppTextStyles.rowLabel.copyWith(color: AppColors.primaryBrown),
+                  style: AppTextStyles.rowLabel.copyWith(
+                    color: AppColors.primaryBrown,
+                  ),
                 ),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textSecondary),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
             ],
           ),
         ),
@@ -318,9 +362,16 @@ class _CartSummary extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.event_available_outlined, size: 17, color: AppColors.primaryBrown),
+                const Icon(
+                  Icons.event_available_outlined,
+                  size: 17,
+                  color: AppColors.primaryBrown,
+                ),
                 const SizedBox(width: 7),
-                Text('В корзине есть товар для предзаказа', style: AppTextStyles.rowLabelMuted),
+                Text(
+                  'В корзине есть товар для предзаказа',
+                  style: AppTextStyles.rowLabelMuted,
+                ),
               ],
             ),
           ],
@@ -353,7 +404,17 @@ class _EmptyCartState extends StatelessWidget {
             children: [
               _BackButton(onTap: () => Navigator.of(context).maybePop()),
               const SizedBox(width: 12),
-              Expanded(child: Text('Корзина', style: AppTextStyles.screenTitle)),
+              Expanded(
+                child: Text(
+                  'Корзина',
+                  style: const TextStyle(
+                    fontFamily: 'PlayfairDisplay',
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
             ],
           ),
           const Spacer(),
@@ -365,7 +426,11 @@ class _EmptyCartState extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.divider),
             ),
-            child: const Icon(Icons.shopping_bag_outlined, size: 30, color: AppColors.primaryBrown),
+            child: const Icon(
+              Icons.shopping_bag_outlined,
+              size: 30,
+              color: AppColors.primaryBrown,
+            ),
           ),
           const SizedBox(height: 18),
           Text('Корзина пуста', style: AppTextStyles.sectionLabel),

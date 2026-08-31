@@ -14,7 +14,12 @@ class ProductCard extends StatelessWidget {
   final ValueChanged<Product> onOpenDetails;
   final double controlScale;
 
-  const ProductCard({super.key, required this.product, required this.onOpenDetails, this.controlScale = 1.0});
+  const ProductCard({
+    super.key,
+    required this.product,
+    required this.onOpenDetails,
+    this.controlScale = 1.0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,16 +42,28 @@ class ProductCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  ProductImage(imageUrl: product.imageUrl, fit: BoxFit.cover, iconSize: 32),
+                  ProductImage(
+                    imageUrl: product.imageUrl,
+                    fit: BoxFit.cover,
+                    iconSize: 32,
+                  ),
                   Positioned(top: 8, left: 8, child: _Badge(product: product)),
                   Positioned(
                     top: 8,
                     right: 8,
-                    child: _FavoriteButton(isFavorite: isFavorite, onTap: () {
-                      final wasFavorite = isFavorite;
-                      favorites.toggle(product);
-                      FadeToast.show(context, wasFavorite ? 'Удалено из избранного' : 'Добавлено в избранное');
-                    }),
+                    child: _FavoriteButton(
+                      isFavorite: isFavorite,
+                      onTap: () {
+                        final wasFavorite = isFavorite;
+                        favorites.toggle(product);
+                        FadeToast.show(
+                          context,
+                          wasFavorite
+                              ? 'Удалено из избранного'
+                              : 'Добавлено в избранное',
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -59,18 +76,37 @@ class ProductCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                onTap: () => onOpenDetails(product),
-                child: Text(product.name, style: AppTextStyles.productName.copyWith(fontSize: 14), maxLines: 2, overflow: TextOverflow.ellipsis),
+              SizedBox(
+                height: 34,
+                child: GestureDetector(
+                  onTap: () => onOpenDetails(product),
+                  child: Text(
+                    product.name,
+                    style: AppTextStyles.productName.copyWith(fontSize: 14),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
               const SizedBox(height: 2),
               Row(
                 children: [
-                  Flexible(child: Text(_weightLabel(product), style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  Flexible(
+                    child: Text(
+                      _weightLabel(product),
+                      style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                   const SizedBox(width: 4),
                   Text('·', style: AppTextStyles.rowLabelMuted),
                   const SizedBox(width: 4),
-                  Text(formatPrice(product.price), style: AppTextStyles.productPrice.copyWith(fontSize: 15), maxLines: 1),
+                  Text(
+                    formatPrice(product.price),
+                    style: AppTextStyles.productPrice.copyWith(fontSize: 15),
+                    maxLines: 1,
+                  ),
                 ],
               ),
               const SizedBox(height: 5),
@@ -79,28 +115,50 @@ class ProductCard extends StatelessWidget {
                   width: double.infinity,
                   height: 38,
                   child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PreorderScreen(product: product))),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PreorderScreen(product: product),
+                      ),
+                    ),
                     icon: const Icon(Icons.calendar_today_outlined, size: 15),
                     label: const Text('Предзаказ'),
-                    style: OutlinedButton.styleFrom(padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button))),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.button),
+                      ),
+                    ),
                   ),
                 )
               else if (quantity == 0)
                 SizedBox(
                   width: double.infinity,
                   height: 38,
-                  child: FilledButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed: () => cart.add(product),
-                    icon: const Icon(Icons.add_shopping_cart_outlined, size: 16),
+                    icon: const Icon(
+                      Icons.add_shopping_cart_outlined,
+                      size: 16,
+                    ),
                     label: const Text('В корзину'),
-                    style: FilledButton.styleFrom(padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button))),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.button),
+                      ),
+                    ),
                   ),
                 )
               else
                 SizedBox(
                   width: double.infinity,
                   height: 38,
-                  child: _QuantityStepper(quantity: quantity, onDecrement: () => cart.decrement(product), onIncrement: () => cart.increment(product), scale: controlScale),
+                  child: _QuantityStepper(
+                    quantity: quantity,
+                    onDecrement: () => cart.decrement(product),
+                    onIncrement: () => cart.increment(product),
+                    scale: controlScale,
+                  ),
                 ),
             ],
           ),
@@ -123,12 +181,30 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     final badge = product.badge;
     if (badge == null) return const SizedBox.shrink();
-    final label = switch (badge) { ProductBadge.hit => 'Хит недели', ProductBadge.newItem => 'Новинка', ProductBadge.promo => 'Акция' };
-    final icon = switch (badge) { ProductBadge.hit => Icons.local_fire_department_outlined, ProductBadge.newItem => Icons.auto_awesome_outlined, ProductBadge.promo => Icons.local_offer_outlined };
+    final label = switch (badge) {
+      ProductBadge.hit => 'Хит недели',
+      ProductBadge.newItem => 'Новинка',
+      ProductBadge.promo => 'Акция',
+    };
+    final icon = switch (badge) {
+      ProductBadge.hit => Icons.local_fire_department_outlined,
+      ProductBadge.newItem => Icons.auto_awesome_outlined,
+      ProductBadge.promo => Icons.local_offer_outlined,
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(color: AppColors.cream.withValues(alpha: .96), borderRadius: BorderRadius.circular(AppRadii.pill)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 13, color: AppColors.textSecondary), const SizedBox(width: 4), Text(label, style: AppTextStyles.badgeLabel.copyWith(fontSize: 9))]),
+      decoration: BoxDecoration(
+        color: AppColors.cream.withValues(alpha: .96),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: AppColors.textSecondary),
+          const SizedBox(width: 4),
+          Text(label, style: AppTextStyles.badgeLabel.copyWith(fontSize: 9)),
+        ],
+      ),
     );
   }
 }
@@ -145,7 +221,15 @@ class _FavoriteButton extends StatelessWidget {
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: SizedBox(width: 36, height: 36, child: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, size: 18, color: isFavorite ? AppColors.danger : AppColors.textSecondary)),
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(
+            isFavorite ? Icons.favorite : Icons.favorite_border,
+            size: 18,
+            color: isFavorite ? AppColors.danger : AppColors.textSecondary,
+          ),
+        ),
       ),
     );
   }
@@ -156,18 +240,30 @@ class _QuantityStepper extends StatelessWidget {
   final VoidCallback onDecrement;
   final VoidCallback onIncrement;
   final double scale;
-  const _QuantityStepper({required this.quantity, required this.onDecrement, required this.onIncrement, required this.scale});
+  const _QuantityStepper({
+    required this.quantity,
+    required this.onDecrement,
+    required this.onIncrement,
+    required this.scale,
+  });
   @override
   Widget build(BuildContext context) {
     final height = 38.0 * scale.clamp(.9, 1.1);
     return Container(
       height: height,
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadii.button), border: Border.all(color: AppColors.divider)),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        _StepButton(icon: Icons.remove, onTap: onDecrement),
-        Text('$quantity', style: AppTextStyles.rowValue),
-        _StepButton(icon: Icons.add, onTap: onIncrement, filled: true),
-      ]),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _StepButton(icon: Icons.remove, onTap: onDecrement),
+          Text('$quantity', style: AppTextStyles.rowValue),
+          _StepButton(icon: Icons.add, onTap: onIncrement, filled: true),
+        ],
+      ),
     );
   }
 }
@@ -176,7 +272,11 @@ class _StepButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool filled;
-  const _StepButton({required this.icon, required this.onTap, this.filled = false});
+  const _StepButton({
+    required this.icon,
+    required this.onTap,
+    this.filled = false,
+  });
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -185,7 +285,15 @@ class _StepButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
-        child: SizedBox(width: 36, height: 36, child: Icon(icon, size: 16, color: filled ? Colors.white : AppColors.textSecondary)),
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(
+            icon,
+            size: 16,
+            color: filled ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
       ),
     );
   }

@@ -30,6 +30,24 @@ class ProductService {
 
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Последний успешно загруженный список товаров.
+  //
+  // Splash загружает товары один раз и заполняет этот cache.
+  // MainScreen может сразу использовать его, не создавая промежуточное
+  // состояние с пустым каталогом.
+  List<Product>? _cachedProducts;
+
+  /// Последний успешно загруженный список товаров.
+  ///
+  /// Возвращает null, если товары ещё ни разу не загружались.
+  List<Product>? get cachedProducts {
+    final products = _cachedProducts;
+    if (products == null) {
+      return null;
+    }
+    return List<Product>.of(products);
+  }
+
   // ---------------------------------------------------------------------------
   // SELECT
   // ---------------------------------------------------------------------------
@@ -75,14 +93,29 @@ class ProductService {
         'DEBUG PRODUCT: '
         'id=${row['id']} '
         'name=${row['name']} '
+        'in_stock=${row['in_stock']} '
+        'in_stock_type=${row['in_stock'].runtimeType} '
+        'category_id=${row['category_id']} '
+        'categories=${row['categories']} '
         'rating=${row['rating']} '
         'reviews_count=${row['reviews_count']}',
       );
     }
 
-    return (rows as List)
+    final products = (rows as List)
         .map((row) => _fromSupabase(Map<String, dynamic>.from(row)))
         .toList();
+
+    // Сохраняем только успешно полученный результат.
+    // Благодаря этому MainScreen, открытый после Splash, получает
+    // товары сразу и не показывает промежуточное пустое состояние.
+    _cachedProducts = List<Product>.of(products);
+
+    developer.log(
+      'DEBUG getProducts CACHE UPDATED: ${_cachedProducts!.length}',
+    );
+
+    return products;
   }
 
   /// Загружает один товар по ID.
@@ -358,6 +391,51 @@ class ProductService {
     }
 
     return urls;
+  }
+
+  /// Загружает одно изображение товара в галерею.
+  ///
+  /// Используется для последовательной загрузки фотографий без
+  /// удержания всех изображений в памяти одновременно.
+  Future<String> uploadProductGalleryImage({
+    required String productId,
+    required Uint8List bytes,
+    required String extension,
+    required int index,
+  }) async {
+    final normalizedExtension = extension.replaceFirst('.', '').toLowerCase();
+
+    final safeExtension = normalizedExtension.isEmpty
+        ? 'jpg'
+        : normalizedExtension;
+
+    final path =
+        'products/$productId/gallery/${DateTime.now().microsecondsSinceEpoch}_$index.$safeExtension';
+
+    final contentType = _contentTypeForExtension(safeExtension);
+
+    try {
+      developer.log('GALLERY SINGLE UPLOAD START');
+      developer.log('bucket: product-images');
+      developer.log('path: $path');
+      developer.log('bytes: ${bytes.length}');
+      developer.log('contentType: $contentType');
+
+      await _supabase.storage
+          .from('product-images')
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(contentType: contentType, upsert: true),
+          );
+
+      developer.log('GALLERY SINGLE UPLOAD SUCCESS: $path');
+
+      return _supabase.storage.from('product-images').getPublicUrl(path);
+    } catch (error) {
+      developer.log('GALLERY SINGLE UPLOAD ERROR: $error');
+      rethrow;
+    }
   }
 
   /// Сохраняет галерею товара в products.gallery_images.

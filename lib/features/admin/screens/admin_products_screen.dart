@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -207,27 +206,31 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
       // Сначала создаём товар, чтобы получить Supabase ID.
       var savedProduct = await _productService.createProduct(result.product!);
 
-      // Затем загружаем выбранные фотографии в Storage.
+      // Загружаем фотографии последовательно, чтобы не удерживать
+      // всю галерею в памяти одновременно.
       if (result.pickedPhotos.isNotEmpty) {
-        final bytes = <Uint8List>[];
-        final extensions = <String>[];
+        final galleryUrls = <String>[];
 
-        for (final photo in result.pickedPhotos) {
-          bytes.add(await photo.readAsBytes());
+        for (var i = 0; i < result.pickedPhotos.length; i++) {
+          final photo = result.pickedPhotos[i];
+          final bytes = await photo.readAsBytes();
 
           final name = photo.name;
           final dot = name.lastIndexOf('.');
+          final extension =
+              dot >= 0 && dot < name.length - 1
+                  ? name.substring(dot + 1)
+                  : 'jpg';
 
-          extensions.add(
-            dot >= 0 && dot < name.length - 1 ? name.substring(dot + 1) : 'jpg',
+          final url = await _productService.uploadProductGalleryImage(
+            productId: savedProduct.id,
+            bytes: bytes,
+            extension: extension,
+            index: i,
           );
-        }
 
-        final galleryUrls = await _productService.uploadProductGalleryImages(
-          productId: savedProduct.id,
-          images: bytes,
-          extensions: extensions,
-        );
+          galleryUrls.add(url);
+        }
 
         if (galleryUrls.isNotEmpty) {
           await _productService.updateProductGallery(
@@ -239,6 +242,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
               await _productService.getProduct(savedProduct.id) ?? savedProduct;
         }
       }
+
 
       if (!mounted) {
         return;
@@ -327,26 +331,31 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
       var savedProduct = await _productService.updateProduct(result.product!);
 
       // Новые фотографии добавляем к уже существующей галерее.
+      // Загружаем их последовательно, чтобы не держать всю галерею
+      // в памяти одновременно.
       if (result.pickedPhotos.isNotEmpty) {
-        final bytes = <Uint8List>[];
-        final extensions = <String>[];
+        final galleryUrls = <String>[];
 
-        for (final photo in result.pickedPhotos) {
-          bytes.add(await photo.readAsBytes());
+        for (var i = 0; i < result.pickedPhotos.length; i++) {
+          final photo = result.pickedPhotos[i];
+          final bytes = await photo.readAsBytes();
 
           final name = photo.name;
           final dot = name.lastIndexOf('.');
+          final extension =
+              dot >= 0 && dot < name.length - 1
+                  ? name.substring(dot + 1)
+                  : 'jpg';
 
-          extensions.add(
-            dot >= 0 && dot < name.length - 1 ? name.substring(dot + 1) : 'jpg',
+          final url = await _productService.uploadProductGalleryImage(
+            productId: savedProduct.id,
+            bytes: bytes,
+            extension: extension,
+            index: savedProduct.gallery.length + i,
           );
-        }
 
-        final galleryUrls = await _productService.uploadProductGalleryImages(
-          productId: savedProduct.id,
-          images: bytes,
-          extensions: extensions,
-        );
+          galleryUrls.add(url);
+        }
 
         if (galleryUrls.isNotEmpty) {
           final updatedGallery = [...savedProduct.gallery, ...galleryUrls];

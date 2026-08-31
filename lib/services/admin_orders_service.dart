@@ -332,7 +332,7 @@ class AdminOrdersService {
 
     final pickupTimeSlot = row['pickup_time_slot']?.toString() ?? '';
 
-    final status = row['status']?.toString() ?? 'processing';
+    final status = row['status']?.toString() ?? 'pending_confirmation';
 
     final pickupAddressTitle = bakery != null
         ? bakery.name
@@ -449,7 +449,11 @@ class AdminOrdersService {
 
   String _mapStatus(String status) {
     switch (status) {
+      case 'pending_confirmation':
       case 'processing':
+      case 'new':
+      case 'pending':
+      case 'awaiting_confirmation':
         return 'Новый';
 
       case 'confirmed':
@@ -603,7 +607,7 @@ class AdminOrdersService {
   /// Изменяет статус реального заказа в Supabase.
   ///
   /// Рабочий цикл:
-  /// processing -> confirmed -> completed
+  /// pending_confirmation -> confirmed -> completed
   ///
   /// Важно: UPDATE выполняется с SELECT изменённой строки.
   /// Это позволяет обнаружить ситуацию, когда RLS не разрешает

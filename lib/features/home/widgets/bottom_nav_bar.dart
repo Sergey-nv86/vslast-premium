@@ -46,11 +46,7 @@ class PremiumBottomNavBar extends StatelessWidget {
         children: [
           for (var index = 0; index < _items.length; index++)
             Expanded(
-              child: _item(
-                context,
-                item: _items[index],
-                index: index,
-              ),
+              child: _item(context, item: _items[index], index: index),
             ),
         ],
       ),
