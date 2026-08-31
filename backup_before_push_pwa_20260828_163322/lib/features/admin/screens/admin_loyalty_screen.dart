@@ -94,74 +94,26 @@ class _AdminLoyaltyScreenState extends State<AdminLoyaltyScreen> {
   String _extractCardNumber(String value) {
     final clean = value.trim();
 
-    // 1. Обычный номер карты:
+    // Простой QR:
     // VSL-89870620
-    final directMatch = RegExp(
-      r'^VSL-\d{8}$',
-      caseSensitive: false,
-    ).firstMatch(clean);
-
-    if (directMatch != null) {
-      return directMatch.group(0)!.toUpperCase();
+    if (RegExp(r'^VSL-\d{8}$', caseSensitive: false).hasMatch(clean)) {
+      return clean.toUpperCase();
     }
 
-    // 2. QR из клиентского приложения:
-    // VSLAST|CARD|VSL-89870620
-    final qrMatch = RegExp(
-      r'VSLAST\|CARD\|(VSL-\d{8})',
-      caseSensitive: false,
-    ).firstMatch(clean);
-
-    if (qrMatch != null) {
-      return qrMatch.group(1)!.toUpperCase();
-    }
-
-    // 3. JSON:
+    // Если QR в будущем будет JSON:
     // {"card_number":"VSL-89870620"}
-    final jsonMatch = RegExp(
-      r'"card_number"\s*:\s*"([^"]+)"',
-      caseSensitive: false,
-    ).firstMatch(clean);
+    try {
+      final decoded = RegExp(
+        r'"card_number"\s*:\s*"([^"]+)"',
+        caseSensitive: false,
+      ).firstMatch(clean);
 
-    if (jsonMatch != null) {
-      return _normalizeCardNumber(jsonMatch.group(1)!);
-    }
+      if (decoded != null) {
+        return decoded.group(1)!.trim().toUpperCase();
+      }
+    } catch (_) {}
 
-    // 4. Если номер карты находится внутри другого текста.
-    final embeddedMatch = RegExp(
-      r'(VSL-\d{8})',
-      caseSensitive: false,
-    ).firstMatch(clean);
-
-    if (embeddedMatch != null) {
-      return embeddedMatch.group(1)!.toUpperCase();
-    }
-
-    return _normalizeCardNumber(clean);
-  }
-
-  String _normalizeCardNumber(String value) {
-    var cardNumber = value.trim().toUpperCase();
-
-    // Убираем пробелы.
-    cardNumber = cardNumber.replaceAll(RegExp(r'\s+'), '');
-
-    // 89870620 -> VSL-89870620
-    if (RegExp(r'^\d{8}$').hasMatch(cardNumber)) {
-      return 'VSL-$cardNumber';
-    }
-
-    // VSL89870620 -> VSL-89870620
-    final withoutDash = RegExp(
-      r'^VSL(\d{8})$',
-      caseSensitive: false,
-    ).firstMatch(cardNumber);
-
-    if (withoutDash != null) {
-      return 'VSL-${withoutDash.group(1)}';
-    }
-
-    return cardNumber;
+    return clean;
   }
 
   // ------------------------------------------------------------
@@ -169,17 +121,12 @@ class _AdminLoyaltyScreenState extends State<AdminLoyaltyScreen> {
   // ------------------------------------------------------------
 
   Future<void> _findCard([String? value]) async {
-    final cardNumber = _normalizeCardNumber(value ?? _cardController.text);
+    final cardNumber = (value ?? _cardController.text).trim();
 
     if (cardNumber.isEmpty) {
       _showError('Введите номер карты или отсканируйте QR-код.');
       return;
     }
-
-    _cardController.value = TextEditingValue(
-      text: cardNumber,
-      selection: TextSelection.collapsed(offset: cardNumber.length),
-    );
 
     setState(() {
       _loading = true;
@@ -203,7 +150,7 @@ class _AdminLoyaltyScreenState extends State<AdminLoyaltyScreen> {
             created_at,
             updated_at
           ''')
-          .eq('card_number', cardNumber)
+          .eq('card_number', cardNumber.toUpperCase())
           .maybeSingle();
 
       if (account == null) {

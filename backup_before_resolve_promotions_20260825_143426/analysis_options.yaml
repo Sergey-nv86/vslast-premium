@@ -1,0 +1,22 @@
+# This file configures the analyzer, which statically analyzes Dart code to
+# check for errors, warnings, and lints.
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+<<<<<<< HEAD
+    - 'backup_*/**'
+    - 'backups_gallery/**'
+=======
+    - backups_gallery/**
+>>>>>>> origin/feature/client-ui-redesign
+
+linter:
+  rules:
+    # avoid_print: false
+<<<<<<< HEAD
+    # prefer_single_quotes: true
+=======
+    # prefer_single_quotes: true
+>>>>>>> origin/feature/client-ui-redesign

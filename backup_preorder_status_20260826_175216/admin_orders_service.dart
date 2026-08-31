@@ -112,39 +112,7 @@ class AdminOrdersService {
   Future<List<AdminOrder>> fetchActiveOrdersByCardNumber(
     String cardNumber,
   ) async {
-    var normalizedCardNumber = cardNumber.trim().toUpperCase();
-
-    // QR из клиентского приложения:
-    // VSLAST|CARD|VSL-89870620
-    final qrMatch = RegExp(
-      r'VSLAST\|CARD\|(VSL-\d{8})',
-      caseSensitive: false,
-    ).firstMatch(normalizedCardNumber);
-
-    if (qrMatch != null) {
-      normalizedCardNumber = qrMatch.group(1)!.toUpperCase();
-    } else {
-      // Убираем пробелы.
-      normalizedCardNumber = normalizedCardNumber.replaceAll(
-        RegExp(r'\s+'),
-        '',
-      );
-
-      // 89870620 -> VSL-89870620
-      if (RegExp(r'^\d{8}$').hasMatch(normalizedCardNumber)) {
-        normalizedCardNumber = 'VSL-$normalizedCardNumber';
-      }
-
-      // VSL89870620 -> VSL-89870620
-      final withoutDash = RegExp(
-        r'^VSL(\d{8})$',
-        caseSensitive: false,
-      ).firstMatch(normalizedCardNumber);
-
-      if (withoutDash != null) {
-        normalizedCardNumber = 'VSL-${withoutDash.group(1)}';
-      }
-    }
+    final normalizedCardNumber = cardNumber.trim().toUpperCase();
 
     if (normalizedCardNumber.isEmpty) {
       throw Exception('Не указан номер карты клиента');
@@ -364,7 +332,7 @@ class AdminOrdersService {
 
     final pickupTimeSlot = row['pickup_time_slot']?.toString() ?? '';
 
-    final status = row['status']?.toString() ?? 'pending_confirmation';
+    final status = row['status']?.toString() ?? 'processing';
 
     final pickupAddressTitle = bakery != null
         ? bakery.name
@@ -400,12 +368,9 @@ class AdminOrdersService {
 
       pickupDate: DateTime.tryParse(pickupDate),
 
-      // Предзаказ — это тип заказа, а не отдельный статус.
-      // Реальный статус БД сохраняем без подмены:
-      // processing -> Новый
-      // confirmed -> Подтверждён
-      // completed -> Выполнен
-      status: _mapStatus(status),
+      status: _isPreorder(pickupDate, row['created_at'])
+          ? 'Предзаказ'
+          : _mapStatus(status),
 
       total: _toDouble(row['total']),
 
@@ -481,11 +446,7 @@ class AdminOrdersService {
 
   String _mapStatus(String status) {
     switch (status) {
-      case 'pending_confirmation':
       case 'processing':
-      case 'new':
-      case 'pending':
-      case 'awaiting_confirmation':
         return 'Новый';
 
       case 'confirmed':
@@ -639,7 +600,7 @@ class AdminOrdersService {
   /// Изменяет статус реального заказа в Supabase.
   ///
   /// Рабочий цикл:
-  /// pending_confirmation -> confirmed -> completed
+  /// processing -> confirmed -> completed
   ///
   /// Важно: UPDATE выполняется с SELECT изменённой строки.
   /// Это позволяет обнаружить ситуацию, когда RLS не разрешает

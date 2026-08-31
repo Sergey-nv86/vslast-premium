@@ -197,73 +197,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  Future<void> _pickPreorderTimeSlot(CartProvider cart) async {
-    final now = DateTime.now();
-
-    final selectedDate = cart.preorderDate ?? DateTime.now();
-
-    final isToday =
-        selectedDate.year == now.year &&
-        selectedDate.month == now.month &&
-        selectedDate.day == now.day;
-
-    List<String> availableSlots = _timeSlots;
-
-    if (isToday) {
-      availableSlots = _timeSlots.where((slot) {
-        final startText = slot.substring(0, 5);
-        final parts = startText.split(':');
-        final hour = int.parse(parts[0]);
-        final minute = int.parse(parts[1]);
-
-        final slotStart = DateTime(now.year, now.month, now.day, hour, minute);
-
-        return !slotStart.isBefore(now);
-      }).toList();
-    }
-
-    if (availableSlots.isEmpty) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text(
-              'На сегодня доступных интервалов больше нет. '
-              'Выберите другую дату.',
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      return;
-    }
-
-    final current = cart.preorderTime;
-    final selectedSlot = current != null && availableSlots.contains(current)
-        ? current
-        : availableSlots.first;
-
-    if (current == null || !availableSlots.contains(current)) {
-      cart.setPreorderTime(selectedSlot);
-    }
-
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return _TimeSlotSheet(slots: availableSlots, selected: selectedSlot);
-      },
-    );
-
-    if (selected != null && mounted) {
-      cart.setPreorderTime(selected);
-    }
-  }
-
   Future<void> _selectDelivery() async {
     final address = await Navigator.of(context).push<String>(
       MaterialPageRoute(
@@ -439,34 +372,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Для предзаказа дата и время являются общими для всей корзины
     // и выбираются в CartScreen через CartProvider.
     // Для обычного заказа используются значения CheckoutScreen.
-    final DateTime? selectedOrderDate = cart.isPreorder
-        ? cart.preorderDate
-        : _pickupDate;
+    final orderDate = cart.isPreorder ? cart.preorderDate : _pickupDate;
 
-    final String? selectedOrderTimeSlot = cart.isPreorder
-        ? cart.preorderTime
-        : _pickupTimeSlot;
+    final orderTimeSlot = cart.isPreorder ? cart.preorderTime : _pickupTimeSlot;
 
-    if (selectedOrderDate == null) {
-      _showError(
-        cart.isPreorder
-            ? 'Выберите дату предзаказа'
-            : 'Выберите дату получения',
-      );
+    if (cart.isPreorder &&
+        (orderDate == null || orderTimeSlot == null || orderTimeSlot.isEmpty)) {
+      _showError('Выберите дату и время предзаказа');
       return;
     }
-
-    if (selectedOrderTimeSlot == null || selectedOrderTimeSlot.trim().isEmpty) {
-      _showError(
-        cart.isPreorder
-            ? 'Выберите время предзаказа'
-            : 'Выберите время получения',
-      );
-      return;
-    }
-
-    final DateTime orderDate = selectedOrderDate;
-    final String orderTimeSlot = selectedOrderTimeSlot;
 
     try {
       final supabase = Supabase.instance.client;
@@ -479,9 +393,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
           // Для preorder дата и время берутся из CartProvider.
           // Для обычного заказа используются локальные значения Checkout.
-          'p_pickup_date': orderDate.toIso8601String().split('T').first,
+          'p_pickup_date': orderDate!.toIso8601String().split('T').first,
 
-          'p_pickup_time_slot': orderTimeSlot,
+          'p_pickup_time_slot': orderTimeSlot!,
 
           'p_delivery_address': _deliveryMethod == DeliveryMethod.delivery
               ? _deliveryAddress?.trim()
@@ -798,42 +712,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 icon: Icons.calendar_today_outlined,
                                 label: cart.isPreorder
                                     ? (cart.preorderDate == null
-                                          ? 'Выбрать дату'
+                                          ? 'Дата из корзины'
                                           : formatPickupDateLabel(
-                                              cart.preorderDate ??
-                                                  DateTime.now(),
+                                              cart.preorderDate!,
                                             ))
                                     : formatPickupDateLabel(_pickupDate),
-                                onTap: () async {
-                                  if (cart.isPreorder) {
-                                    final currentDate =
-                                        cart.preorderDate ?? DateTime.now();
-
-                                    final now = DateTime.now();
-                                    final today = DateTime(
-                                      now.year,
-                                      now.month,
-                                      now.day,
-                                    );
-
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: currentDate.isBefore(today)
-                                          ? today
-                                          : currentDate,
-                                      firstDate: today,
-                                      lastDate: today.add(
-                                        const Duration(days: 30),
-                                      ),
-                                    );
-
-                                    if (picked != null && mounted) {
-                                      cart.setPreorderDate(picked);
-                                    }
-                                  } else {
-                                    await _pickDate();
-                                  }
-                                },
+                                onTap: cart.isPreorder
+                                    ? () {}
+                                    : () {
+                                        _pickDate();
+                                      },
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -841,15 +729,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               child: _DropdownField(
                                 icon: Icons.access_time,
                                 label: cart.isPreorder
-                                    ? (cart.preorderTime ?? 'Выбрать время')
+                                    ? (cart.preorderTime ?? 'Время из корзины')
                                     : _pickupTimeSlot,
-                                onTap: () async {
-                                  if (cart.isPreorder) {
-                                    await _pickPreorderTimeSlot(cart);
-                                  } else {
-                                    await _pickTimeSlot();
-                                  }
-                                },
+                                onTap: cart.isPreorder
+                                    ? () {}
+                                    : () {
+                                        _pickTimeSlot();
+                                      },
                               ),
                             ),
                           ],
