@@ -1,6 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 
+import '../models/order.dart';
 import '../models/order_list_item.dart';
+import '../models/product.dart';
 
 class OrdersService {
   OrdersService._();
@@ -10,13 +13,71 @@ class OrdersService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<List<OrderListItem>> fetchMyOrders() async {
+    final totalStarted = DateTime.now();
+    debugPrint('[Orders] START fetchMyOrders');
     final user = _supabase.auth.currentUser;
 
     if (user == null) {
       throw Exception('Пользователь не авторизован');
     }
 
+    // Для списка заказов загружаем только необходимые данные.
+    // Полные order_items и детали заказа загружаются отдельно
+    // при открытии конкретного заказа.
     final ordersResponse = await _supabase
+        .from('orders')
+        .select('''
+          id,
+          order_number,
+          status,
+          delivery_method,
+          payment_method,
+          total,
+          created_at
+        ''')
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false)
+        .limit(30);
+
+    final supabaseMs =
+        DateTime.now().difference(totalStarted).inMilliseconds;
+
+    debugPrint(
+      '[Orders] Supabase response: $supabaseMs ms',
+    );
+
+    final mappingStarted = DateTime.now();
+
+    final orders = List<Map<String, dynamic>>.from(ordersResponse);
+    final result = orders.map(_mapOrder).toList();
+
+    final mappingMs =
+        DateTime.now().difference(mappingStarted).inMilliseconds;
+
+    final totalMs =
+        DateTime.now().difference(totalStarted).inMilliseconds;
+
+    debugPrint(
+      '[Orders] mapping: $mappingMs ms, '
+      'total: $totalMs ms, '
+      'orders: ${result.length}',
+    );
+
+    return result;
+  }
+
+  /// Загружает полный заказ текущего пользователя по номеру заказа.
+  ///
+  /// Используется экраном «Мои заказы», пока OrderListItem
+  /// хранит номер заказа без UUID.
+  Future<OrderSummary> fetchOrderByNumber(int orderNumber) async {
+    final user = _supabase.auth.currentUser;
+
+    if (user == null) {
+      throw Exception('Пользователь не авторизован');
+    }
+
+    final response = await _supabase
         .from('orders')
         .select('''
           id,
@@ -43,12 +104,88 @@ class OrdersService {
             line_total
           )
         ''')
+        .eq('order_number', orderNumber)
         .eq('user_id', user.id)
-        .order('created_at', ascending: false);
+        .maybeSingle();
 
-    final orders = List<Map<String, dynamic>>.from(ordersResponse);
+    if (response == null) {
+      throw Exception('Заказ №$orderNumber не найден');
+    }
 
-    return orders.map(_mapOrder).toList();
+    return _mapOrderSummary(Map<String, dynamic>.from(response));
+  }
+
+  /// Загружает полный заказ текущего пользователя по UUID.
+  ///
+  /// Используется:
+  /// - экраном деталей заказа;
+  /// - переходом из push-уведомления.
+  Future<OrderSummary> fetchOrderById(String orderId) async {
+    final user = _supabase.auth.currentUser;
+    final sessionUserId = _supabase.auth.currentSession?.user.id;
+
+    debugPrint(
+      '[ORDER DEBUG] fetchOrderById '
+      'orderId=$orderId '
+      'currentUser=${user?.id} '
+      'sessionUser=$sessionUserId',
+    );
+
+    if (user == null) {
+      throw Exception('Пользователь не авторизован');
+    }
+
+    try {
+      final response = await _supabase
+          .from('orders')
+          .select('''
+            id,
+            order_number,
+            status,
+            delivery_method,
+            payment_method,
+            items_total,
+            pickup_discount,
+            delivery_cost,
+            total,
+            pickup_date,
+            pickup_time_slot,
+            delivery_address,
+            comment,
+            created_at,
+            order_items (
+              id,
+              product_id,
+              product_name,
+              unit_price,
+              quantity,
+              weight_label,
+              line_total
+            )
+          ''')
+          .eq('id', orderId)
+          .maybeSingle();
+
+      debugPrint('[ORDER DEBUG] full response=$response');
+
+      if (response == null) {
+        final probe = await _supabase
+            .from('orders')
+            .select('id, order_number, user_id, status, created_at')
+            .eq('id', orderId)
+            .maybeSingle();
+
+        debugPrint('[ORDER DEBUG] parent-only probe=$probe');
+
+        throw Exception('Заказ не найден');
+      }
+
+      return _mapOrderSummary(Map<String, dynamic>.from(response));
+    } catch (error, stackTrace) {
+      debugPrint('[ORDER DEBUG] ERROR: $error');
+      debugPrint('$stackTrace');
+      rethrow;
+    }
   }
 
   OrderListItem _mapOrder(Map<String, dynamic> row) {
@@ -68,6 +205,7 @@ class OrdersService {
     final title = _buildTitle(items);
 
     return OrderListItem(
+      orderId: row['id'].toString(),
       number: _toInt(row['order_number']),
       title: title,
       status: _mapStatus(row['status']?.toString()),
@@ -81,6 +219,82 @@ class OrdersService {
       ),
       imageUrl: _imagePlaceholder,
     );
+  }
+
+  OrderSummary _mapOrderSummary(Map<String, dynamic> row) {
+    final rawItems = row['order_items'];
+
+    final items = rawItems is List
+        ? List<Map<String, dynamic>>.from(
+            rawItems.map((item) => Map<String, dynamic>.from(item as Map)),
+          )
+        : <Map<String, dynamic>>[];
+
+    final orderItems = items.map(_mapOrderItem).toList();
+
+    return OrderSummary(
+      orderId: row['id'].toString(),
+      orderNumber: _toInt(row['order_number']),
+      createdAt: DateTime.parse(row['created_at'].toString()).toLocal(),
+      items: orderItems,
+      comment: row['comment']?.toString(),
+      deliveryMethod: _mapDeliveryMethod(row['delivery_method']?.toString()),
+      pickupDate: _parseDate(row['pickup_date']),
+      pickupTimeSlot: row['pickup_time_slot']?.toString() ?? '',
+      paymentMethod: _mapPaymentMethod(row['payment_method']?.toString()),
+      deliveryAddress: row['delivery_address']?.toString(),
+      itemsTotal: _toInt(row['items_total']),
+      pickupDiscount: _toInt(row['pickup_discount']),
+      deliveryCost: _toInt(row['delivery_cost']),
+      total: _toInt(row['total']),
+    );
+  }
+
+  OrderItemSnapshot _mapOrderItem(Map<String, dynamic> item) {
+    final product = Product(
+      id: item['product_id']?.toString() ?? '',
+      name: item['product_name']?.toString() ?? 'Товар',
+      price: _toInt(item['unit_price']),
+      imageUrl: _imagePlaceholder,
+      category: ProductCategory.bread,
+      weightLabel: item['weight_label']?.toString() ?? '1 шт',
+    );
+
+    return OrderItemSnapshot(
+      product: product,
+      quantity: _toInt(item['quantity']),
+    );
+  }
+
+  DeliveryMethod _mapDeliveryMethod(String? value) {
+    switch (value) {
+      case 'delivery':
+        return DeliveryMethod.delivery;
+      case 'pickup':
+      default:
+        return DeliveryMethod.pickup;
+    }
+  }
+
+  PaymentMethod _mapPaymentMethod(String? value) {
+    switch (value) {
+      case 'onlineSbp':
+      case 'online_sbp':
+        return PaymentMethod.onlineSbp;
+      case 'cash':
+      default:
+        return PaymentMethod.cash;
+    }
+  }
+
+  DateTime _parseDate(dynamic value) {
+    if (value == null) {
+      return DateTime.now();
+    }
+
+    final parsed = DateTime.tryParse(value.toString());
+
+    return parsed ?? DateTime.now();
   }
 
   OrderStatus _mapStatus(String? status) {
@@ -164,14 +378,16 @@ class OrdersService {
   }
 
   int _toInt(dynamic value) {
-    if (value is int) return value;
-    if (value is num) return value.toInt();
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  /// Временная заглушка для изображения.
-  ///
-  /// На следующем этапе подключим фотографию первого товара
-  /// из products / storage, не меняя UI карточки.
   static const String _imagePlaceholder = 'assets/images/bread_country.jpg';
 }

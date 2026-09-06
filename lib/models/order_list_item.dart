@@ -26,6 +26,9 @@ extension OrderStatusX on OrderStatus {
 /// Один заказ в списке «Мои заказы» — облегчённое представление истории
 /// заказов (для полной информации ведёт на детальный экран заказа).
 class OrderListItem {
+  /// UUID заказа — используется для открытия деталей.
+  final String? orderId;
+
   final int number;
   final String title;
   final OrderStatus status;
@@ -36,6 +39,7 @@ class OrderListItem {
   final String imageUrl;
 
   const OrderListItem({
+    this.orderId,
     required this.number,
     required this.title,
     required this.status,

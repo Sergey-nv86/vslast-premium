@@ -73,3 +73,10 @@ apply_*.sh
 *.before_*
 *.old_*
 *.tmp_*
+firebase-service-account.json
+
+# Local Supabase CLI state
+/supabase/.temp/
+
+# Firebase local hosting cache
+.firebase/hosting.*.cache

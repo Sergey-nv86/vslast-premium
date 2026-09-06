@@ -1,17 +1,126 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/user_role.dart';
 import '../features/admin/screens/admin_entry_screen.dart';
 import '../theme/app_theme.dart';
+import '../services/push_notification_service.dart';
 
 /// Экран «Профиль» — показывается вместо «Вход/Регистрация», когда
 /// пользователь уже входил в приложение раньше (AuthProvider.isLoggedIn).
 /// Сейчас это минимальная заглушка с данными и кнопкой «Выйти» — по мере
 /// появления бэкенда замените на реальные данные пользователя, историю,
 /// настройки и т.д.
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final PushNotificationService _pushService =
+      PushNotificationService.instance;
+
+  bool _notificationsLoading = true;
+  bool _notificationsEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationState();
+  }
+
+  Future<void> _loadNotificationState() async {
+    try {
+      final enabled =
+          await _pushService.isNotificationPermissionGranted();
+
+      if (enabled) {
+        debugPrint(
+          'PROFILE: notification permission already granted, '
+          'registering existing Web Push token',
+        );
+
+        await _pushService.registerExistingPermissionToken();
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _notificationsEnabled = enabled;
+        _notificationsLoading = false;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('PROFILE notification state error: $error');
+      debugPrint('$stackTrace');
+
+      if (!mounted) return;
+
+      setState(() {
+        _notificationsEnabled = false;
+        _notificationsLoading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    if (_notificationsLoading) return;
+
+    setState(() {
+      _notificationsLoading = true;
+    });
+
+    try {
+      if (value) {
+        debugPrint('PROFILE: enabling notifications');
+
+        final success =
+            await _pushService.requestPermissionAndRegister();
+
+        if (!mounted) return;
+
+        setState(() {
+          _notificationsEnabled = success;
+          _notificationsLoading = false;
+        });
+
+        debugPrint(
+          'PROFILE: notifications enable result=$success',
+        );
+      } else {
+        debugPrint('PROFILE: disabling notifications');
+
+        await _pushService.disableCurrentDevice();
+
+        if (!mounted) return;
+
+        setState(() {
+          _notificationsEnabled = false;
+          _notificationsLoading = false;
+        });
+
+        debugPrint('PROFILE: notifications disabled');
+      }
+    } catch (error, stackTrace) {
+      debugPrint('PROFILE notification toggle error: $error');
+      debugPrint('$stackTrace');
+
+      if (!mounted) return;
+
+      setState(() {
+        _notificationsLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    // PushNotificationService — глобальный singleton.
+    // Не отменяем его listeners при закрытии экрана Профиль.
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +257,139 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
               ],
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.divider,
+                  ),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.surfaceMuted,
+                    child: Icon(
+                      Icons.notifications_none_outlined,
+                      color: AppColors.primaryBrown,
+                    ),
+                  ),
+                  title: Text(
+                    'Уведомления',
+                    style: AppTextStyles.rowLabel.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: _notificationsLoading
+                      ? Text(
+                          'Проверяем состояние…',
+                          style: AppTextStyles.rowLabelMuted,
+                        )
+                      : Text(
+                          _notificationsEnabled
+                              ? 'Уведомления включены'
+                              : 'Уведомления выключены',
+                          style: AppTextStyles.rowLabelMuted,
+                        ),
+                  trailing: Switch(
+                    value: _notificationsEnabled,
+                    onChanged: _notificationsLoading
+                        ? null
+                        : _toggleNotifications,
+                    activeThumbColor: AppColors.primaryBrown,
+                  ),
+                ),
+              ),
+
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.divider,
+                  ),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.surfaceMuted,
+                    child: Icon(
+                      Icons.key_outlined,
+                      color: AppColors.primaryBrown,
+                    ),
+                  ),
+                  title: Text(
+                    'Показать FCM token',
+                    style: AppTextStyles.rowLabel.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Временная диагностика push',
+                    style: AppTextStyles.rowLabelMuted,
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.primaryBrown,
+                  ),
+                  onTap: () async {
+                    final token =
+                        await _pushService.getCurrentFcmToken();
+
+                    if (!context.mounted) return;
+
+                    await showDialog<void>(
+                      context: context,
+                      builder: (dialogContext) {
+                        return AlertDialog(
+                          title: const Text('FCM token'),
+                          content: SelectableText(
+                            token ?? 'FCM token не получен',
+                          ),
+                          actions: [
+                            if (token != null && token.isNotEmpty)
+                              TextButton(
+                                onPressed: () async {
+                                  await Clipboard.setData(
+                                    ClipboardData(text: token),
+                                  );
+
+                                  if (!dialogContext.mounted) return;
+
+                                  ScaffoldMessenger.of(context)
+                                      .showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'FCM token скопирован',
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: const Text('Копировать'),
+                              ),
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(),
+                              child: const Text('Закрыть'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+
               const Spacer(),
               SizedBox(
                 width: double.infinity,

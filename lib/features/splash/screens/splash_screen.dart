@@ -6,8 +6,10 @@ import 'package:provider/provider.dart';
 import '../../../models/product.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/product_service.dart';
+import '../../../services/push_notification_service.dart';
 import '../../../screens/auth_screen.dart';
 import '../../../screens/main_screen.dart';
+import '../../../screens/order_detail_screen.dart';
 import '../../admin/screens/app_mode_selection_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -91,6 +93,74 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.of(
       context,
     ).pushReplacement(MaterialPageRoute(builder: (_) => destination));
+
+    // Если приложение было открыто нажатием на push о заказе,
+    // открываем именно этот заказ после завершения Splash.
+    final pendingOrderId =
+        PushNotificationService.instance.consumePendingOrderId();
+
+    if (pendingOrderId != null && pendingOrderId.isNotEmpty) {
+      debugPrint(
+        '[Push] Splash -> pending order navigation: '
+        'order_id=$pendingOrderId',
+      );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+
+        final navigator =
+            PushNotificationService.navigatorKey.currentState;
+
+        if (navigator == null) {
+          debugPrint(
+            '[Push] Navigator is not ready for order_id=$pendingOrderId',
+          );
+
+          // Navigator может появиться только после следующего кадра.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+
+            final retryNavigator =
+                PushNotificationService.navigatorKey.currentState;
+
+            if (retryNavigator == null) {
+              debugPrint(
+                '[Push] Navigator still not ready for '
+                'order_id=$pendingOrderId',
+              );
+              return;
+            }
+
+            debugPrint(
+              '[Push] Retrying navigation to order_id=$pendingOrderId',
+            );
+
+            retryNavigator.push(
+              MaterialPageRoute(
+                builder: (_) => OrderDetailScreen(
+                  orderId: pendingOrderId,
+                ),
+              ),
+            );
+          });
+
+          return;
+        }
+
+        debugPrint(
+          '[Push] Opening OrderDetailScreen: '
+          'order_id=$pendingOrderId',
+        );
+
+        navigator.push(
+          MaterialPageRoute(
+            builder: (_) => OrderDetailScreen(
+              orderId: pendingOrderId,
+            ),
+          ),
+        );
+      });
+    }
   }
 
   @override

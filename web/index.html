@@ -101,5 +101,28 @@
 
   <script src="vslast_yandex_map.js"></script>
   <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register(
+          'firebase-messaging-sw.js',
+          {
+            scope: '/firebase-cloud-messaging-push-scope',
+          }
+        ).then(function (registration) {
+          console.log(
+            '[FCM] Firebase Messaging Service Worker registered:',
+            registration.scope
+          );
+        }).catch(function (error) {
+          console.error(
+            '[FCM] Firebase Messaging Service Worker registration failed:',
+            error
+          );
+        });
+      });
+    }
+  </script>
 </body>
 </html>

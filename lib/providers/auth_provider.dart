@@ -282,69 +282,147 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
 
     try {
+      // В supabase_flutter 2.x восстановление сессии может завершиться
+      // уже после Supabase.initialize(). Поэтому сначала подписываемся
+      // на auth-события, а затем проверяем currentSession.
+      //
+      // Если currentSession уже доступна — используем её сразу.
+      // Если ещё нет — ждём initialSession.
+
+      final initialSessionCompleter = Completer<void>();
+      var initialSessionHandled = false;
+
+      _authSubscription ??= _supabase.auth.onAuthStateChange.listen(
+        (AuthState data) async {
+          final event = data.event;
+          final session = data.session;
+
+          debugPrint(
+            '[AUTH] event=$event session=${session?.user.id ?? "null"}',
+          );
+
+          // -------------------------------------------------------------------
+          // ПЕРВИЧНОЕ ВОССТАНОВЛЕНИЕ СЕССИИ
+          // -------------------------------------------------------------------
+          if (event == AuthChangeEvent.initialSession) {
+            try {
+              if (session != null) {
+                await _loadUserProfile(session.user);
+              } else {
+                _user = null;
+              }
+            } finally {
+              if (!initialSessionHandled) {
+                initialSessionHandled = true;
+                if (!initialSessionCompleter.isCompleted) {
+                  initialSessionCompleter.complete();
+                }
+              }
+            }
+            return;
+          }
+
+          // -------------------------------------------------------------------
+          // ВЫХОД
+          // -------------------------------------------------------------------
+          if (event == AuthChangeEvent.signedOut) {
+            _user = null;
+            _isPasswordRecovery = false;
+            _errorMessage = null;
+            _isLoading = false;
+
+            notifyListeners();
+            return;
+          }
+
+          // -------------------------------------------------------------------
+          // ВОССТАНОВЛЕНИЕ ПАРОЛЯ
+          // -------------------------------------------------------------------
+          if (event == AuthChangeEvent.passwordRecovery) {
+            _isPasswordRecovery = true;
+            _errorMessage = null;
+
+            if (session != null) {
+              await _loadUserProfile(session.user);
+            } else {
+              notifyListeners();
+            }
+
+            return;
+          }
+
+          // -------------------------------------------------------------------
+          // ОБЫЧНАЯ АВТОРИЗАЦИЯ
+          // -------------------------------------------------------------------
+          if (event == AuthChangeEvent.signedIn ||
+              event == AuthChangeEvent.tokenRefreshed ||
+              event == AuthChangeEvent.userUpdated) {
+            if (session != null) {
+              await _loadUserProfile(session.user);
+            }
+          }
+
+          // userDeleted сейчас не обрабатываем.
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          debugPrint('[AUTH] stream error: $error');
+          debugPrint('$stackTrace');
+
+          if (!initialSessionHandled &&
+              !initialSessionCompleter.isCompleted) {
+            initialSessionCompleter.complete();
+          }
+        },
+      );
+
+      // После установки listener ещё раз проверяем currentSession.
+      // Это закрывает race condition между установкой listener
+      // и событием initialSession.
       final session = _supabase.auth.currentSession;
 
       if (session != null) {
-        await _loadUserProfile(session.user);
+        debugPrint(
+          '[AUTH] currentSession available: ${session.user.id}',
+        );
+
+        if (_user == null || _user?.id != session.user.id) {
+          await _loadUserProfile(session.user);
+        }
+
+        initialSessionHandled = true;
+
+        if (!initialSessionCompleter.isCompleted) {
+          initialSessionCompleter.complete();
+        }
       } else {
-        _user = null;
+        debugPrint('[AUTH] currentSession is null, waiting for initialSession');
+
+        await initialSessionCompleter.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            debugPrint(
+              '[AUTH] initialSession timeout after 5 seconds',
+            );
+          },
+        );
+
+        // После initialSession ещё раз проверяем фактическую сессию.
+        final restoredSession = _supabase.auth.currentSession;
+
+        if (restoredSession != null &&
+            (_user == null || _user?.id != restoredSession.user.id)) {
+          debugPrint(
+            '[AUTH] restored session found after initialSession: '
+            '${restoredSession.user.id}',
+          );
+
+          await _loadUserProfile(restoredSession.user);
+        }
       }
+    } catch (error, stackTrace) {
+      debugPrint('[AUTH] initialize error: $error');
+      debugPrint('$stackTrace');
 
-      _authSubscription ??= _supabase.auth.onAuthStateChange.listen((
-        AuthState data,
-      ) async {
-        final event = data.event;
-        final session = data.session;
-
-        // -------------------------------------------------------------------
-        // ВЫХОД
-        // -------------------------------------------------------------------
-
-        if (event == AuthChangeEvent.signedOut) {
-          _user = null;
-          _isPasswordRecovery = false;
-          _errorMessage = null;
-          _isLoading = false;
-
-          notifyListeners();
-          return;
-        }
-
-        // -------------------------------------------------------------------
-        // ВОССТАНОВЛЕНИЕ ПАРОЛЯ
-        // -------------------------------------------------------------------
-
-        if (event == AuthChangeEvent.passwordRecovery) {
-          _isPasswordRecovery = true;
-          _errorMessage = null;
-
-          if (session != null) {
-            await _loadUserProfile(session.user);
-          } else {
-            notifyListeners();
-          }
-
-          return;
-        }
-
-        // -------------------------------------------------------------------
-        // ОБЫЧНАЯ АВТОРИЗАЦИЯ
-        // -------------------------------------------------------------------
-
-        if (event == AuthChangeEvent.initialSession ||
-            event == AuthChangeEvent.signedIn ||
-            event == AuthChangeEvent.tokenRefreshed ||
-            event == AuthChangeEvent.userUpdated) {
-          if (session != null) {
-            await _loadUserProfile(session.user);
-          }
-        }
-
-        // userDeleted сейчас не обрабатываем.
-        //
-        // В актуальной версии Supabase это событие deprecated.
-      });
-    } catch (error) {
       _errorMessage = _friendlyError(error);
       _user = null;
     } finally {

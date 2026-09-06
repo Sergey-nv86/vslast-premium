@@ -4,6 +4,7 @@ const crypto = require('crypto');
 
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
+const { getMessaging } = require('firebase-admin/messaging');
 const { onRequest } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 
@@ -17,6 +18,64 @@ const TELEGRAM_API = 'https://gatewayapi.telegram.org';
 const OTP_TTL_SECONDS = 300;
 const RESEND_COOLDOWN_SECONDS = 45;
 const MAX_VERIFY_ATTEMPTS = 5;
+
+
+// TEMPORARY FCM TEST FUNCTION.
+// Remove after successful end-to-end push verification.
+exports.testFcmPush = onRequest(
+  {
+    region: REGION,
+  },
+  async (req, res) => {
+    try {
+      const token = String(req.body?.token || req.query?.token || '').trim();
+
+      if (!token) {
+        return json(res, 400, {
+          ok: false,
+          error: 'FCM_TOKEN_REQUIRED',
+        });
+      }
+
+      const message = {
+        token,
+        notification: {
+          title: 'Всласть',
+          body: 'Тестовое push-уведомление работает 🎉',
+        },
+        data: {
+          type: 'test',
+          source: 'testFcmPush',
+        },
+        webpush: {
+          notification: {
+            title: 'Всласть',
+            body: 'Тестовое push-уведомление работает 🎉',
+          },
+        },
+      };
+
+      const messageId = await getMessaging().send(message);
+
+      console.log('TEST FCM PUSH SENT', {
+        messageId,
+      });
+
+      return json(res, 200, {
+        ok: true,
+        messageId,
+      });
+    } catch (error) {
+      console.error('TEST FCM PUSH ERROR', error);
+
+      return json(res, 500, {
+        ok: false,
+        error: String(error?.message || error),
+        code: error?.code || null,
+      });
+    }
+  },
+);
 
 function json(res, status, body) {
   res.status(status).set('Content-Type', 'application/json').send(body);

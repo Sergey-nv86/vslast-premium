@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/order_list_item.dart';
 import '../services/orders_service.dart';
+import '../screens/order_detail_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/order_history_card.dart';
 
@@ -102,8 +103,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                   ),
                                   child: OrderHistoryCard(
                                     order: entry.value,
-                                    // Детальный экран подключим следующим этапом.
-                                    onTap: () {},
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => OrderDetailScreen(
+                                            orderId: entry.value.orderId ?? '',
+                                          ),
+                                        ),
+                                      );
+                                    },
                                     // Реальная оплата СБП будет подключена отдельно.
                                     onPay: () {},
                                     // QR будет подключён отдельно.
