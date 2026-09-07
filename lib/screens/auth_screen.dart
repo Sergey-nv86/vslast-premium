@@ -140,10 +140,7 @@ class _AuthScreenState extends State<AuthScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Ваш постоянный ID клиента:',
-                style: TextStyle(fontSize: 14),
-              ),
+              const Text('Ваш постоянный ID клиента:'),
               const SizedBox(height: 8),
               SelectableText(
                 clientId,
@@ -203,7 +200,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   Text(
                     'Всласть Premium',
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.title,
+                    style: AppTextStyles.authLogoTitle,
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -211,7 +208,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         ? 'Вход по ID клиента'
                         : 'Регистрация нового клиента',
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.subtitle,
+                    style: AppTextStyles.authTagline,
                   ),
                   const SizedBox(height: 28),
                   SegmentedButton<AuthMode>(
