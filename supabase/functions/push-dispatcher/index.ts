@@ -238,15 +238,6 @@ async function sendToToken(
       body: JSON.stringify({
         message: {
           token: deviceToken,
-
-          // DATA-ONLY MESSAGE.
-          //
-          // Не передаём notification и webpush.fcm_options.link.
-          // Иначе Firebase/browser сам обрабатывает click и
-          // возвращает уже открытую страницу PWA.
-          //
-          // Service Worker сам создаст notification и полностью
-          // контролирует notificationclick.
           data: {
             type: String(type),
             order_id: String(orderId),
@@ -307,12 +298,12 @@ Deno.serve(async (req) => {
     const requestBody = await req.json();
 
     /*
-     * ------------------------------------------------------------
-     * MODE 1: Existing direct FCM test / manual send
-     * ------------------------------------------------------------
+     * MODE 1: Existing direct FCM test / manual send.
+     * client_id is preferred; user_id remains a compatibility fallback.
      */
     const {
       token,
+      client_id,
       user_id,
       title = "Всласть",
       body = "Тестовый push из Supabase",
@@ -320,25 +311,44 @@ Deno.serve(async (req) => {
       order_id = "",
     } = requestBody;
 
-    if (token || user_id) {
+    if (token || client_id || user_id) {
       let tokens: string[] = [];
+      let devices: Array<{ id: string; fcm_token: string }> = [];
 
       if (token) {
         tokens = [token];
       } else {
-        const { data, error } = await supabase
-          .from("user_devices")
-          .select("id,fcm_token")
-          .eq("user_id", user_id)
-          .eq("is_active", true);
+        if (client_id) {
+          const { data, error } = await supabase
+            .from("user_devices")
+            .select("id,fcm_token")
+            .eq("client_id", client_id)
+            .eq("is_active", true);
 
-        if (error) {
-          throw new Error(
-            `user_devices query failed: ${error.message}`,
-          );
+          if (error) {
+            throw new Error(`user_devices client_id query failed: ${error.message}`);
+          }
+
+          devices = (data ?? []) as Array<{ id: string; fcm_token: string }>;
         }
 
-        tokens = (data ?? [])
+        // Compatibility path: old callers can still send user_id.
+        // Also protects against devices created before client_id backfill.
+        if (devices.length === 0 && user_id) {
+          const { data, error } = await supabase
+            .from("user_devices")
+            .select("id,fcm_token")
+            .eq("user_id", user_id)
+            .eq("is_active", true);
+
+          if (error) {
+            throw new Error(`user_devices user_id query failed: ${error.message}`);
+          }
+
+          devices = (data ?? []) as Array<{ id: string; fcm_token: string }>;
+        }
+
+        tokens = devices
           .map((row) => row.fcm_token)
           .filter(
             (value): value is string =>
@@ -396,9 +406,7 @@ Deno.serve(async (req) => {
     }
 
     /*
-     * ------------------------------------------------------------
-     * MODE 2: Process one push_events record
-     * ------------------------------------------------------------
+     * MODE 2: Process one push_events record.
      */
     const eventId =
       requestBody.event_id ??
@@ -407,18 +415,11 @@ Deno.serve(async (req) => {
 
     if (!eventId) {
       return Response.json(
-        {
-          error:
-            "event_id is required for push event processing",
-        },
+        { error: "event_id is required for push event processing" },
         { status: 400, headers: corsHeaders },
       );
     }
 
-    /*
-     * Atomically claim the event.
-     * Only pending events can become processing.
-     */
     const { data: claimedEvent, error: claimError } = await supabase
       .from("push_events")
       .update({
@@ -430,23 +431,17 @@ Deno.serve(async (req) => {
       .eq("id", eventId)
       .eq("status", "pending")
       .select(
-        "id,event_type,recipient_user_id,order_id,payload,attempts",
+        "id,event_type,recipient_user_id,recipient_client_id,order_id,payload,attempts",
       )
       .maybeSingle();
 
     if (claimError) {
-      throw new Error(
-        `push_events claim failed: ${claimError.message}`,
-      );
+      throw new Error(`push_events claim failed: ${claimError.message}`);
     }
 
     if (!claimedEvent) {
       return Response.json(
-        {
-          success: false,
-          error:
-            "Event is not pending or does not exist",
-        },
+        { success: false, error: "Event is not pending or does not exist" },
         { status: 409, headers: corsHeaders },
       );
     }
@@ -486,24 +481,56 @@ Deno.serve(async (req) => {
       privateKey,
     );
 
-    const { data: devices, error: devicesError } = await supabase
-      .from("user_devices")
-      .select("id,fcm_token")
-      .eq("user_id", claimedEvent.recipient_user_id)
-      .eq("is_active", true);
+    let devices: Array<{ id: string; fcm_token: string }> = [];
+    let deviceLookup = "client_id";
 
-    if (devicesError) {
-      await supabase
-        .from("push_events")
-        .update({
-          status: "failed",
-          error_message: devicesError.message,
-        })
-        .eq("id", eventId);
+    if (claimedEvent.recipient_client_id) {
+      const { data, error } = await supabase
+        .from("user_devices")
+        .select("id,fcm_token")
+        .eq("client_id", claimedEvent.recipient_client_id)
+        .eq("is_active", true);
 
-      throw new Error(
-        `user_devices query failed: ${devicesError.message}`,
-      );
+      if (error) {
+        await supabase
+          .from("push_events")
+          .update({
+            status: "failed",
+            error_message: error.message,
+          })
+          .eq("id", eventId);
+
+        throw new Error(`user_devices client_id query failed: ${error.message}`);
+      }
+
+      devices = (data ?? []) as Array<{ id: string; fcm_token: string }>;
+    }
+
+    // Critical migration safety: if no client_id devices are found, use the
+    // legacy user_id lookup. Existing PUSH therefore keeps working while all
+    // new devices gradually become client_id-addressable.
+    if (devices.length === 0 && claimedEvent.recipient_user_id) {
+      deviceLookup = "user_id_fallback";
+
+      const { data, error } = await supabase
+        .from("user_devices")
+        .select("id,fcm_token")
+        .eq("user_id", claimedEvent.recipient_user_id)
+        .eq("is_active", true);
+
+      if (error) {
+        await supabase
+          .from("push_events")
+          .update({
+            status: "failed",
+            error_message: error.message,
+          })
+          .eq("id", eventId);
+
+        throw new Error(`user_devices user_id query failed: ${error.message}`);
+      }
+
+      devices = (data ?? []) as Array<{ id: string; fcm_token: string }>;
     }
 
     if (!devices || devices.length === 0) {
@@ -520,6 +547,7 @@ Deno.serve(async (req) => {
           success: false,
           event_id: eventId,
           devices_found: 0,
+          device_lookup: deviceLookup,
         },
         { status: 404, headers: corsHeaders },
       );
@@ -543,10 +571,6 @@ Deno.serve(async (req) => {
         ...result,
       });
 
-      /*
-       * FCM token is no longer usable.
-       * Deactivate it so future pushes do not repeatedly fail.
-       */
       if (result.invalid_token) {
         await supabase
           .from("user_devices")
@@ -590,6 +614,7 @@ Deno.serve(async (req) => {
         event_type: claimedEvent.event_type,
         devices_found: devices.length,
         devices_sent: successful,
+        device_lookup: deviceLookup,
         results,
       },
       { headers: corsHeaders },
