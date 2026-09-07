@@ -40,6 +40,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _clientsCount = 0;
   int _newClientsCount = 0;
 
+  bool _activityLoading = true;
+  int _activeClients = 0;
+  int _catalogViewers = 0;
+  int _cartUsers = 0;
+  int _checkoutUsers = 0;
+
+  bool _demandLoading = true;
   int _demandProducts = 0;
   double _demandAmount = 0;
 
@@ -48,6 +55,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     super.initState();
     _loadOrderStats();
     _loadClientStats();
+    _loadRealClientActivity();
     _loadRealDemandSummary();
   }
 
@@ -95,154 +103,219 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  Future<void> _loadRealDemandSummary() async {
+  Future<void> _loadRealClientActivity() async {
     try {
       final supabase = AdminClientsService.instance.supabase;
 
-      // --------------------------------------------------
-      // 1. Находим активные товары, которых сейчас нет
-      //    в наличии.
-      // --------------------------------------------------
+      final now = DateTime.now();
+      final dayAgo = now.subtract(const Duration(hours: 24));
 
-      final productsResponse = await supabase
-          .from('products')
-          .select('id,price,in_stock,is_active');
+      int active = 0;
+      int catalog = 0;
+      int cart = 0;
+      int checkout = 0;
 
-      final unavailableIds = <String>{};
+      try {
+        final rows = await supabase
+            .from('user_devices')
+            .select('user_id,is_active,updated_at');
 
-      for (final raw in productsResponse) {
-        final product = Map<String, dynamic>.from(raw);
+        final activeUsers = <String>{};
 
-        final id = product['id']?.toString();
+        for (final row in rows) {
+          final userId = row['user_id']?.toString();
+          if (userId == null || userId.isEmpty) continue;
 
-        if (id == null || id.isEmpty) continue;
+          final isActive = row['is_active'] == true;
+          final updated = DateTime.tryParse(
+            row['updated_at']?.toString() ?? '',
+          );
 
-        final isActive = product['is_active'] != false;
-        final inStock = product['in_stock'] == true;
-
-        if (isActive && !inStock) {
-          unavailableIds.add(id);
-        }
-      }
-
-      if (unavailableIds.isEmpty) {
-        if (!mounted) return;
-
-        setState(() {
-          _demandProducts = 0;
-          _demandAmount = 0;
-        });
-
-        return;
-      }
-
-      // --------------------------------------------------
-      // 2. Реальный спрос берём из orders + order_items.
-      //
-      // Предзаказы тоже попадают сюда:
-      // create_preorders_from_bake_schedule()
-      // создаёт обычный order + order_items,
-      // после чего выставляет orders.is_preorder = true.
-      //
-      // cart_items намеренно НЕ используется.
-      // --------------------------------------------------
-
-      final ordersResponse = await supabase.from('orders').select('''
-            id,
-            status,
-            is_preorder,
-            order_items (
-              product_id,
-              quantity,
-              unit_price,
-              line_total
-            )
-          ''');
-
-      final demandByProduct = <String, int>{};
-      double potentialRub = 0;
-
-      for (final raw in ordersResponse) {
-        final order = Map<String, dynamic>.from(raw);
-
-        final status = order['status']?.toString().toLowerCase();
-
-        // Отменённые и отклонённые заказы
-        // не являются спросом.
-        if (status == 'cancelled' ||
-            status == 'canceled' ||
-            status == 'rejected') {
-          continue;
+          if (isActive && updated != null && !updated.isBefore(dayAgo)) {
+            activeUsers.add(userId);
+          }
         }
 
-        final itemsRaw = order['order_items'];
+        active = activeUsers.length;
+      } catch (e) {
+        debugPrint('ADMIN ACTIVITY user_devices ERROR: $e');
+      }
 
-        if (itemsRaw is! List) continue;
+      try {
+        final rows = await supabase.from('carts').select('user_id,updated_at');
 
-        for (final rawItem in itemsRaw) {
-          if (rawItem is! Map) continue;
+        final users = <String>{};
 
-          final item = Map<String, dynamic>.from(rawItem);
+        for (final row in rows) {
+          final userId = row['user_id']?.toString();
+          final updated = DateTime.tryParse(
+            row['updated_at']?.toString() ?? '',
+          );
 
-          final productId = item['product_id']?.toString();
+          if (userId != null &&
+              userId.isNotEmpty &&
+              updated != null &&
+              !updated.isBefore(dayAgo)) {
+            users.add(userId);
+          }
+        }
 
-          if (productId == null || !unavailableIds.contains(productId)) {
+        cart = users.length;
+      } catch (e) {
+        debugPrint('ADMIN ACTIVITY carts ERROR: $e');
+      }
+
+      try {
+        final rows = await supabase
+            .from('orders')
+            .select('user_id,created_at,status');
+
+        final checkoutUsers = <String>{};
+
+        for (final row in rows) {
+          final userId = row['user_id']?.toString();
+          final created = DateTime.tryParse(
+            row['created_at']?.toString() ?? '',
+          );
+
+          if (userId == null ||
+              userId.isEmpty ||
+              created == null ||
+              created.isBefore(dayAgo)) {
             continue;
           }
 
-          final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-
-          if (quantity <= 0) continue;
-
-          demandByProduct[productId] =
-              (demandByProduct[productId] ?? 0) + quantity;
-
-          // Сначала используем зафиксированную сумму позиции.
-          // Это важно: цена заказа могла отличаться
-          // от текущей цены товара.
-          final lineTotal = (item['line_total'] as num?)?.toDouble();
-
-          if (lineTotal != null && lineTotal > 0) {
-            potentialRub += lineTotal;
-          } else {
-            final unitPrice = (item['unit_price'] as num?)?.toDouble() ?? 0;
-
-            potentialRub += unitPrice * quantity;
-          }
+          checkoutUsers.add(userId);
         }
+
+        checkout = checkoutUsers.length;
+        catalog = active > checkout ? active - checkout : 0;
+
+        if (catalog == 0 && active > 0) {
+          catalog = active;
+        }
+      } catch (e) {
+        debugPrint('ADMIN ACTIVITY orders ERROR: $e');
       }
-
-      // --------------------------------------------------
-      // 3. Считаем только товары, по которым действительно
-      //    есть спрос.
-      //
-      // Раньше здесь ошибочно показывались ВСЕ товары
-      // без наличия.
-      // --------------------------------------------------
-
-      final productsWithDemand = demandByProduct.keys.toSet();
 
       if (!mounted) return;
 
       setState(() {
-        _demandProducts = productsWithDemand.length;
-        _demandAmount = potentialRub;
+        _activeClients = active;
+        _catalogViewers = catalog;
+        _cartUsers = cart;
+        _checkoutUsers = checkout;
+        _activityLoading = false;
       });
-
-      debugPrint(
-        'REAL DEMAND: '
-        'unavailable=${unavailableIds.length}, '
-        'productsWithDemand=${productsWithDemand.length}, '
-        'potential=${potentialRub.toStringAsFixed(2)} ₽',
-      );
-    } catch (e, st) {
-      debugPrint('REAL DEMAND ERROR: $e');
-      debugPrintStack(stackTrace: st);
+    } catch (e) {
+      debugPrint('ADMIN DASHBOARD ACTIVITY ERROR: $e');
 
       if (!mounted) return;
 
-      setState(() {});
+      setState(() {
+        _activityLoading = false;
+      });
     }
+  }
+
+  Future<void> _loadRealDemandSummary() async {
+    try {
+      final supabase = AdminClientsService.instance.supabase;
+
+      final productsResponse = await supabase
+          .from('products')
+          .select('id,price,is_available,is_active');
+
+      final products = List<Map<String, dynamic>>.from(productsResponse);
+
+      final unavailable = <String>{};
+
+      for (final product in products) {
+        final id = product['id']?.toString();
+        if (id == null || id.isEmpty) continue;
+
+        final active =
+            product['is_active'] == true || product['is_active'] == null;
+
+        final available =
+            product['is_available'] == true || product['is_available'] == null;
+
+        if (active && !available) {
+          unavailable.add(id);
+        }
+      }
+
+      int count = 0;
+      double amount = 0;
+
+      if (unavailable.isNotEmpty) {
+        try {
+          final favoritesResponse = await supabase
+              .from('favorites')
+              .select('product_id');
+
+          final favoriteCounts = <String, int>{};
+
+          for (final row in favoritesResponse) {
+            final productId = row['product_id']?.toString();
+
+            if (productId == null || !unavailable.contains(productId)) {
+              continue;
+            }
+
+            favoriteCounts[productId] = (favoriteCounts[productId] ?? 0) + 1;
+          }
+
+          count = favoriteCounts.length;
+
+          for (final product in products) {
+            final id = product['id']?.toString();
+            if (id == null || !unavailable.contains(id)) continue;
+
+            final price =
+                double.tryParse(product['price']?.toString() ?? '') ?? 0;
+
+            final favorites = favoriteCounts[id] ?? 0;
+
+            amount += price * favorites;
+          }
+        } catch (e) {
+          debugPrint('ADMIN DEMAND favorites ERROR: $e');
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _demandProducts = count;
+        _demandAmount = amount;
+        _demandLoading = false;
+      });
+    } catch (e) {
+      debugPrint('ADMIN DASHBOARD DEMAND ERROR: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _demandLoading = false;
+      });
+    }
+  }
+
+  String _formatRubles(double value) {
+    final rounded = value.round();
+    final text = rounded.toString();
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < text.length; i++) {
+      if (i > 0 && (text.length - i) % 3 == 0) {
+        buffer.write(' ');
+      }
+
+      buffer.write(text[i]);
+    }
+
+    return '${buffer.toString()} ₽';
   }
 
   @override
@@ -504,144 +577,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AdminPromotionsScreen()),
-            ),
-            child: _Card(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Color(0xFFF4E2D2),
-                    child: Icon(Icons.local_offer_outlined, color: brown),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Акции и спецпредложения',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: dark,
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          'Создание баннеров, скидок и специальных цен',
-                          style: TextStyle(fontSize: 13, color: muted),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Управление доступностью для клиентов',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: brown,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: brown),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AdminProductsScreen()),
-            ),
-            child: _Card(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Color(0xFFF1E8E0),
-                    child: Icon(Icons.inventory_2_outlined, color: brown),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Товары',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: dark,
-                      ),
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: brown),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const AdminDemandWithoutStockScreen(),
-              ),
-            ),
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 20),
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: border),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF1E8E0),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.shopping_cart_checkout_rounded,
-                      color: brown,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Спрос без наличия',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: dark,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$_demandProducts товаров',
-                          style: const TextStyle(fontSize: 12, color: muted),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${_demandAmount.toStringAsFixed(0)} ₽ потенциального спроса',
-                          style: const TextStyle(fontSize: 12, color: muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right_rounded, color: muted),
-                ],
-              ),
-            ),
-          ),
           const SizedBox(height: 24),
           Container(
             margin: const EdgeInsets.only(bottom: 20),
@@ -755,6 +690,195 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ],
                   ),
                 ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const _Title('Активность клиентов'),
+          const SizedBox(height: 10),
+          _Card(
+            child: _activityLoading
+                ? const SizedBox(
+                    height: 128,
+                    child: Center(
+                      child: CircularProgressIndicator(color: brown),
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '$_activeClients',
+                            style: const TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w700,
+                              color: dark,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'активных клиентов',
+                            style: TextStyle(color: muted),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _Activity(
+                        Icons.menu_book_outlined,
+                        'Смотрят каталог',
+                        '$_catalogViewers',
+                      ),
+                      _Activity(
+                        Icons.shopping_bag_outlined,
+                        'Добавили в корзину',
+                        '$_cartUsers',
+                      ),
+                      _Activity(
+                        Icons.credit_card_outlined,
+                        'Оформляют заказ',
+                        '$_checkoutUsers',
+                      ),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdminPromotionsScreen()),
+            ),
+            child: _Card(
+              color: const Color(0xFFFFF8F1),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Color(0xFFF4E2D2),
+                    child: Icon(Icons.local_offer_outlined, color: brown),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Акции и спецпредложения',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: dark,
+                          ),
+                        ),
+                        SizedBox(height: 5),
+                        Text(
+                          'Создание баннеров, скидок и специальных цен',
+                          style: TextStyle(fontSize: 13, color: muted),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Управление доступностью для клиентов',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: brown,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: brown),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdminProductsScreen()),
+            ),
+            child: _Card(
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Color(0xFFF1E8E0),
+                    child: Icon(Icons.inventory_2_outlined, color: brown),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Товары',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: dark,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: brown),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const AdminDemandWithoutStockScreen(),
+              ),
+            ),
+            child: _Card(
+              color: const Color(0xFFFFF8F1),
+              child: Row(
+                children: [
+                  const CircleAvatar(
+                    backgroundColor: Color(0xFFF4E2D2),
+                    child: Icon(
+                      Icons.priority_high_rounded,
+                      color: Color(0xFF9A4D20),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _demandLoading
+                        ? const SizedBox(
+                            height: 54,
+                            child: Center(
+                              child: CircularProgressIndicator(color: brown),
+                            ),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Спрос без наличия',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: dark,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                '$_demandProducts ${_demandProducts == 1 ? 'товар ожидает' : 'товаров ожидают'} клиенты',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: muted,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '${_formatRubles(_demandAmount)} потенциального спроса',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: brown,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: brown),
+                ],
               ),
             ),
           ),
@@ -983,15 +1107,45 @@ class _Title extends StatelessWidget {
 
 class _Card extends StatelessWidget {
   final Widget child;
-  const _Card({required this.child});
+  final Color color;
+  const _Card({required this.child, this.color = Colors.white});
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: color,
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: AdminDashboardScreen.border),
     ),
     child: child,
+  );
+}
+
+class _Activity extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  const _Activity(this.icon, this.label, this.value);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 9),
+    child: Row(
+      children: [
+        Icon(icon, size: 18, color: AdminDashboardScreen.brown),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF5F5048)),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: AdminDashboardScreen.dark,
+          ),
+        ),
+      ],
+    ),
   );
 }

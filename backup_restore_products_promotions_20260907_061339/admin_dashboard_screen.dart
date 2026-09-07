@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'admin_demand_without_stock_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_orders_calendar_screen.dart';
 import 'admin_bake_schedule_screen.dart';
-import 'admin_products_screen.dart';
-import 'admin_promotions_screen.dart';
+import 'admin_demand_without_stock_screen.dart';
 
 import '../../../screens/main_screen.dart';
 import 'admin_loyalty_screen.dart';
@@ -503,82 +501,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 20),
-
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AdminPromotionsScreen()),
-            ),
-            child: _Card(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Color(0xFFF4E2D2),
-                    child: Icon(Icons.local_offer_outlined, color: brown),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Акции и спецпредложения',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: dark,
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          'Создание баннеров, скидок и специальных цен',
-                          style: TextStyle(fontSize: 13, color: muted),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Управление доступностью для клиентов',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: brown,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: brown),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AdminProductsScreen()),
-            ),
-            child: _Card(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Color(0xFFF1E8E0),
-                    child: Icon(Icons.inventory_2_outlined, color: brown),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Товары',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: dark,
-                      ),
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: brown),
-                ],
-              ),
-            ),
           ),
           const SizedBox(height: 20),
 

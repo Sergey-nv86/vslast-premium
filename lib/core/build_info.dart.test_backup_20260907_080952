@@ -1,0 +1,9 @@
+// GENERATED FILE — DO NOT EDIT MANUALLY.
+//
+// Build generated automatically:
+// 2026-09-07 06:20:10
+
+const String buildDate = '2026-09-07';
+const String buildTime = '06:20:10';
+const String buildId = '20260907-062010';
+const String buildLabel = '$buildDate $buildTime';

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'admin_demand_without_stock_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_orders_calendar_screen.dart';
 import 'admin_bake_schedule_screen.dart';
-import 'admin_products_screen.dart';
 import 'admin_promotions_screen.dart';
+import 'admin_products_screen.dart';
+import 'admin_demand_without_stock_screen.dart';
 
 import '../../../screens/main_screen.dart';
 import 'admin_loyalty_screen.dart';
@@ -511,6 +511,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               MaterialPageRoute(builder: (_) => const AdminPromotionsScreen()),
             ),
             child: _Card(
+              color: const Color(0xFFFFF8F1),
               child: Row(
                 children: [
                   CircleAvatar(

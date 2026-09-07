@@ -38,24 +38,6 @@ class _AdminDemandWithoutStockScreenState
     _load();
   }
 
-  double get _totalDemand =>
-      _items.fold<double>(0, (sum, item) => sum + item.potentialDemand);
-
-  String _formatRubles(double value) {
-    final rounded = value.round();
-    final digits = rounded.toString();
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < digits.length; i++) {
-      if (i > 0 && (digits.length - i) % 3 == 0) {
-        buffer.write(' ');
-      }
-      buffer.write(digits[i]);
-    }
-
-    return '${buffer.toString()} ₽';
-  }
-
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -99,7 +81,7 @@ class _AdminDemandWithoutStockScreenState
         if (!mounted) return;
 
         setState(() {
-          _items = [];
+          _products = [];
           _loading = false;
         });
 
@@ -188,7 +170,7 @@ class _AdminDemandWithoutStockScreenState
       if (!mounted) return;
 
       setState(() {
-        _items = result;
+        _products = result;
         _loading = false;
       });
 
@@ -302,7 +284,7 @@ class _AdminDemandWithoutStockScreenState
                               ),
                               const SizedBox(height: 3),
                               const Text(
-                                'реальный спрос по заказам, пока товара нет',
+                                'клиенты добавили в избранное, пока товара нет',
                                 style: TextStyle(fontSize: 12, color: muted),
                               ),
                               const SizedBox(height: 6),
@@ -343,7 +325,7 @@ class _AdminDemandWithoutStockScreenState
                           ),
                           SizedBox(height: 6),
                           Text(
-                            'Все товары с реальным спросом доступны.',
+                            'Все товары с интересом клиентов доступны.',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 13, color: muted),
                           ),
@@ -370,7 +352,7 @@ class _AdminDemandWithoutStockScreenState
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
-                                Icons.shopping_cart_outlined,
+                                Icons.favorite_border_rounded,
                                 color: brown,
                               ),
                             ),
@@ -389,7 +371,7 @@ class _AdminDemandWithoutStockScreenState
                                   ),
                                   const SizedBox(height: 5),
                                   Text(
-                                    '${item.favoritesCount} ${item.favoritesCount == 1 ? 'единица' : 'единиц'} в заказах',
+                                    '${item.favoritesCount} ${item.favoritesCount == 1 ? 'клиент' : 'клиентов'} в избранном',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: muted,

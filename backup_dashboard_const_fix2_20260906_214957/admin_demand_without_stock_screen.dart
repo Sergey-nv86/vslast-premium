@@ -38,24 +38,6 @@ class _AdminDemandWithoutStockScreenState
     _load();
   }
 
-  double get _totalDemand =>
-      _items.fold<double>(0, (sum, item) => sum + item.potentialDemand);
-
-  String _formatRubles(double value) {
-    final rounded = value.round();
-    final digits = rounded.toString();
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < digits.length; i++) {
-      if (i > 0 && (digits.length - i) % 3 == 0) {
-        buffer.write(' ');
-      }
-      buffer.write(digits[i]);
-    }
-
-    return '${buffer.toString()} ₽';
-  }
-
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -65,37 +47,30 @@ class _AdminDemandWithoutStockScreenState
     try {
       final supabase = AdminClientsService.instance.supabase;
 
-      // --------------------------------------------------
-      // 1. Активные товары без наличия.
-      // --------------------------------------------------
-
       final productsResponse = await supabase
           .from('products')
-          .select('id,name,price,in_stock,is_active');
+          .select('id,name,price,is_available,is_active');
 
-      final unavailableProducts = <String, DemandProduct>{};
+      final products = List<Map<String, dynamic>>.from(productsResponse);
 
-      for (final raw in productsResponse) {
-        final product = Map<String, dynamic>.from(raw);
+      final unavailable = <String, Map<String, dynamic>>{};
 
+      for (final product in products) {
         final id = product['id']?.toString();
-
         if (id == null || id.isEmpty) continue;
 
-        final isActive = product['is_active'] != false;
-        final inStock = product['in_stock'] == true;
+        final active =
+            product['is_active'] == true || product['is_active'] == null;
 
-        if (!isActive || inStock) continue;
+        final available =
+            product['is_available'] == true || product['is_available'] == null;
 
-        unavailableProducts[id] = DemandProduct(
-          id: id,
-          name: product['name']?.toString() ?? 'Без названия',
-          price: (product['price'] as num?)?.toDouble() ?? 0,
-          favoritesCount: 0,
-        );
+        if (active && !available) {
+          unavailable[id] = product;
+        }
       }
 
-      if (unavailableProducts.isEmpty) {
+      if (unavailable.isEmpty) {
         if (!mounted) return;
 
         setState(() {
@@ -106,79 +81,39 @@ class _AdminDemandWithoutStockScreenState
         return;
       }
 
-      // --------------------------------------------------
-      // 2. Реальные заказы + позиции заказов.
-      //
-      // Предзаказы также учитываются автоматически,
-      // поскольку они являются orders с order_items
-      // и дополнительно имеют is_preorder = true.
-      // --------------------------------------------------
+      final favoritesResponse = await supabase
+          .from('favorites')
+          .select('product_id');
 
-      final ordersResponse = await supabase.from('orders').select('''
-            id,
-            status,
-            is_preorder,
-            order_items (
-              product_id,
-              quantity
-            )
-          ''');
+      final favoriteCounts = <String, int>{};
 
-      final demandByProduct = <String, int>{};
+      for (final row in favoritesResponse) {
+        final productId = row['product_id']?.toString();
 
-      for (final raw in ordersResponse) {
-        final order = Map<String, dynamic>.from(raw);
-
-        final status = order['status']?.toString().toLowerCase();
-
-        if (status == 'cancelled' ||
-            status == 'canceled' ||
-            status == 'rejected') {
+        if (productId == null || !unavailable.containsKey(productId)) {
           continue;
         }
 
-        final itemsRaw = order['order_items'];
-
-        if (itemsRaw is! List) continue;
-
-        for (final rawItem in itemsRaw) {
-          if (rawItem is! Map) continue;
-
-          final item = Map<String, dynamic>.from(rawItem);
-
-          final productId = item['product_id']?.toString();
-
-          if (productId == null ||
-              !unavailableProducts.containsKey(productId)) {
-            continue;
-          }
-
-          final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-
-          if (quantity <= 0) continue;
-
-          demandByProduct[productId] =
-              (demandByProduct[productId] ?? 0) + quantity;
-        }
+        favoriteCounts[productId] = (favoriteCounts[productId] ?? 0) + 1;
       }
-
-      // --------------------------------------------------
-      // 3. Формируем только товары с реальным спросом.
-      // --------------------------------------------------
 
       final result = <DemandProduct>[];
 
-      for (final entry in demandByProduct.entries) {
-        final product = unavailableProducts[entry.key];
+      for (final entry in unavailable.entries) {
+        final favorites = favoriteCounts[entry.key] ?? 0;
 
-        if (product == null) continue;
+        if (favorites <= 0) continue;
+
+        final product = entry.value;
+
+        final price = double.tryParse(product['price']?.toString() ?? '') ?? 0;
 
         result.add(
           DemandProduct(
-            id: product.id,
-            name: product.name,
-            price: product.price,
-            favoritesCount: entry.value,
+            id: entry.key,
+            name: product['name']?.toString() ?? 'Без названия',
+            price: price,
+            favoritesCount: favorites,
           ),
         );
       }
@@ -191,15 +126,8 @@ class _AdminDemandWithoutStockScreenState
         _items = result;
         _loading = false;
       });
-
-      debugPrint(
-        'DEMAND SCREEN: '
-        'unavailable=${unavailableProducts.length}, '
-        'withDemand=${result.length}',
-      );
-    } catch (e, st) {
-      debugPrint('DEMAND WITHOUT STOCK ERROR: $e');
-      debugPrintStack(stackTrace: st);
+    } catch (e) {
+      debugPrint('ADMIN DEMAND SCREEN ERROR: $e');
 
       if (!mounted) return;
 
@@ -208,6 +136,25 @@ class _AdminDemandWithoutStockScreenState
         _loading = false;
       });
     }
+  }
+
+  double get _totalDemand =>
+      _items.fold<double>(0, (sum, item) => sum + item.potentialDemand);
+
+  String _formatRubles(double value) {
+    final rounded = value.round();
+    final text = rounded.toString();
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < text.length; i++) {
+      if (i > 0 && (text.length - i) % 3 == 0) {
+        buffer.write(' ');
+      }
+
+      buffer.write(text[i]);
+    }
+
+    return '${buffer.toString()} ₽';
   }
 
   @override
@@ -232,7 +179,7 @@ class _AdminDemandWithoutStockScreenState
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
-            ? ListView(
+            ? const ListView(
                 children: [
                   SizedBox(height: 260),
                   Center(child: CircularProgressIndicator(color: brown)),
@@ -302,7 +249,7 @@ class _AdminDemandWithoutStockScreenState
                               ),
                               const SizedBox(height: 3),
                               const Text(
-                                'реальный спрос по заказам, пока товара нет',
+                                'клиенты добавили в избранное, пока товара нет',
                                 style: TextStyle(fontSize: 12, color: muted),
                               ),
                               const SizedBox(height: 6),
@@ -343,7 +290,7 @@ class _AdminDemandWithoutStockScreenState
                           ),
                           SizedBox(height: 6),
                           Text(
-                            'Все товары с реальным спросом доступны.',
+                            'Все товары с интересом клиентов доступны.',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 13, color: muted),
                           ),
@@ -370,7 +317,7 @@ class _AdminDemandWithoutStockScreenState
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
-                                Icons.shopping_cart_outlined,
+                                Icons.favorite_border_rounded,
                                 color: brown,
                               ),
                             ),
@@ -389,7 +336,7 @@ class _AdminDemandWithoutStockScreenState
                                   ),
                                   const SizedBox(height: 5),
                                   Text(
-                                    '${item.favoritesCount} ${item.favoritesCount == 1 ? 'единица' : 'единиц'} в заказах',
+                                    '${item.favoritesCount} ${item.favoritesCount == 1 ? 'клиент' : 'клиентов'} в избранном',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: muted,

@@ -109,6 +109,98 @@ class AdminOrdersService {
   /// QR клиента содержит card_number.
   /// Сначала находим user_id в loyalty_accounts,
   /// затем загружаем только активные заказы этого клиента.
+  /// Загружает один заказ по UUID.
+  ///
+  /// Используется для открытия конкретного заказа из push-уведомления.
+  /// В отличие от fetchOrders() не загружает весь список заказов.
+  Future<AdminOrder?> fetchOrderById(String orderId) async {
+    final normalizedOrderId = orderId.trim();
+
+    if (normalizedOrderId.isEmpty) {
+      throw Exception('Не указан ID заказа');
+    }
+
+    debugPrint(
+      'ADMIN PUSH ORDER: загрузка заказа '
+      'order_id=$normalizedOrderId',
+    );
+
+    final response = await _supabase
+        .from('orders')
+        .select('''
+          id,
+          order_number,
+          user_id,
+          status,
+          delivery_method,
+          payment_method,
+          pickup_date,
+          pickup_time_slot,
+          delivery_address,
+          delivery_cost,
+          comment,
+          items_total,
+          pickup_discount,
+          total,
+          created_at,
+          updated_at,
+          order_items (
+            id,
+            product_id,
+            product_name,
+            unit_price,
+            quantity,
+            weight_label,
+            line_total,
+            products:product_id (
+              id,
+              image_url,
+              gallery_images
+            )
+          )
+        ''')
+        .eq('id', normalizedOrderId)
+        .maybeSingle();
+
+    if (response == null) {
+      debugPrint(
+        'ADMIN PUSH ORDER: заказ не найден '
+        'order_id=$normalizedOrderId',
+      );
+      return null;
+    }
+
+    final row = Map<String, dynamic>.from(response);
+
+    final userId = row['user_id']?.toString().trim() ?? '';
+
+    Map<String, dynamic>? profile;
+
+    if (userId.isNotEmpty) {
+      final profileResponse = await _supabase
+          .from('profiles')
+          .select('id, display_name, first_name, last_name, phone, email')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (profileResponse != null) {
+        profile = Map<String, dynamic>.from(profileResponse);
+      }
+    }
+
+    final bakery = await BakeryService.instance.getActiveBakery();
+
+    final order = _mapOrder(row, profile: profile, bakery: bakery);
+
+    debugPrint(
+      'ADMIN PUSH ORDER: заказ загружен '
+      'number=${order.number}, '
+      'order_id=${order.id}',
+    );
+
+    return order;
+  }
+
   Future<List<AdminOrder>> fetchActiveOrdersByCardNumber(
     String cardNumber,
   ) async {

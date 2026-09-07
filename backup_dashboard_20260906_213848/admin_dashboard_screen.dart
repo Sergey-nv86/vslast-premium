@@ -40,15 +40,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _clientsCount = 0;
   int _newClientsCount = 0;
 
-  int _demandProducts = 0;
-  double _demandAmount = 0;
-
   @override
   void initState() {
     super.initState();
     _loadOrderStats();
     _loadClientStats();
-    _loadRealDemandSummary();
   }
 
   Future<void> _loadClientStats() async {
@@ -92,156 +88,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       setState(() {
         _ordersStatsLoading = false;
       });
-    }
-  }
-
-  Future<void> _loadRealDemandSummary() async {
-    try {
-      final supabase = AdminClientsService.instance.supabase;
-
-      // --------------------------------------------------
-      // 1. Находим активные товары, которых сейчас нет
-      //    в наличии.
-      // --------------------------------------------------
-
-      final productsResponse = await supabase
-          .from('products')
-          .select('id,price,in_stock,is_active');
-
-      final unavailableIds = <String>{};
-
-      for (final raw in productsResponse) {
-        final product = Map<String, dynamic>.from(raw);
-
-        final id = product['id']?.toString();
-
-        if (id == null || id.isEmpty) continue;
-
-        final isActive = product['is_active'] != false;
-        final inStock = product['in_stock'] == true;
-
-        if (isActive && !inStock) {
-          unavailableIds.add(id);
-        }
-      }
-
-      if (unavailableIds.isEmpty) {
-        if (!mounted) return;
-
-        setState(() {
-          _demandProducts = 0;
-          _demandAmount = 0;
-        });
-
-        return;
-      }
-
-      // --------------------------------------------------
-      // 2. Реальный спрос берём из orders + order_items.
-      //
-      // Предзаказы тоже попадают сюда:
-      // create_preorders_from_bake_schedule()
-      // создаёт обычный order + order_items,
-      // после чего выставляет orders.is_preorder = true.
-      //
-      // cart_items намеренно НЕ используется.
-      // --------------------------------------------------
-
-      final ordersResponse = await supabase.from('orders').select('''
-            id,
-            status,
-            is_preorder,
-            order_items (
-              product_id,
-              quantity,
-              unit_price,
-              line_total
-            )
-          ''');
-
-      final demandByProduct = <String, int>{};
-      double potentialRub = 0;
-
-      for (final raw in ordersResponse) {
-        final order = Map<String, dynamic>.from(raw);
-
-        final status = order['status']?.toString().toLowerCase();
-
-        // Отменённые и отклонённые заказы
-        // не являются спросом.
-        if (status == 'cancelled' ||
-            status == 'canceled' ||
-            status == 'rejected') {
-          continue;
-        }
-
-        final itemsRaw = order['order_items'];
-
-        if (itemsRaw is! List) continue;
-
-        for (final rawItem in itemsRaw) {
-          if (rawItem is! Map) continue;
-
-          final item = Map<String, dynamic>.from(rawItem);
-
-          final productId = item['product_id']?.toString();
-
-          if (productId == null || !unavailableIds.contains(productId)) {
-            continue;
-          }
-
-          final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-
-          if (quantity <= 0) continue;
-
-          demandByProduct[productId] =
-              (demandByProduct[productId] ?? 0) + quantity;
-
-          // Сначала используем зафиксированную сумму позиции.
-          // Это важно: цена заказа могла отличаться
-          // от текущей цены товара.
-          final lineTotal = (item['line_total'] as num?)?.toDouble();
-
-          if (lineTotal != null && lineTotal > 0) {
-            potentialRub += lineTotal;
-          } else {
-            final unitPrice = (item['unit_price'] as num?)?.toDouble() ?? 0;
-
-            potentialRub += unitPrice * quantity;
-          }
-        }
-      }
-
-      // --------------------------------------------------
-      // 3. Считаем только товары, по которым действительно
-      //    есть спрос.
-      //
-      // Раньше здесь ошибочно показывались ВСЕ товары
-      // без наличия.
-      // --------------------------------------------------
-
-      final productsWithDemand = demandByProduct.keys.toSet();
-
-      if (!mounted) return;
-
-      setState(() {
-        _demandProducts = productsWithDemand.length;
-        _demandAmount = potentialRub;
-      });
-
-      debugPrint(
-        'REAL DEMAND: '
-        'unavailable=${unavailableIds.length}, '
-        'productsWithDemand=${productsWithDemand.length}, '
-        'potential=${potentialRub.toStringAsFixed(2)} ₽',
-      );
-    } catch (e, st) {
-      debugPrint('REAL DEMAND ERROR: $e');
-      debugPrintStack(stackTrace: st);
-
-      if (!mounted) return;
-
-      setState(() {});
     }
   }
 
@@ -504,144 +350,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AdminPromotionsScreen()),
-            ),
-            child: _Card(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Color(0xFFF4E2D2),
-                    child: Icon(Icons.local_offer_outlined, color: brown),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Акции и спецпредложения',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: dark,
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          'Создание баннеров, скидок и специальных цен',
-                          style: TextStyle(fontSize: 13, color: muted),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Управление доступностью для клиентов',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: brown,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: brown),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AdminProductsScreen()),
-            ),
-            child: _Card(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Color(0xFFF1E8E0),
-                    child: Icon(Icons.inventory_2_outlined, color: brown),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Товары',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: dark,
-                      ),
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: brown),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const AdminDemandWithoutStockScreen(),
-              ),
-            ),
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 20),
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: border),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF1E8E0),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.shopping_cart_checkout_rounded,
-                      color: brown,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Спрос без наличия',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: dark,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$_demandProducts товаров',
-                          style: const TextStyle(fontSize: 12, color: muted),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${_demandAmount.toStringAsFixed(0)} ₽ потенциального спроса',
-                          style: const TextStyle(fontSize: 12, color: muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right_rounded, color: muted),
-                ],
-              ),
-            ),
-          ),
           const SizedBox(height: 24),
           Container(
             margin: const EdgeInsets.only(bottom: 20),
@@ -759,13 +467,191 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ),
           const SizedBox(height: 20),
+          const _Title('Активность клиентов'),
+          const SizedBox(height: 10),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Row(
+                  children: [
+                    Text(
+                      '128',
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                        color: dark,
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Text('активных клиентов', style: TextStyle(color: muted)),
+                  ],
+                ),
+                SizedBox(height: 14),
+                _Activity(Icons.menu_book_outlined, 'Смотрят каталог', '23'),
+                _Activity(
+                  Icons.shopping_bag_outlined,
+                  'Добавили в корзину',
+                  '16',
+                ),
+                _Activity(Icons.credit_card_outlined, 'Оформляют заказ', '7'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdminPromotionsScreen()),
+            ),
+            child: _Card(
+              color: const Color(0xFFFFF8F1),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Color(0xFFF4E2D2),
+                    child: Icon(Icons.local_offer_outlined, color: brown),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Акции и спецпредложения',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: dark,
+                          ),
+                        ),
+                        SizedBox(height: 5),
+                        Text(
+                          'Создание баннеров, скидок и специальных цен',
+                          style: TextStyle(fontSize: 13, color: muted),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Управление доступностью для клиентов',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: brown,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: brown),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdminProductsScreen()),
+            ),
+            child: _Card(
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Color(0xFFF1E8E0),
+                    child: Icon(Icons.inventory_2_outlined, color: brown),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Товары',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: dark,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: brown),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const AdminDemandWithoutStockScreen(),
+              ),
+            ),
+            child: _Card(
+              color: const Color(0xFFFFF8F1),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Color(0xFFF4E2D2),
+                    child: Icon(
+                      Icons.priority_high_rounded,
+                      color: Color(0xFF9A4D20),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 10),
+
+                        Text(
+                          'Спрос без наличия',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: dark,
+                          ),
+                        ),
+                        SizedBox(height: 5),
+                        Text(
+                          '14 товаров ожидают клиенты',
+                          style: TextStyle(fontSize: 13, color: muted),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          '18 450 ₽ потенциального спроса',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: brown,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: brown),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
           const _Title('Последние заказы'),
           const SizedBox(height: 10),
-          const _Card(
-            child: Text(
-              'Последние заказы открываются в разделе «Заказы».',
-              style: TextStyle(fontSize: 13, color: AdminDashboardScreen.muted),
-            ),
+          const _Recent(
+            '#1055',
+            'Мария Смирнова',
+            'Сегодня · 13:00',
+            '3 750 ₽',
+            'В работе',
+          ),
+          const _Recent(
+            '#1054',
+            'Алексей Петров',
+            'Сегодня · 12:30',
+            '2 490 ₽',
+            'Готов к выдаче',
+          ),
+          const _Recent(
+            '#1053',
+            'Елена Иванова',
+            'Сегодня · 12:00',
+            '1 860 ₽',
+            'Новый',
           ),
         ],
       ),
@@ -983,15 +869,119 @@ class _Title extends StatelessWidget {
 
 class _Card extends StatelessWidget {
   final Widget child;
-  const _Card({required this.child});
+  final Color color;
+  const _Card({required this.child, this.color = Colors.white});
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: color,
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: AdminDashboardScreen.border),
     ),
     child: child,
+  );
+}
+
+class _Activity extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  const _Activity(this.icon, this.label, this.value);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 9),
+    child: Row(
+      children: [
+        Icon(icon, size: 18, color: AdminDashboardScreen.brown),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF5F5048)),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: AdminDashboardScreen.dark,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _Recent extends StatelessWidget {
+  final String number, customer, time, amount, status;
+  const _Recent(
+    this.number,
+    this.customer,
+    this.time,
+    this.amount,
+    this.status,
+  );
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AdminDashboardScreen.border),
+    ),
+    child: Row(
+      children: [
+        const CircleAvatar(
+          backgroundColor: Color(0xFFF1E8E0),
+          child: Icon(
+            Icons.receipt_long_outlined,
+            size: 19,
+            color: AdminDashboardScreen.brown,
+          ),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$number · $customer',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AdminDashboardScreen.dark,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                time,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AdminDashboardScreen.muted,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                status,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AdminDashboardScreen.brown,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          amount,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AdminDashboardScreen.dark,
+          ),
+        ),
+      ],
+    ),
   );
 }

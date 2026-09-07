@@ -17,7 +17,7 @@ import '../services/admin_orders_service.dart';
 /// 2. requestPermissionAndRegister() вызывается пользователем
 ///    по нажатию кнопки "Включить уведомления".
 /// 3. FCM token сохраняется в Supabase user_devices.
-class PushNotificationService with WidgetsBindingObserver {
+class PushNotificationService {
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
@@ -45,22 +45,11 @@ class PushNotificationService with WidgetsBindingObserver {
   String? _pendingToken;
   String? _pendingOrderId;
 
-  bool _lifecycleObserverRegistered = false;
-  bool _isOpeningPendingOrder = false;
-  Timer? _pendingOrderRetryTimer;
-  int _pendingOrderRetryAttempt = 0;
-
   /// Подготовка push-сервиса без автоматического запроса permission.
   Future<void> initialize() async {
     if (_initialized) return;
 
     _initialized = true;
-
-    if (!_lifecycleObserverRegistered) {
-      WidgetsBinding.instance.addObserver(this);
-      _lifecycleObserverRegistered = true;
-      debugPrint('[Push] Lifecycle observer registered');
-    }
 
     try {
       _tokenSubscription = _messaging.onTokenRefresh.listen(
@@ -136,10 +125,6 @@ class PushNotificationService with WidgetsBindingObserver {
       // автоматически регистрируем текущий FCM token.
       // Новый системный запрос permission здесь НЕ выполняется.
       await _registerExistingPermissionToken();
-
-      // Если push был получен до полной готовности Navigator,
-      // пробуем открыть заказ после завершения initialize().
-      _schedulePendingOrderOpen();
     } catch (error, stackTrace) {
       debugPrint('FCM initialization error: $error');
       debugPrint('$stackTrace');
@@ -449,26 +434,34 @@ class PushNotificationService with WidgetsBindingObserver {
     }
   }
 
-  /// Обрабатывает нажатие push в PWA через Service Worker.
+  /// Обрабатывает нажатие push, когда приложение было в фоне.
   void _handleServiceWorkerOrderClick(String orderId) {
-    final normalizedOrderId = orderId.trim();
+    debugPrint('[Push] Service Worker order click: order_id=$orderId');
 
-    debugPrint(
-      '[Push] Service Worker order click: '
-      'order_id=$normalizedOrderId',
-    );
-
-    if (normalizedOrderId.isEmpty) {
+    if (orderId.isEmpty) {
       return;
     }
 
-    _pendingOrderId = normalizedOrderId;
-    _pendingOrderRetryAttempt = 0;
+    _pendingOrderId = orderId;
 
-    _schedulePendingOrderOpen();
+    final navigator = navigatorKey.currentState;
+
+    if (navigator == null) {
+      debugPrint(
+        '[Push] Navigator is not ready for Service Worker '
+        'order_id=$orderId. Keeping pending.',
+      );
+      return;
+    }
+
+    debugPrint(
+      '[Push] Opening order from Service Worker: '
+      'order_id=$orderId',
+    );
+
+    unawaited(openPendingOrder());
   }
 
-  /// Обрабатывает нажатие push, когда приложение было в фоне.
   void _handleMessageOpenedApp(RemoteMessage message) {
     debugPrint('[Push] Message opened app: data=${message.data}');
 
@@ -486,7 +479,7 @@ class PushNotificationService with WidgetsBindingObserver {
       'order_id=$orderId',
     );
 
-    _schedulePendingOrderOpen();
+    unawaited(openPendingOrder());
   }
 
   /// Извлекает order_id из push и сохраняет его до готовности навигации.
@@ -511,11 +504,8 @@ class PushNotificationService with WidgetsBindingObserver {
     }
 
     _pendingOrderId = value;
-    _pendingOrderRetryAttempt = 0;
 
     debugPrint('[Push] Pending order_id set manually: $value');
-
-    _schedulePendingOrderOpen();
   }
 
   String? consumePendingOrderId() {
@@ -530,118 +520,27 @@ class PushNotificationService with WidgetsBindingObserver {
     return orderId;
   }
 
-  /// Планирует открытие заказа после того, как Navigator станет готов.
-  ///
-  /// Это особенно важно при тапе по push из background/terminated state,
-  /// когда FCM callback может сработать раньше, чем готов MaterialApp.
-  void _schedulePendingOrderOpen() {
-    if (_pendingOrderId == null || _pendingOrderId!.isEmpty) {
-      return;
-    }
-
-    _pendingOrderRetryTimer?.cancel();
-
-    final delays = <Duration>[
-      const Duration(milliseconds: 150),
-      const Duration(milliseconds: 400),
-      const Duration(milliseconds: 800),
-      const Duration(milliseconds: 1500),
-      const Duration(milliseconds: 2500),
-    ];
-
-    final index = _pendingOrderRetryAttempt.clamp(0, delays.length - 1);
-    final delay = delays[index];
-
-    debugPrint(
-      '[Push] Scheduling pending order open: '
-      'order_id=$_pendingOrderId '
-      'attempt=${index + 1}/${delays.length} '
-      'delay=${delay.inMilliseconds}ms',
-    );
-
-    _pendingOrderRetryTimer = Timer(delay, () {
-      unawaited(_tryOpenPendingOrder());
-    });
-  }
-
-  Future<void> _tryOpenPendingOrder() async {
-    final orderId = _pendingOrderId;
-
-    if (orderId == null || orderId.isEmpty) {
-      return;
-    }
-
-    if (_isOpeningPendingOrder) {
-      return;
-    }
-
-    _isOpeningPendingOrder = true;
-
-    try {
-      final opened = await openOrderById(orderId);
-
-      if (opened) {
-        if (_pendingOrderId == orderId) {
-          _pendingOrderId = null;
-          _pendingOrderRetryAttempt = 0;
-
-          debugPrint(
-            '[Push] Pending order successfully opened: '
-            'order_id=$orderId',
-          );
-        }
-
-        return;
-      }
-
-      if (_pendingOrderId == orderId) {
-        if (_pendingOrderRetryAttempt < 4) {
-          _pendingOrderRetryAttempt++;
-          _schedulePendingOrderOpen();
-        } else {
-          debugPrint(
-            '[Push] Pending order open retries exhausted: '
-            'order_id=$orderId',
-          );
-        }
-      }
-    } finally {
-      _isOpeningPendingOrder = false;
-    }
-  }
-
-  /// При возвращении приложения в foreground повторяем навигацию.
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    debugPrint('[Push] App lifecycle state: $state');
-
-    if (state == AppLifecycleState.resumed &&
-        _pendingOrderId != null &&
-        _pendingOrderId!.isNotEmpty) {
-      _pendingOrderRetryAttempt = 0;
-      _schedulePendingOrderOpen();
-    }
-  }
-
   /// Открывает отложенный заказ с учётом роли текущего пользователя.
   ///
   /// customer -> клиентский OrderDetailScreen.
   /// staff/admin -> AdminOrderDetailScreen.
   Future<void> openPendingOrder() async {
-    if (_pendingOrderId == null || _pendingOrderId!.isEmpty) {
+    final orderId = consumePendingOrderId();
+
+    if (orderId == null || orderId.isEmpty) {
       debugPrint('[Push] No pending order to open');
       return;
     }
 
-    await _tryOpenPendingOrder();
+    await openOrderById(orderId);
   }
 
   /// Открывает конкретный заказ.
-  Future<bool> openOrderById(String orderId) async {
+  Future<void> openOrderById(String orderId) async {
     final normalizedOrderId = orderId.trim();
 
     if (normalizedOrderId.isEmpty) {
-      return false;
+      return;
     }
 
     final navigator = navigatorKey.currentState;
@@ -653,7 +552,7 @@ class PushNotificationService with WidgetsBindingObserver {
       );
 
       _pendingOrderId = normalizedOrderId;
-      return false;
+      return;
     }
 
     final user = _supabase.auth.currentUser;
@@ -665,7 +564,7 @@ class PushNotificationService with WidgetsBindingObserver {
       );
 
       _pendingOrderId = normalizedOrderId;
-      return false;
+      return;
     }
 
     try {
@@ -693,7 +592,7 @@ class PushNotificationService with WidgetsBindingObserver {
           ),
         );
 
-        return true;
+        return;
       }
 
       final order = await AdminOrdersService.instance.fetchOrderById(
@@ -705,7 +604,7 @@ class PushNotificationService with WidgetsBindingObserver {
           '[Push] Admin order not found: '
           'order_id=$normalizedOrderId',
         );
-        return false;
+        return;
       }
 
       navigator.push(
@@ -716,15 +615,12 @@ class PushNotificationService with WidgetsBindingObserver {
         '[Push] Admin order opened: '
         'order_id=${order.id} number=${order.number}',
       );
-
-      return true;
     } catch (error, stackTrace) {
       debugPrint(
         '[Push] Error opening order '
         'order_id=$normalizedOrderId: $error',
       );
       debugPrint('$stackTrace');
-      return false;
     }
   }
 
@@ -825,7 +721,8 @@ class PushNotificationService with WidgetsBindingObserver {
     try {
       final token = await _messaging.getToken(
         vapidKey: kIsWeb ? _webVapidKey : null,
-        serviceWorkerScriptPath: kIsWeb ? 'firebase-messaging-sw.js' : null,
+        serviceWorkerScriptPath:
+            kIsWeb ? 'firebase-messaging-sw.js' : null,
       );
 
       if (token == null || token.isEmpty) return;
@@ -847,14 +744,6 @@ class PushNotificationService with WidgetsBindingObserver {
   }
 
   Future<void> dispose() async {
-    _pendingOrderRetryTimer?.cancel();
-    _pendingOrderRetryTimer = null;
-
-    if (_lifecycleObserverRegistered) {
-      WidgetsBinding.instance.removeObserver(this);
-      _lifecycleObserverRegistered = false;
-    }
-
     await _tokenSubscription?.cancel();
     await _foregroundSubscription?.cancel();
     await _messageOpenedSubscription?.cancel();
@@ -869,8 +758,6 @@ class PushNotificationService with WidgetsBindingObserver {
 
     _pendingToken = null;
     _pendingOrderId = null;
-    _pendingOrderRetryAttempt = 0;
-    _isOpeningPendingOrder = false;
     _initialized = false;
   }
 }

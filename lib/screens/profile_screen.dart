@@ -20,8 +20,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final PushNotificationService _pushService =
-      PushNotificationService.instance;
+  final PushNotificationService _pushService = PushNotificationService.instance;
 
   bool _notificationsLoading = true;
   bool _notificationsEnabled = false;
@@ -34,8 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadNotificationState() async {
     try {
-      final enabled =
-          await _pushService.isNotificationPermissionGranted();
+      final enabled = await _pushService.isNotificationPermissionGranted();
 
       if (enabled) {
         debugPrint(
@@ -76,8 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (value) {
         debugPrint('PROFILE: enabling notifications');
 
-        final success =
-            await _pushService.requestPermissionAndRegister();
+        final success = await _pushService.requestPermissionAndRegister();
 
         if (!mounted) return;
 
@@ -86,9 +83,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _notificationsLoading = false;
         });
 
-        debugPrint(
-          'PROFILE: notifications enable result=$success',
-        );
+        debugPrint('PROFILE: notifications enable result=$success');
+
+        if (!success) {
+          final diagnostic =
+              _pushService.lastPushDiagnostic ??
+              'Web Push не был включён. Причина не определена.';
+
+          debugPrint('PROFILE PUSH DIAGNOSTIC: $diagnostic');
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(diagnostic),
+              duration: const Duration(seconds: 7),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Уведомления включены'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       } else {
         debugPrint('PROFILE: disabling notifications');
 
@@ -263,9 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: AppColors.divider,
-                  ),
+                  border: Border.all(color: AppColors.divider),
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(
@@ -312,9 +327,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: AppColors.divider,
-                  ),
+                  border: Border.all(color: AppColors.divider),
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(
@@ -343,8 +356,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: AppColors.primaryBrown,
                   ),
                   onTap: () async {
-                    final token =
-                        await _pushService.getCurrentFcmToken();
+                    final token = await _pushService.getCurrentFcmToken();
 
                     if (!context.mounted) return;
 
@@ -366,12 +378,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                                   if (!dialogContext.mounted) return;
 
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(
+                                  ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text(
-                                        'FCM token скопирован',
-                                      ),
+                                      content: Text('FCM token скопирован'),
                                     ),
                                   );
                                 },

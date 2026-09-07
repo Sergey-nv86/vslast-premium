@@ -40,6 +40,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _clientsCount = 0;
   int _newClientsCount = 0;
 
+  bool _activityLoading = true;
+  int _activeClients = 0;
+  int _catalogViewers = 0;
+  int _cartUsers = 0;
+  int _checkoutUsers = 0;
+
+  bool _demandLoading = true;
   int _demandProducts = 0;
   double _demandAmount = 0;
 
@@ -99,11 +106,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     try {
       final supabase = AdminClientsService.instance.supabase;
 
-      // --------------------------------------------------
-      // 1. Находим активные товары, которых сейчас нет
-      //    в наличии.
-      // --------------------------------------------------
-
       final productsResponse = await supabase
           .from('products')
           .select('id,price,in_stock,is_active');
@@ -114,7 +116,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         final product = Map<String, dynamic>.from(raw);
 
         final id = product['id']?.toString();
-
         if (id == null || id.isEmpty) continue;
 
         final isActive = product['is_active'] != false;
@@ -129,111 +130,82 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         if (!mounted) return;
 
         setState(() {
-          _demandProducts = 0;
-          _demandAmount = 0;
+          _demandProductsCount = 0;
+          _demandPotentialRub = 0;
+          _demandLoading = false;
         });
 
         return;
       }
 
-      // --------------------------------------------------
-      // 2. Реальный спрос берём из orders + order_items.
-      //
-      // Предзаказы тоже попадают сюда:
-      // create_preorders_from_bake_schedule()
-      // создаёт обычный order + order_items,
-      // после чего выставляет orders.is_preorder = true.
-      //
-      // cart_items намеренно НЕ используется.
-      // --------------------------------------------------
-
-      final ordersResponse = await supabase.from('orders').select('''
-            id,
-            status,
-            is_preorder,
-            order_items (
-              product_id,
-              quantity,
-              unit_price,
-              line_total
-            )
-          ''');
+      final cartResponse = await supabase
+          .from('cart_items')
+          .select('product_id,quantity');
 
       final demandByProduct = <String, int>{};
-      double potentialRub = 0;
 
-      for (final raw in ordersResponse) {
-        final order = Map<String, dynamic>.from(raw);
+      for (final raw in cartResponse) {
+        final item = Map<String, dynamic>.from(raw);
 
-        final status = order['status']?.toString().toLowerCase();
-
-        // Отменённые и отклонённые заказы
-        // не являются спросом.
-        if (status == 'cancelled' ||
-            status == 'canceled' ||
-            status == 'rejected') {
+        final productId = item['product_id']?.toString();
+        if (productId == null || !unavailableIds.contains(productId)) {
           continue;
         }
 
-        final itemsRaw = order['order_items'];
+        final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+        if (quantity <= 0) continue;
 
-        if (itemsRaw is! List) continue;
-
-        for (final rawItem in itemsRaw) {
-          if (rawItem is! Map) continue;
-
-          final item = Map<String, dynamic>.from(rawItem);
-
-          final productId = item['product_id']?.toString();
-
-          if (productId == null || !unavailableIds.contains(productId)) {
-            continue;
-          }
-
-          final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-
-          if (quantity <= 0) continue;
-
-          demandByProduct[productId] =
-              (demandByProduct[productId] ?? 0) + quantity;
-
-          // Сначала используем зафиксированную сумму позиции.
-          // Это важно: цена заказа могла отличаться
-          // от текущей цены товара.
-          final lineTotal = (item['line_total'] as num?)?.toDouble();
-
-          if (lineTotal != null && lineTotal > 0) {
-            potentialRub += lineTotal;
-          } else {
-            final unitPrice = (item['unit_price'] as num?)?.toDouble() ?? 0;
-
-            potentialRub += unitPrice * quantity;
-          }
-        }
+        demandByProduct[productId] =
+            (demandByProduct[productId] ?? 0) + quantity;
       }
 
-      // --------------------------------------------------
-      // 3. Считаем только товары, по которым действительно
-      //    есть спрос.
-      //
-      // Раньше здесь ошибочно показывались ВСЕ товары
-      // без наличия.
-      // --------------------------------------------------
+      int preorderCount = 0;
 
-      final productsWithDemand = demandByProduct.keys.toSet();
+      try {
+        final preorderOrders = await supabase
+            .from('orders')
+            .select('id')
+            .not('pickup_date', 'is', null)
+            .not('status', 'in', '("cancelled","canceled")');
+
+        preorderCount = preorderOrders.length;
+      } catch (_) {
+        // Предзаказы не должны ломать Dashboard,
+        // если в конкретной версии схемы отсутствует pickup_date.
+      }
+
+      final unavailableProducts = productsResponse
+          .map((raw) => Map<String, dynamic>.from(raw))
+          .where((product) {
+            final id = product['id']?.toString();
+            return id != null && unavailableIds.contains(id);
+          })
+          .toList();
+
+      int potentialRub = 0;
+
+      for (final product in unavailableProducts) {
+        final id = product['id']?.toString();
+        if (id == null) continue;
+
+        final price = (product['price'] as num?)?.toInt() ?? 0;
+        final quantity = demandByProduct[id] ?? 0;
+
+        potentialRub += price * quantity;
+      }
 
       if (!mounted) return;
 
       setState(() {
-        _demandProducts = productsWithDemand.length;
-        _demandAmount = potentialRub;
+        _demandProductsCount = unavailableIds.length;
+        _demandPotentialRub = potentialRub;
+        _demandLoading = false;
       });
 
       debugPrint(
-        'REAL DEMAND: '
-        'unavailable=${unavailableIds.length}, '
-        'productsWithDemand=${productsWithDemand.length}, '
-        'potential=${potentialRub.toStringAsFixed(2)} ₽',
+        'REAL DEMAND: unavailable=${unavailableIds.length}, '
+        'cartPotential=$potentialRub ₽, '
+        'preorderOrders=$preorderCount',
       );
     } catch (e, st) {
       debugPrint('REAL DEMAND ERROR: $e');
@@ -241,7 +213,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       if (!mounted) return;
 
-      setState(() {});
+      setState(() {
+        _demandLoading = false;
+      });
     }
   }
 
@@ -503,144 +477,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 20),
-
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AdminPromotionsScreen()),
-            ),
-            child: _Card(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Color(0xFFF4E2D2),
-                    child: Icon(Icons.local_offer_outlined, color: brown),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Акции и спецпредложения',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: dark,
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          'Создание баннеров, скидок и специальных цен',
-                          style: TextStyle(fontSize: 13, color: muted),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Управление доступностью для клиентов',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: brown,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: brown),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AdminProductsScreen()),
-            ),
-            child: _Card(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Color(0xFFF1E8E0),
-                    child: Icon(Icons.inventory_2_outlined, color: brown),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Товары',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: dark,
-                      ),
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: brown),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const AdminDemandWithoutStockScreen(),
-              ),
-            ),
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 20),
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: border),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF1E8E0),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.shopping_cart_checkout_rounded,
-                      color: brown,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Спрос без наличия',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: dark,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$_demandProducts товаров',
-                          style: const TextStyle(fontSize: 12, color: muted),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${_demandAmount.toStringAsFixed(0)} ₽ потенциального спроса',
-                          style: const TextStyle(fontSize: 12, color: muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right_rounded, color: muted),
-                ],
-              ),
-            ),
           ),
           const SizedBox(height: 24),
           Container(
@@ -983,15 +819,45 @@ class _Title extends StatelessWidget {
 
 class _Card extends StatelessWidget {
   final Widget child;
-  const _Card({required this.child});
+  final Color color;
+  const _Card({required this.child, this.color = Colors.white});
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: color,
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: AdminDashboardScreen.border),
     ),
     child: child,
+  );
+}
+
+class _Activity extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  const _Activity(this.icon, this.label, this.value);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 9),
+    child: Row(
+      children: [
+        Icon(icon, size: 18, color: AdminDashboardScreen.brown),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF5F5048)),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: AdminDashboardScreen.dark,
+          ),
+        ),
+      ],
+    ),
   );
 }

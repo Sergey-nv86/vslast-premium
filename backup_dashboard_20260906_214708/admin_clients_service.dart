@@ -57,8 +57,6 @@ class AdminClientsService {
 
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  SupabaseClient get supabase => _supabase;
-
   Future<Map<String, int>> fetchClientStats() async {
     final response = await _supabase.from('profiles').select('*');
 
