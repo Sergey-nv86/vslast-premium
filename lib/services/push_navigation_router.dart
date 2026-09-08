@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../features/promotions/screens/promotions_screen.dart';
 import '../providers/tab_navigation_controller.dart';
 import '../screens/cart_screen.dart';
-import '../screens/loyalty_screen.dart';
 import '../screens/product_detail_screen.dart';
 import '../services/product_service.dart';
 import 'push_notification_service.dart';
@@ -52,7 +50,6 @@ class PushNavigationRouter {
     });
   }
 
-  /// Обрабатывает pending push после того, как основное приложение создано.
   Future<bool> handlePending() async {
     final data = _pendingData;
     if (data == null || data.isEmpty) return false;
@@ -71,7 +68,6 @@ class PushNavigationRouter {
     }
   }
 
-  /// Обрабатывает событие, пришедшее от Service Worker.
   Future<bool> handleData(Map<String, String> data) async {
     final type = (data['type'] ?? '').trim().toLowerCase();
     final orderId = (data['order_id'] ?? '').trim();
@@ -82,25 +78,23 @@ class PushNavigationRouter {
     );
 
     switch (type) {
-      // Заказы всегда открываются непосредственно на конкретном заказе.
       case 'new_order_admin':
+      case 'new_preorder_admin':
       case 'order_created':
       case 'order_confirmed':
       case 'order_status_changed':
       case 'order_ready':
       case 'order_completed':
+      case 'preorder_confirmed':
+      case 'order_cancelled':
       case 'pickup_reminder':
         if (orderId.isEmpty) return false;
         return await PushNotificationService.instance.openOrderById(orderId);
 
-      // Оставленная корзина — сразу в корзину, без попытки открыть
-      // последний экран или несуществующий пункт меню.
       case 'cart_abandoned':
       case 'cart_reminder':
         return _openCart();
 
-      // Товар снова в наличии / новый товар — открываем карточку товара,
-      // если backend передал product_id. Иначе безопасно переводим в каталог.
       case 'favorite_product_back_in_stock':
       case 'new_product_published':
         if (productId.isNotEmpty) {
@@ -108,14 +102,12 @@ class PushNavigationRouter {
         }
         return _openCatalog();
 
-      // CRM/лояльность.
       case 'crm_bonus_granted':
       case 'bonus_granted':
       case 'bonus_expiring':
       case 'bonus_expiry_warning':
         return _openLoyalty();
 
-      // Ассортимент и промо.
       case 'daily_assortment':
       case 'daily_assortment_reminder':
         return _openCatalog();
