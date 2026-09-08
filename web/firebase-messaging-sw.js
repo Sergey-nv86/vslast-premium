@@ -1,45 +1,6 @@
-importScripts(
-  'https' + '://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js'
-);
-
-importScripts(
-  'https' + '://www.gstatic.com/firebasejs/12.0.0/firebase-messaging-compat.js'
-);
-
-firebase.initializeApp({
-  apiKey: 'AIzaSyC11I9q6niCXe73B1vYIJ2XknzhkdDo6s',
-  authDomain: 'vslast-premium.firebaseapp.com',
-  projectId: 'vslast-premium',
-  storageBucket: 'vslast-premium.firebasestorage.app',
-  messagingSenderId: '1078788985612',
-  appId: '1:1078788985612:web:15484f6de2a20f60e6af29',
-  measurementId: 'G-8653ZX27G4',
-});
-
-const messaging = firebase.messaging();
-
-messaging.onBackgroundMessage(function(payload) {
-  console.log(
-    '[firebase-messaging-sw.js] Background message:',
-    payload
-  );
-
-  const data = payload && payload.data ? payload.data : {};
-  const title = data.title || 'Всласть';
-  const body = data.body || 'Новое уведомление';
-
-  self.registration.showNotification(title, {
-    body: body,
-    icon: '/icons/Icon-192.png',
-    badge: '/icons/Icon-192.png',
-    data: {
-      type: data.type || '',
-      order_id: data.order_id ? String(data.order_id) : '',
-      product_id: data.product_id ? String(data.product_id) : '',
-    },
-  });
-});
-
+// IMPORTANT: register the custom notification click handler BEFORE loading
+// Firebase Messaging. Firebase may otherwise install/override its own
+// notificationclick handler and our navigation intent can be lost.
 self.addEventListener('notificationclick', function(event) {
   event.preventDefault();
   event.stopImmediatePropagation();
@@ -82,18 +43,71 @@ self.addEventListener('notificationclick', function(event) {
       type: 'window',
       includeUncontrolled: true,
     }).then(function(clientList) {
-      // Если PWA уже открыто, передаём событие непосредственно Flutter,
-      // не перезагружая приложение и не оставляя пользователя на последнем
-      // экране.
-      for (const client of clientList) {
-        if ('postMessage' in client && 'focus' in client) {
-          client.postMessage(navigationData);
-          return client.focus();
+      // If the PWA is already open, route the push directly to Flutter.
+      // Prefer the vslast-premium origin and the most recently focused tab.
+      const sameOriginClients = clientList.filter(function(client) {
+        try {
+          return new URL(client.url).origin === new URL(baseUrl).origin;
+        } catch (_) {
+          return false;
         }
+      });
+
+      sameOriginClients.sort(function(a, b) {
+        return (b.visibilityState === 'visible' ? 1 : 0) -
+          (a.visibilityState === 'visible' ? 1 : 0);
+      });
+
+      if (sameOriginClients.length > 0) {
+        const client = sameOriginClients[0];
+        client.postMessage(navigationData);
+        return client.focus();
       }
 
-      // Если PWA закрыто, запускаем его с navigation intent в URL.
+      // If the PWA is closed, start it with the navigation intent in the URL.
       return clients.openWindow(targetUrl.toString());
     })
   );
+});
+
+importScripts(
+  'https' + '://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js'
+);
+
+importScripts(
+  'https' + '://www.gstatic.com/firebasejs/12.0.0/firebase-messaging-compat.js'
+);
+
+firebase.initializeApp({
+  apiKey: 'AIzaSyC11I9q6niCXe73B1vYIJ2XknzhkdDo6s',
+  authDomain: 'vslast-premium.firebaseapp.com',
+  projectId: 'vslast-premium',
+  storageBucket: 'vslast-premium.firebasestorage.app',
+  messagingSenderId: '1078788985612',
+  appId: '1:1078788985612:web:15484f6de2a20f60e6af29',
+  measurementId: 'G-8653ZX27G4',
+});
+
+const messaging = firebase.messaging();
+
+messaging.onBackgroundMessage(function(payload) {
+  console.log(
+    '[firebase-messaging-sw.js] Background message:',
+    payload
+  );
+
+  const data = payload && payload.data ? payload.data : {};
+  const title = data.title || 'Всласть';
+  const body = data.body || 'Новое уведомление';
+
+  self.registration.showNotification(title, {
+    body: body,
+    icon: '/icons/Icon-192.png',
+    badge: '/icons/Icon-192.png',
+    data: {
+      type: data.type || '',
+      order_id: data.order_id ? String(data.order_id) : '',
+      product_id: data.product_id ? String(data.product_id) : '',
+    },
+  });
 });
