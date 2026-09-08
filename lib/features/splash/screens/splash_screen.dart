@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../models/product.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/product_service.dart';
-import '../../../services/push_notification_service.dart';
+import '../../../services/push_navigation_router.dart';
 import '../../../screens/auth_screen.dart';
 import '../../../screens/main_screen.dart';
 import '../../admin/screens/app_mode_selection_screen.dart';
@@ -93,28 +93,20 @@ class _SplashScreenState extends State<SplashScreen>
       context,
     ).pushReplacement(MaterialPageRoute(builder: (_) => destination));
 
-    // Если приложение было открыто нажатием на push о заказе,
-    // передаём открытие заказа единому push-router.
-    final pendingOrderId = PushNotificationService.instance
-        .consumePendingOrderId();
+    // Push-навигация выполняется только после завершения перехода со Splash,
+    // чтобы не конкурировать с pushReplacement и не возвращать пользователя
+    // на последний открытый экран.
+    final pushDelay = auth.isLoggedIn
+        ? const Duration(milliseconds: 450)
+        : const Duration(milliseconds: 250);
 
-    if (pendingOrderId != null && pendingOrderId.isNotEmpty) {
-      debugPrint(
-        '[Push] Splash -> pending order navigation: '
-        'order_id=$pendingOrderId',
-      );
+    await Future<void>.delayed(pushDelay);
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+    if (!mounted) return;
 
-        debugPrint(
-          '[Push] Splash -> opening order '
-          'order_id=$pendingOrderId',
-        );
+    final handled = await PushNavigationRouter.instance.handlePending();
 
-        PushNotificationService.instance.openOrderById(pendingOrderId);
-      });
-    }
+    debugPrint('[PushRouter] Splash pending navigation handled=$handled');
   }
 
   @override
