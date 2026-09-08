@@ -28,15 +28,57 @@ Future<void> showForegroundNotification({
   }
 }
 
-/// Слушает сообщения от Firebase Service Worker.
+/// Слушает сообщения от Firebase Service Worker для навигации после клика.
 ///
-/// Для уже открытого PWA Service Worker передаёт:
+/// Service Worker передаёт полный набор навигационных данных:
 /// {
-///   type: 'push_order_click',
-///   order_id: '...'
+///   type: 'push_navigation',
+///   push_type: 'cart_abandoned',
+///   order_id: '...',
+///   product_id: '...'
 /// }
 ///
-/// Важно: приложение не перезапускается.
+/// Важно: приложение не перезапускается при клике по push в уже открытом PWA.
+StreamSubscription<web.MessageEvent> listenServiceWorkerPushNavigation(
+  void Function(Map<String, String> data) onNavigation,
+) {
+  return web.window.onMessage.listen((web.MessageEvent event) {
+    try {
+      final data = event.data;
+
+      if (data == null) {
+        return;
+      }
+
+      final dartData = data.dartify();
+
+      if (dartData is! Map) {
+        return;
+      }
+
+      final type = dartData['type']?.toString() ?? '';
+      if (type != 'push_navigation') {
+        return;
+      }
+
+      final navigation = <String, String>{
+        'type': dartData['push_type']?.toString() ?? '',
+        'order_id': dartData['order_id']?.toString() ?? '',
+        'product_id': dartData['product_id']?.toString() ?? '',
+      };
+
+      debugPrint('[Push] Service Worker navigation: $navigation');
+      onNavigation(navigation);
+    } catch (error, stackTrace) {
+      debugPrint('[Push] Service Worker navigation error: $error');
+      debugPrint('$stackTrace');
+    }
+  });
+}
+
+/// Слушает старый формат order click.
+///
+/// Оставлен для обратной совместимости с существующим кодом.
 StreamSubscription<web.MessageEvent> listenServiceWorkerMessages(
   void Function(String orderId) onOrderClick,
 ) {
