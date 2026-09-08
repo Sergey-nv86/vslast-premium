@@ -20,25 +20,63 @@ class _AdminOrderQrScannerScreenState extends State<AdminOrderQrScannerScreen> {
     super.dispose();
   }
 
-  void _onDetect(BarcodeCapture capture) {
+  Future<void> _onDetect(BarcodeCapture capture) async {
     if (_handled) return;
 
     for (final barcode in capture.barcodes) {
       final raw = barcode.rawValue?.trim();
       if (raw == null || raw.isEmpty) continue;
 
-      // Формат клиентского QR:
-      // VSLAST|CARD|000128
-      final parts = raw.split('|');
+      // Клиентский QR может быть:
+      // VSL-31471850
+      // VSLAST|CARD|VSL-31471850
+      // VSLAST|CARD|31471850
+      String? cardNumber;
 
-      if (parts.length == 3 &&
-          parts[0].toUpperCase() == 'VSLAST' &&
-          parts[1].toUpperCase() == 'CARD' &&
-          parts[2].trim().isNotEmpty) {
+      final directMatch = RegExp(
+        r'VSL-\d{8}',
+        caseSensitive: false,
+      ).firstMatch(raw);
+
+      if (directMatch != null) {
+        cardNumber = directMatch.group(0)!.toUpperCase();
+      } else {
+        final qrMatch = RegExp(
+          r'^VSLAST\|CARD\|([^|\s]+)$',
+          caseSensitive: false,
+        ).firstMatch(raw);
+
+        if (qrMatch != null) {
+          var value = qrMatch.group(1)!.trim().toUpperCase();
+
+          if (RegExp(r'^\d{8}$').hasMatch(value)) {
+            value = 'VSL-$value';
+          } else {
+            final withoutDash = RegExp(
+              r'^VSL(\d{8})$',
+              caseSensitive: false,
+            ).firstMatch(value);
+
+            if (withoutDash != null) {
+              value = 'VSL-${withoutDash.group(1)}';
+            }
+          }
+
+          if (RegExp(r'^VSL-\d{8}$').hasMatch(value)) {
+            cardNumber = value;
+          }
+        }
+      }
+
+      if (cardNumber != null) {
         _handled = true;
-        _controller.stop();
 
-        Navigator.of(context).pop(parts[2].trim());
+        // Камера должна быть остановлена до закрытия экрана.
+        await _controller.stop();
+
+        if (!mounted) return;
+
+        Navigator.of(context).pop(cardNumber);
         return;
       }
     }

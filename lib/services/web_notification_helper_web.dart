@@ -18,10 +18,7 @@ Future<void> showForegroundNotification({
 
     web.Notification(
       title,
-      web.NotificationOptions(
-        body: body,
-        icon: '/icons/Icon-192.png',
-      ),
+      web.NotificationOptions(body: body, icon: '/icons/Icon-192.png'),
     );
   } catch (_) {
     // Foreground notification is best-effort on Web.
@@ -42,7 +39,17 @@ Future<void> showForegroundNotification({
 StreamSubscription<web.MessageEvent> listenServiceWorkerPushNavigation(
   void Function(Map<String, String> data) onNavigation,
 ) {
-  return web.window.onMessage.listen((web.MessageEvent event) {
+  final controller = web.window.navigator.serviceWorker;
+  final streamController = StreamController<web.MessageEvent>();
+
+  controller.addEventListener(
+    'message',
+    (web.Event event) {
+      streamController.add(event as web.MessageEvent);
+    }.toJS,
+  );
+
+  return streamController.stream.listen((web.MessageEvent event) {
     try {
       final data = event.data;
 
@@ -108,15 +115,11 @@ StreamSubscription<web.MessageEvent> listenServiceWorkerMessages(
         return;
       }
 
-      debugPrint(
-        '[Push] Service Worker click received: order_id=$orderId',
-      );
+      debugPrint('[Push] Service Worker click received: order_id=$orderId');
 
       onOrderClick(orderId);
     } catch (error, stackTrace) {
-      debugPrint(
-        '[Push] Service Worker message error: $error',
-      );
+      debugPrint('[Push] Service Worker message error: $error');
       debugPrint('$stackTrace');
     }
   });

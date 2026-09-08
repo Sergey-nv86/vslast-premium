@@ -83,8 +83,14 @@ class _AdminLoyaltyScreenState extends State<AdminLoyaltyScreen> {
     // На будущее здесь можно будет принимать JSON от кассы.
     final cardNumber = _extractCardNumber(value);
 
+    // Немедленно останавливаем камеру до любого сетевого запроса.
+    await _scannerController.stop();
+
+    if (!mounted) return;
+
     setState(() {
       _scannerVisible = false;
+      _loading = true;
       _cardController.text = cardNumber;
     });
 

@@ -20,15 +20,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutScreen extends StatelessWidget {
-
   Future<void> _openTelegram() async {
     final uri = Uri.parse('https://t.me/vslast_nv');
 
     if (await canLaunchUrl(uri)) {
-      await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -39,10 +35,7 @@ class AboutScreen extends StatelessWidget {
     );
 
     if (await canLaunchUrl(uri)) {
-      await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -53,7 +46,6 @@ class AboutScreen extends StatelessWidget {
       await launchUrl(uri);
     }
   }
-
 
   const AboutScreen({super.key});
 
@@ -231,7 +223,10 @@ class AboutScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 22, 16, 20),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 22,
+                ),
                 decoration: BoxDecoration(
                   color: _vanillaBg,
                   borderRadius: BorderRadius.circular(16),
@@ -260,10 +255,7 @@ class AboutScreen extends StatelessWidget {
                 children: [
                   IconButton(
                     tooltip: 'Telegram',
-                    icon: const Icon(
-                      Icons.telegram,
-                      color: _graphite,
-                    ),
+                    icon: const Icon(Icons.telegram, color: _graphite),
                     onPressed: _openTelegram,
                   ),
 
@@ -330,7 +322,7 @@ class AboutScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '+7 912 933-97-54',
+                                    '+7 912 939-97-54',
                                     style: GoogleFonts.playfairDisplay(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w500,
@@ -359,7 +351,9 @@ class AboutScreen extends StatelessWidget {
                                             Navigator.pop(sheetContext);
                                             _callBakery();
                                           },
-                                          icon: const Icon(Icons.phone_outlined),
+                                          icon: const Icon(
+                                            Icons.phone_outlined,
+                                          ),
                                           label: const Text('Позвонить'),
                                         ),
                                       ),

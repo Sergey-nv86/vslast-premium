@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../models/user_role.dart';
 import '../features/admin/screens/admin_entry_screen.dart';
 import '../theme/app_theme.dart';
+import '../core/build_info.dart';
 import '../services/push_notification_service.dart';
 
 /// Экран «Профиль» — показывается вместо «Вход/Регистрация», когда
@@ -232,7 +231,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     subtitle: Text(
-                      auth.role?.title ?? 'Доступ администратора',
+                      auth.role?.toString().split('.').last ??
+                          'Доступ администратора',
                       style: AppTextStyles.rowLabelMuted,
                     ),
                     trailing: const Icon(
@@ -250,30 +250,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
               if (!auth.canAccessAdmin) ...[const SizedBox(height: 8)],
-              // DEV ONLY — удалить после подключения backend auth.
-              if (!auth.canAccessAdmin) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.admin_panel_settings_outlined),
-                    label: const Text('DEV: переключиться на OWNER'),
-                    onPressed: () async {
-                      await context.read<AuthProvider>().switchMockRole(
-                        UserRole.owner,
-                      );
-
-                      if (!context.mounted) return;
-
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AdminEntryScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(top: 12),
@@ -321,85 +297,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
 
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(top: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.divider),
-                ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  leading: const CircleAvatar(
-                    backgroundColor: AppColors.surfaceMuted,
-                    child: Icon(
-                      Icons.key_outlined,
-                      color: AppColors.primaryBrown,
-                    ),
-                  ),
-                  title: Text(
-                    'Показать FCM token',
-                    style: AppTextStyles.rowLabel.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Временная диагностика push',
-                    style: AppTextStyles.rowLabelMuted,
-                  ),
-                  trailing: const Icon(
-                    Icons.chevron_right,
-                    color: AppColors.primaryBrown,
-                  ),
-                  onTap: () async {
-                    final token = await _pushService.getCurrentFcmToken();
-
-                    if (!context.mounted) return;
-
-                    await showDialog<void>(
-                      context: context,
-                      builder: (dialogContext) {
-                        return AlertDialog(
-                          title: const Text('FCM token'),
-                          content: SelectableText(
-                            token ?? 'FCM token не получен',
-                          ),
-                          actions: [
-                            if (token != null && token.isNotEmpty)
-                              TextButton(
-                                onPressed: () async {
-                                  await Clipboard.setData(
-                                    ClipboardData(text: token),
-                                  );
-
-                                  if (!dialogContext.mounted) return;
-
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('FCM token скопирован'),
-                                    ),
-                                  );
-                                },
-                                child: const Text('Копировать'),
-                              ),
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.of(dialogContext).pop(),
-                              child: const Text('Закрыть'),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
+              const Spacer(),
+              Center(
+                child: Text(
+                  'Сборка: $buildLabel',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
                 ),
               ),
+              const SizedBox(height: 10),
 
-              const Spacer(),
               SizedBox(
                 width: double.infinity,
                 child: GestureDetector(

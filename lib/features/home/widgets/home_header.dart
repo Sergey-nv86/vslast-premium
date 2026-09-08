@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 
 import '../../../providers/auth_provider.dart';
 import '../../../providers/location_provider.dart';
 import '../../../screens/auth_screen.dart';
 import '../../../screens/about_screen.dart';
+import '../../../screens/cart_screen.dart';
 import '../../../screens/favorite_screen.dart';
 import '../../../screens/orders_screen.dart';
 import '../../../screens/profile_screen.dart';
@@ -83,14 +85,22 @@ class HomeHeader extends StatelessWidget {
                 },
               ),
               _ProfileMenuTile(
+                icon: Icons.shopping_bag_outlined,
+                label: 'Моя корзина',
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => const CartScreen()));
+                },
+              ),
+              _ProfileMenuTile(
                 icon: Icons.info_outline,
                 label: 'О нас',
                 onTap: () {
                   Navigator.pop(sheetContext);
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const AboutScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const AboutScreen()),
                   );
                 },
               ),
@@ -99,7 +109,7 @@ class HomeHeader extends StatelessWidget {
                 label: 'Контакты',
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _showComingSoon(context, 'Контакты');
+                  _showContacts(context);
                 },
               ),
               _ProfileMenuTile(
@@ -112,6 +122,55 @@ class HomeHeader extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showContacts(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.cardBackground,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadii.sheet),
+        ),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Контакты', style: AppTextStyles.screenTitle),
+                const SizedBox(height: 18),
+                Text(
+                  'г. Нижневартовск, ул. Пионерская, 12',
+                  style: AppTextStyles.rowLabel,
+                ),
+                const SizedBox(height: 8),
+                Text('+7 (912) 939-97-54', style: AppTextStyles.rowLabel),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final uri = Uri.parse('tel:+79129399754');
+
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri);
+                      }
+                    },
+                    icon: const Icon(Icons.phone_outlined),
+                    label: const Text('Позвонить'),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -176,6 +235,23 @@ class HomeHeader extends StatelessWidget {
                       ? const Icon(Icons.check, color: AppColors.caramel)
                       : null,
                   onTap: () {
+                    if (city != 'Нижневартовск') {
+                      Navigator.pop(sheetContext);
+
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Доступно пока только в Нижневартовске.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+
+                      return;
+                    }
+
                     location.setCity(city);
                     Navigator.pop(sheetContext);
                   },
@@ -207,7 +283,9 @@ class HomeHeader extends StatelessWidget {
       greeting = 'Доброй ночи';
     }
 
-    return name.isEmpty ? greeting : '$greeting,\n$name!';
+    return name.isEmpty
+        ? 'Вы в цифровой пекарне «Всласть» ❤️'
+        : '$greeting,\n$name!';
   }
 
   @override
