@@ -59,12 +59,12 @@ class ClientIdentityService {
         value = response['client_id']?.toString();
       }
 
-      if (value == null || value.trim().isEmpty) {
+      if (value == null || value!.trim().isEmpty) {
         debugPrint('[ClientID] RPC returned no client_id');
         return null;
       }
 
-      _clientId = value.trim();
+      _clientId = value!.trim();
       debugPrint('[ClientID] Ready: $_clientId');
       return _clientId;
     } catch (error, stackTrace) {
