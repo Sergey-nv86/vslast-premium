@@ -135,6 +135,20 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     }
   }
 
+  Future<void> _refreshOrders() async {
+    final future = _loadOrders();
+
+    setState(() {
+      _ordersFuture = future;
+    });
+
+    try {
+      await future;
+    } catch (_) {
+      // Ошибка будет показана через FutureBuilder.
+    }
+  }
+
   Future<void> _scanCustomerQr() async {
     final cardNumber = await Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => const AdminOrderQrScannerScreen()),
@@ -206,86 +220,90 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _header()),
-            SliverToBoxAdapter(child: _buildSearch()),
-            SliverToBoxAdapter(child: _filters()),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-              sliver: FutureBuilder<List<AdminOrder>>(
-                future: _ordersFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 60),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                    );
-                  }
-
-                  if (snapshot.hasError) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              size: 42,
-                              color: AppColors.primaryBrown,
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Не удалось загрузить заказы',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              snapshot.error.toString(),
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.rowLabelMuted,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _reload,
-                              child: const Text('Повторить'),
-                            ),
-                          ],
+        child: RefreshIndicator(
+          onRefresh: _refreshOrders,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(child: _header()),
+              SliverToBoxAdapter(child: _buildSearch()),
+              SliverToBoxAdapter(child: _filters()),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                sliver: FutureBuilder<List<AdminOrder>>(
+                  future: _ordersFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.only(top: 60),
+                          child: Center(child: CircularProgressIndicator()),
                         ),
-                      ),
+                      );
+                    }
+
+                    if (snapshot.hasError) {
+                      return SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                size: 42,
+                                color: AppColors.primaryBrown,
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Не удалось загрузить заказы',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                snapshot.error.toString(),
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.rowLabelMuted,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _reload,
+                                child: const Text('Повторить'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    final allOrders = snapshot.data ?? [];
+
+                    final orders = _applyFilters(allOrders);
+
+                    if (orders.isEmpty) {
+                      return const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.only(top: 60),
+                          child: Center(child: Text('Заказов нет')),
+                        ),
+                      );
+                    }
+
+                    return SliverList.separated(
+                      itemCount: orders.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 10),
+                      itemBuilder: (context, i) {
+                        return _OrderCard(order: orders[i], onChanged: _reload);
+                      },
                     );
-                  }
-
-                  final allOrders = snapshot.data ?? [];
-
-                  final orders = _applyFilters(allOrders);
-
-                  if (orders.isEmpty) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 60),
-                        child: Center(child: Text('Заказов нет')),
-                      ),
-                    );
-                  }
-
-                  return SliverList.separated(
-                    itemCount: orders.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 10),
-                    itemBuilder: (context, i) {
-                      return _OrderCard(order: orders[i], onChanged: _reload);
-                    },
-                  );
-                },
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
