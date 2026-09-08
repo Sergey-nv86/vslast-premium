@@ -20,65 +20,63 @@ class _AdminOrderQrScannerScreenState extends State<AdminOrderQrScannerScreen> {
     super.dispose();
   }
 
+  String? _extractCardNumber(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return null;
+
+    // Основной формат: VSL-31471850.
+    final directMatch = RegExp(
+      r'VSL[-\s_]?\d{8}',
+      caseSensitive: false,
+    ).firstMatch(value);
+    if (directMatch != null) {
+      final digits = RegExp(r'\d{8}').firstMatch(directMatch.group(0)!)!.group(0)!;
+      return 'VSL-$digits';
+    }
+
+    // Старый/служебный формат: VSLAST|CARD|...
+    final qrMatch = RegExp(
+      r'VSLAST\s*\|\s*CARD\s*\|\s*([^|\s]+)',
+      caseSensitive: false,
+    ).firstMatch(value);
+    if (qrMatch != null) {
+      final cardValue = qrMatch.group(1)!.trim().toUpperCase();
+      final digitsMatch = RegExp(r'\d{8}').firstMatch(cardValue);
+      if (digitsMatch != null) {
+        return 'VSL-${digitsMatch.group(0)}';
+      }
+    }
+
+    // QR может содержать просто номер карты.
+    final digitsOnly = RegExp(r'(?<!\d)\d{8}(?!\d)').firstMatch(value);
+    if (digitsOnly != null) {
+      return 'VSL-${digitsOnly.group(0)}';
+    }
+
+    return null;
+  }
+
   Future<void> _onDetect(BarcodeCapture capture) async {
     if (_handled) return;
 
     for (final barcode in capture.barcodes) {
-      final raw = barcode.rawValue?.trim();
+      // У некоторых декодеров rawValue может быть пустым, а displayValue
+      // заполнен, поэтому используем оба значения.
+      final raw = (barcode.rawValue ?? barcode.displayValue)?.trim();
       if (raw == null || raw.isEmpty) continue;
 
-      // Клиентский QR может быть:
-      // VSL-31471850
-      // VSLAST|CARD|VSL-31471850
-      // VSLAST|CARD|31471850
-      String? cardNumber;
+      final cardNumber = _extractCardNumber(raw);
+      if (cardNumber == null) continue;
 
-      final directMatch = RegExp(
-        r'VSL-\d{8}',
-        caseSensitive: false,
-      ).firstMatch(raw);
+      _handled = true;
 
-      if (directMatch != null) {
-        cardNumber = directMatch.group(0)!.toUpperCase();
-      } else {
-        final qrMatch = RegExp(
-          r'^VSLAST\|CARD\|([^|\s]+)$',
-          caseSensitive: false,
-        ).firstMatch(raw);
+      // Камера должна быть остановлена до закрытия экрана.
+      await _controller.stop();
 
-        if (qrMatch != null) {
-          var value = qrMatch.group(1)!.trim().toUpperCase();
+      if (!mounted) return;
 
-          if (RegExp(r'^\d{8}$').hasMatch(value)) {
-            value = 'VSL-$value';
-          } else {
-            final withoutDash = RegExp(
-              r'^VSL(\d{8})$',
-              caseSensitive: false,
-            ).firstMatch(value);
-
-            if (withoutDash != null) {
-              value = 'VSL-${withoutDash.group(1)}';
-            }
-          }
-
-          if (RegExp(r'^VSL-\d{8}$').hasMatch(value)) {
-            cardNumber = value;
-          }
-        }
-      }
-
-      if (cardNumber != null) {
-        _handled = true;
-
-        // Камера должна быть остановлена до закрытия экрана.
-        await _controller.stop();
-
-        if (!mounted) return;
-
-        Navigator.of(context).pop(cardNumber);
-        return;
-      }
+      Navigator.of(context).pop(cardNumber);
+      return;
     }
   }
 
