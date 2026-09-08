@@ -27,7 +27,6 @@ messaging.onBackgroundMessage(function(payload) {
   const data = payload && payload.data ? payload.data : {};
   const title = data.title || 'Всласть';
   const body = data.body || 'Новое уведомление';
-  const orderId = data.order_id ? String(data.order_id) : '';
 
   self.registration.showNotification(title, {
     body: body,
@@ -35,7 +34,8 @@ messaging.onBackgroundMessage(function(payload) {
     badge: '/icons/Icon-192.png',
     data: {
       type: data.type || '',
-      order_id: orderId,
+      order_id: data.order_id ? String(data.order_id) : '',
+      product_id: data.product_id ? String(data.product_id) : '',
     },
   });
 });
@@ -45,39 +45,55 @@ self.addEventListener('notificationclick', function(event) {
   event.stopImmediatePropagation();
 
   const data = event.notification.data || {};
-  const orderId = data.order_id
-    ? String(data.order_id)
-    : '';
+  const pushType = data.type ? String(data.type) : '';
+  const orderId = data.order_id ? String(data.order_id) : '';
+  const productId = data.product_id ? String(data.product_id) : '';
 
   console.log('[FCM SW] Notification click:', data);
-  console.log('[FCM SW] order_id:', orderId);
 
   event.notification.close();
 
   const baseUrl =
     'https' + '://vslast-premium.web.app/';
 
-  const targetUrl = orderId
-    ? baseUrl + '?order_id=' + encodeURIComponent(orderId)
-    : baseUrl;
+  const targetUrl = new URL(baseUrl);
+  targetUrl.searchParams.set('push_type', pushType);
 
-  console.log('[FCM SW] Target URL:', targetUrl);
+  if (orderId) {
+    targetUrl.searchParams.set('order_id', orderId);
+  }
+
+  if (productId) {
+    targetUrl.searchParams.set('product_id', productId);
+  }
+
+  const navigationData = {
+    type: 'push_navigation',
+    push_type: pushType,
+    order_id: orderId,
+    product_id: productId,
+  };
+
+  console.log('[FCM SW] Navigation data:', navigationData);
+  console.log('[FCM SW] Target URL:', targetUrl.toString());
 
   event.waitUntil(
     clients.matchAll({
       type: 'window',
       includeUncontrolled: true,
     }).then(function(clientList) {
-
+      // Если PWA уже открыто, передаём событие непосредственно Flutter,
+      // не перезагружая приложение и не оставляя пользователя на последнем
+      // экране.
       for (const client of clientList) {
-        if ('focus' in client && 'navigate' in client) {
-          return client.navigate(targetUrl).then(function() {
-            return client.focus();
-          });
+        if ('postMessage' in client && 'focus' in client) {
+          client.postMessage(navigationData);
+          return client.focus();
         }
       }
 
-      return clients.openWindow(targetUrl);
+      // Если PWA закрыто, запускаем его с navigation intent в URL.
+      return clients.openWindow(targetUrl.toString());
     })
   );
 });
