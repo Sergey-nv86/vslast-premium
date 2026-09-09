@@ -16,7 +16,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   static const brown = Color(0xFF8B5E3C);
   static const dark = Color(0xFF3B281F);
   static const muted = Color(0xFF806F65);
-  static const border = Color(0xFFEADFD5);
 
   final _deliveryMinController = TextEditingController();
   final _pickupDiscountController = TextEditingController();
@@ -170,7 +169,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         title: const Text('Доставка доступна'),
                         subtitle: Text(_deliveryEnabled ? 'Клиенты могут выбрать доставку' : 'Доставка отключена для новых заказов', style: const TextStyle(color: muted, fontSize: 12)),
                         value: _deliveryEnabled,
-                        activeColor: brown,
+                        activeThumbColor: brown,
                         onChanged: (value) => setState(() => _deliveryEnabled = value),
                       ),
                       _NumberField(controller: _deliveryMinController, label: 'Минимальная сумма заказа для доставки, ₽', suffix: '₽'),
