@@ -20,27 +20,63 @@ class _AdminOrderQrScannerScreenState extends State<AdminOrderQrScannerScreen> {
     super.dispose();
   }
 
-  void _onDetect(BarcodeCapture capture) {
+  String? _extractCardNumber(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return null;
+
+    // Основной формат: VSL-31471850.
+    final directMatch = RegExp(
+      r'VSL[-\s_]?\d{8}',
+      caseSensitive: false,
+    ).firstMatch(value);
+    if (directMatch != null) {
+      final digits = RegExp(r'\d{8}').firstMatch(directMatch.group(0)!)!.group(0)!;
+      return 'VSL-$digits';
+    }
+
+    // Старый/служебный формат: VSLAST|CARD|...
+    final qrMatch = RegExp(
+      r'VSLAST\s*\|\s*CARD\s*\|\s*([^|\s]+)',
+      caseSensitive: false,
+    ).firstMatch(value);
+    if (qrMatch != null) {
+      final cardValue = qrMatch.group(1)!.trim().toUpperCase();
+      final digitsMatch = RegExp(r'\d{8}').firstMatch(cardValue);
+      if (digitsMatch != null) {
+        return 'VSL-${digitsMatch.group(0)}';
+      }
+    }
+
+    // QR может содержать просто номер карты.
+    final digitsOnly = RegExp(r'(?<!\d)\d{8}(?!\d)').firstMatch(value);
+    if (digitsOnly != null) {
+      return 'VSL-${digitsOnly.group(0)}';
+    }
+
+    return null;
+  }
+
+  Future<void> _onDetect(BarcodeCapture capture) async {
     if (_handled) return;
 
     for (final barcode in capture.barcodes) {
-      final raw = barcode.rawValue?.trim();
+      // У некоторых декодеров rawValue может быть пустым, а displayValue
+      // заполнен, поэтому используем оба значения.
+      final raw = (barcode.rawValue ?? barcode.displayValue)?.trim();
       if (raw == null || raw.isEmpty) continue;
 
-      // Формат клиентского QR:
-      // VSLAST|CARD|000128
-      final parts = raw.split('|');
+      final cardNumber = _extractCardNumber(raw);
+      if (cardNumber == null) continue;
 
-      if (parts.length == 3 &&
-          parts[0].toUpperCase() == 'VSLAST' &&
-          parts[1].toUpperCase() == 'CARD' &&
-          parts[2].trim().isNotEmpty) {
-        _handled = true;
-        _controller.stop();
+      _handled = true;
 
-        Navigator.of(context).pop(parts[2].trim());
-        return;
-      }
+      // Камера должна быть остановлена до закрытия экрана.
+      await _controller.stop();
+
+      if (!mounted) return;
+
+      Navigator.of(context).pop(cardNumber);
+      return;
     }
   }
 

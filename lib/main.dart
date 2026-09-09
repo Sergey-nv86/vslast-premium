@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -14,8 +16,9 @@ import 'providers/location_provider.dart';
 import 'providers/tab_navigation_controller.dart';
 import 'theme/premium_design_system.dart';
 import 'services/push_notification_service.dart';
+import 'services/push_navigation_router.dart';
+import 'services/web_notification_helper.dart';
 import 'firebase_options.dart';
-
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,20 +32,16 @@ Future<void> main() async {
 
   await PushNotificationService.instance.initialize();
 
-  // Web/PWA push click opens the app with ?order_id=UUID.
-  // Put it into the same pending-navigation mechanism used by FCM.
   if (kIsWeb) {
-    final orderId = Uri.base.queryParameters['order_id'];
+    // Для background/terminated push Service Worker открывает приложение
+    // с push_type/order_id/product_id в query string.
+    PushNavigationRouter.instance.setPendingFromUri(Uri.base);
 
-    if (orderId != null && orderId.trim().isNotEmpty) {
-      debugPrint(
-        '[Push] Web pending order_id=$orderId',
-      );
-
-      PushNotificationService.instance.setPendingOrderId(
-        orderId.trim(),
-      );
-    }
+    // Для уже открытого PWA Service Worker передаёт событие напрямую,
+    // без перезагрузки приложения.
+    listenServiceWorkerPushNavigation((data) {
+      unawaited(PushNavigationRouter.instance.handleData(data));
+    });
   }
 
   runApp(const VslastPremiumApp());
@@ -76,7 +75,6 @@ class VslastPremiumApp extends StatelessWidget {
     );
   }
 }
-
 
 /// Краткая диагностическая информация о версии PWA.
 ///
