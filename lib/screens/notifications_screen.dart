@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../models/order_list_item.dart';
 import '../services/notification_service.dart';
+import '../screens/order_detail_screen.dart';
 import '../theme/app_theme.dart';
-import 'order_detail_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -12,44 +13,52 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  late Future<List<AppNotification>> _future;
+  late Future<List<AppNotification>> _notificationsFuture;
 
   @override
   void initState() {
     super.initState();
-    _future = NotificationService.instance.fetchNotifications();
+    _notificationsFuture = NotificationService.instance.fetchNotifications();
   }
 
   Future<void> _reload() async {
-    final future = NotificationService.instance.fetchNotifications();
-    setState(() => _future = future);
-    await future;
+    setState(() {
+      _notificationsFuture = NotificationService.instance.fetchNotifications();
+    });
+    try {
+      await _notificationsFuture;
+    } catch (_) {}
+  }
+
+  Future<void> _markRead(AppNotification notification) async {
+    if (notification.isRead) return;
+    try {
+      await NotificationService.instance.markRead(notification.id);
+      if (!mounted) return;
+      setState(() {
+        _notificationsFuture = NotificationService.instance.fetchNotifications();
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _markAllRead() async {
+    try {
+      await NotificationService.instance.markAllRead();
+      if (!mounted) return;
+      setState(() {
+        _notificationsFuture = NotificationService.instance.fetchNotifications();
+      });
+    } catch (_) {}
   }
 
   Future<void> _open(AppNotification notification) async {
-    if (!notification.isRead) {
-      await NotificationService.instance.markRead(notification.id);
-      if (mounted) setState(() {});
-    }
-
+    await _markRead(notification);
+    if (!mounted) return;
     final orderId = notification.orderId;
-    if (orderId != null && orderId.isNotEmpty && mounted) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: orderId)),
-      );
-    }
-  }
-
-  String _dateLabel(DateTime date) {
-    final local = date.toLocal();
-    final now = DateTime.now();
-    final sameDay = local.year == now.year && local.month == now.month && local.day == now.day;
-    if (sameDay) {
-      final hh = local.hour.toString().padLeft(2, '0');
-      final mm = local.minute.toString().padLeft(2, '0');
-      return 'Сегодня, $hh:$mm';
-    }
-    return '${local.day.toString().padLeft(2, '0')}.${local.month.toString().padLeft(2, '0')}.${local.year}';
+    if (orderId == null || orderId.isEmpty) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: orderId)),
+    );
   }
 
   @override
@@ -57,54 +66,56 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF8F5),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFAF8F5),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: const Text('Уведомления', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primaryBrown)),
-        iconTheme: const IconThemeData(color: AppColors.primaryBrown),
+        title: const Text('Уведомления'),
         actions: [
           TextButton(
-            onPressed: () async {
-              await NotificationService.instance.markAllRead();
-              await _reload();
-            },
-            child: const Text('Прочитать все', style: TextStyle(color: AppColors.primaryBrown)),
+            onPressed: _markAllRead,
+            child: const Text('Прочитать все'),
           ),
         ],
       ),
-      body: RefreshIndicator(
-        color: const Color(0xFFC4956A),
-        onRefresh: _reload,
-        child: FutureBuilder<List<AppNotification>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: Color(0xFFC4956A)));
-            }
-            if (snapshot.hasError) {
-              return ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
-                const SizedBox(height: 180),
-                Center(child: Text('Не удалось загрузить уведомления')),
-                const SizedBox(height: 12),
-                Center(child: TextButton(onPressed: _reload, child: const Text('Повторить'))),
-              ]);
-            }
+      body: FutureBuilder<List<AppNotification>>(
+        future: _notificationsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return RefreshIndicator(
+              onRefresh: _reload,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 180),
+                  Center(child: Text('Не удалось загрузить уведомления')),
+                ],
+              ),
+            );
+          }
 
-            final notifications = snapshot.data ?? const [];
-            if (notifications.isEmpty) {
-              return ListView(physics: const AlwaysScrollableScrollPhysics(), children: const [
-                SizedBox(height: 180),
-                Center(child: Icon(Icons.notifications_none_rounded, size: 52, color: Color(0xFFC4956A))),
-                SizedBox(height: 14),
-                Center(child: Text('Уведомлений пока нет')),
-              ]);
-            }
+          final notifications = snapshot.data ?? const [];
+          if (notifications.isEmpty) {
+            return RefreshIndicator(
+              onRefresh: _reload,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 180),
+                  Center(child: Icon(Icons.notifications_none_rounded, size: 52, color: Color(0xFFC4956A))),
+                  SizedBox(height: 14),
+                  Center(child: Text('Уведомлений пока нет')),
+                ],
+              ),
+            );
+          }
 
-            return ListView.separated(
+          return RefreshIndicator(
+            onRefresh: _reload,
+            child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               itemCount: notifications.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, index) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final notification = notifications[index];
                 return Material(
@@ -114,42 +125,74 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     borderRadius: BorderRadius.circular(18),
                     onTap: () => _open(notification),
                     child: Padding(
-                      padding: const EdgeInsets.all(15),
+                      padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            width: 44,
-                            height: 44,
-                            decoration: const BoxDecoration(color: Color(0xFFF1E8E0), shape: BoxShape.circle),
-                            child: const Icon(Icons.notifications_none_rounded, color: AppColors.primaryBrown),
+                            width: 42,
+                            height: 42,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF5E6D3),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              notification.isRead ? Icons.notifications_none_rounded : Icons.notifications_active_rounded,
+                              color: AppColors.primaryBrown,
+                              size: 21,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(children: [
-                                  Expanded(child: Text(notification.title, style: TextStyle(fontWeight: notification.isRead ? FontWeight.w600 : FontWeight.w800, color: AppColors.primaryBrown))),
-                                  if (!notification.isRead) const Padding(padding: EdgeInsets.only(left: 8), child: CircleAvatar(radius: 4, backgroundColor: Color(0xFFB5423F))),
-                                ]),
-                                const SizedBox(height: 5),
-                                Text(notification.body, style: AppTextStyles.rowLabelMuted),
-                                const SizedBox(height: 7),
-                                Text(_dateLabel(notification.createdAt), style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 11)),
+                                Text(
+                                  notification.title,
+                                  style: AppTextStyles.rowLabel.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  notification.body,
+                                  style: AppTextStyles.rowLabelMuted,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _formatDate(notification.createdAt),
+                                  style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 11),
+                                ),
                               ],
                             ),
                           ),
+                          if (!notification.isRead)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8, top: 5),
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFB5423F),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
                         ],
                       ),
                     ),
                   ),
                 );
               },
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final local = date.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$day.$month.${local.year} $hour:$minute';
   }
 }
