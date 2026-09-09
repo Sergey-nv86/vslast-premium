@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../models/order_list_item.dart';
 import '../services/notification_service.dart';
 import '../screens/order_detail_screen.dart';
 import '../theme/app_theme.dart';
