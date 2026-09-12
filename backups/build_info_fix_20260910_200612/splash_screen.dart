@@ -10,7 +10,6 @@ import '../../../services/push_navigation_router.dart';
 import '../../../screens/auth_screen.dart';
 import '../../../screens/main_screen.dart';
 import '../../admin/screens/app_mode_selection_screen.dart';
-import '../../../core/build_info.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -121,22 +120,8 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       body: FadeTransition(
         opacity: _opacity,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset('assets/images/splash.jpg', fit: BoxFit.cover),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 24,
-              child: Center(
-                child: Text(
-                  'Сборка: $buildLabel',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
-                ),
-              ),
-            ),
-          ],
+        child: SizedBox.expand(
+          child: Image.asset('assets/images/splash.jpg', fit: BoxFit.cover),
         ),
       ),
     );

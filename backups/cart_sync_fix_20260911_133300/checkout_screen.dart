@@ -505,10 +505,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       final supabase = Supabase.instance.client;
 
-      // Перед RPC серверная корзина должна быть 1-в-1 с
-      // текущим локальным CartProvider.
-      await cart.syncServerCartBeforeOrder();
-
       final response = await supabase.rpc(
         'create_order_from_cart',
         params: {

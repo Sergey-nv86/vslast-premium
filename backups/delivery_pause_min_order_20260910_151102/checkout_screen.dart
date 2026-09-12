@@ -265,51 +265,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _selectDelivery() async {
-    final cart = context.read<CartProvider>();
+    final address = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => DeliveryAddressScreen(initialAddress: _deliveryAddress),
+      ),
+    );
 
-    try {
-      final response = await Supabase.instance.client
-          .from('order_settings')
-          .select('delivery_enabled,delivery_min_order')
-          .eq('id', 1)
-          .maybeSingle();
-
-      if (!mounted) return;
-
-      final deliveryEnabled = response?['delivery_enabled'] != false;
-      final rawMinOrder = response?['delivery_min_order'];
-      final minOrder = rawMinOrder is num
-          ? rawMinOrder.round()
-          : int.tryParse(rawMinOrder?.toString() ?? '') ?? 1500;
-
-      if (!deliveryEnabled) {
-        _showError('Доставка пока на паузе');
-        return;
-      }
-
-      if (cart.totalSum < minOrder) {
-        _showError('Минимальная сумма заказа для доставки — $minOrder ₽');
-        return;
-      }
-
-      final address = await Navigator.of(context).push<String>(
-        MaterialPageRoute(
-          builder: (_) =>
-              DeliveryAddressScreen(initialAddress: _deliveryAddress),
-        ),
-      );
-
-      if (address != null && mounted) {
-        setState(() {
-          _deliveryMethod = DeliveryMethod.delivery;
-          _deliveryAddress = address;
-        });
-      }
-    } catch (error) {
-      debugPrint('Ошибка проверки настроек доставки: $error');
-      if (mounted) {
-        _showError('Не удалось проверить доступность доставки');
-      }
+    if (address != null && mounted) {
+      setState(() {
+        _deliveryMethod = DeliveryMethod.delivery;
+        _deliveryAddress = address;
+      });
     }
   }
 
@@ -504,10 +470,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       final supabase = Supabase.instance.client;
-
-      // Перед RPC серверная корзина должна быть 1-в-1 с
-      // текущим локальным CartProvider.
-      await cart.syncServerCartBeforeOrder();
 
       final response = await supabase.rpc(
         'create_order_from_cart',

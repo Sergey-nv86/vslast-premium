@@ -269,33 +269,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       final response = await Supabase.instance.client
-          .from('order_settings')
-          .select('delivery_enabled,delivery_min_order')
-          .eq('id', 1)
+          .from("order_settings")
+          .select("delivery_enabled,delivery_min_order")
+          .eq("id", 1)
           .maybeSingle();
 
       if (!mounted) return;
 
-      final deliveryEnabled = response?['delivery_enabled'] != false;
-      final rawMinOrder = response?['delivery_min_order'];
+      final deliveryEnabled = response?["delivery_enabled"] != false;
+      final rawMinOrder = response?["delivery_min_order"];
       final minOrder = rawMinOrder is num
           ? rawMinOrder.round()
-          : int.tryParse(rawMinOrder?.toString() ?? '') ?? 1500;
+          : int.tryParse(rawMinOrder?.toString() ?? "") ?? 1500;
 
       if (!deliveryEnabled) {
-        _showError('Доставка пока на паузе');
+        _showError("Доставка пока на паузе");
         return;
       }
 
       if (cart.totalSum < minOrder) {
-        _showError('Минимальная сумма заказа для доставки — $minOrder ₽');
+        _showError("Минимальная сумма заказа для доставки — $minOrder ₽");
         return;
       }
 
       final address = await Navigator.of(context).push<String>(
         MaterialPageRoute(
-          builder: (_) =>
-              DeliveryAddressScreen(initialAddress: _deliveryAddress),
+          builder: (_) => DeliveryAddressScreen(
+            initialAddress: _deliveryAddress,
+          ),
         ),
       );
 
@@ -306,14 +307,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         });
       }
     } catch (error) {
-      debugPrint('Ошибка проверки настроек доставки: $error');
+      debugPrint("Ошибка проверки настроек доставки: $error");
       if (mounted) {
-        _showError('Не удалось проверить доступность доставки');
+        _showError("Не удалось проверить доступность доставки");
       }
     }
-  }
-
-  Future<void> _editComment() async {
+  }  Future<void> _editComment() async {
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -504,10 +503,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       final supabase = Supabase.instance.client;
-
-      // Перед RPC серверная корзина должна быть 1-в-1 с
-      // текущим локальным CartProvider.
-      await cart.syncServerCartBeforeOrder();
 
       final response = await supabase.rpc(
         'create_order_from_cart',

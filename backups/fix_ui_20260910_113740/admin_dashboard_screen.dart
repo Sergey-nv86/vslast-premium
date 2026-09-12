@@ -758,6 +758,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 20),
+          const _Title('Последние заказы'),
+          const SizedBox(height: 10),
+          const _Card(
+            child: Text(
+              'Последние заказы открываются в разделе «Заказы».',
+              style: TextStyle(fontSize: 13, color: AdminDashboardScreen.muted),
+            ),
+          ),
         ],
       ),
     );
@@ -953,6 +962,24 @@ class _Metric extends StatelessWidget {
   }
 }
 
+class _Title extends StatelessWidget {
+  final String title;
+  const _Title(this.title);
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AdminDashboardScreen.dark,
+        ),
+      ),
+      const Spacer(),
+    ],
+  );
+}
 
 class _Card extends StatelessWidget {
   final Widget child;

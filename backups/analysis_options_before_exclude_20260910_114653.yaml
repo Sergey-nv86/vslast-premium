@@ -7,7 +7,6 @@ analyzer:
   exclude:
     - 'backup_*/**'
     - 'backups_gallery/**'
-    - 'backups/**'
     - 'build/**'
 
 linter:

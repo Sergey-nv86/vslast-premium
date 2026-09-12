@@ -248,6 +248,60 @@ class CartProvider extends ChangeNotifier {
     debugPrint('CHECKOUT CART SYNC: OK');
   }
 
+  /// Перед оформлением заказа приводит серверную корзину
+  /// строго в соответствие с текущим локальным CartProvider.
+  ///
+  /// Это защищает от ситуации, когда старый cart_items остаётся
+  /// на сервере, а локальный UI уже показывает другой состав корзины.
+  Future<void> syncServerCartBeforeOrder() async {
+    final cartId = await _ensureCart();
+
+    if (cartId == null || cartId.isEmpty) {
+      throw Exception('Не удалось получить корзину пользователя');
+    }
+
+    debugPrint(
+      'CHECKOUT CART SYNC: local items=${_items.length}, '
+      'local count=$totalCount, local total=$totalSum',
+    );
+
+    // Критически важно: сначала удаляем старое серверное состояние.
+    await _supabase.from('cart_items').delete().eq('cart_id', cartId);
+
+    // Затем записываем только то, что реально находится
+    // в текущем локальном CartProvider.
+    for (final entry in _items.entries) {
+      final product = entry.key;
+      final quantity = entry.value;
+
+      if (quantity <= 0) continue;
+
+      await _supabase.from('cart_items').insert({
+        'cart_id': cartId,
+        'product_id': product.id,
+        'quantity': quantity,
+        'unit_price': product.price,
+        'weight_label': null,
+      });
+    }
+
+    final serverRows = await _supabase
+        .from('cart_items')
+        .select('product_id, quantity, unit_price, weight_label')
+        .eq('cart_id', cartId);
+
+    debugPrint(
+      'CHECKOUT CART SYNC: server items=${serverRows.length} '
+      'server=$serverRows',
+    );
+
+    if (serverRows.length != _items.length) {
+      throw Exception('Не удалось синхронизировать корзину перед оформлением');
+    }
+
+    debugPrint('CHECKOUT CART SYNC: OK');
+  }
+
   /// Добавить товар в корзину.
   ///
   /// Обычный товар и preorder-товар используют одну и ту же корзину.

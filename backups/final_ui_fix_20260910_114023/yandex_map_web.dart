@@ -204,18 +204,19 @@ class _YandexWebMapState extends State<YandexWebMap> {
     if (oldWidget.latitude != widget.latitude ||
         oldWidget.longitude != widget.longitude ||
         oldWidget.zoom != widget.zoom) {
+      _moveMapInstance();
     }
   }
 
-  void moveTo(double latitude, double longitude, double zoom) {
+  void _moveMapInstance() {
     try {
       if (_vslastYandexMap == null) return;
 
       _moveMap(
         _elementId.toJS,
-        latitude.toJS,
-        longitude.toJS,
-        zoom.toJS,
+        widget.latitude.toJS,
+        widget.longitude.toJS,
+        widget.zoom.toJS,
       );
     } catch (e) {
       debugPrint('Ошибка перемещения Yandex Web Map: $e');

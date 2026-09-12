@@ -953,6 +953,24 @@ class _Metric extends StatelessWidget {
   }
 }
 
+class _Title extends StatelessWidget {
+  final String title;
+  const _Title(this.title);
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AdminDashboardScreen.dark,
+        ),
+      ),
+      const Spacer(),
+    ],
+  );
+}
 
 class _Card extends StatelessWidget {
   final Widget child;

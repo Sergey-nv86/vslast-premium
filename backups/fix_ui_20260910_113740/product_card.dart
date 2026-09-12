@@ -215,16 +215,20 @@ class _FavoriteButton extends StatelessWidget {
   const _FavoriteButton({required this.isFavorite, required this.onTap});
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 36,
-        height: 36,
-        child: Icon(
-          isFavorite ? Icons.favorite : Icons.favorite_border,
-          size: 18,
-          color: isFavorite ? AppColors.danger : AppColors.textSecondary,
+    return Material(
+      color: Colors.white.withValues(alpha: .94),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(
+            isFavorite ? Icons.favorite : Icons.favorite_border,
+            size: 18,
+            color: isFavorite ? AppColors.danger : AppColors.textSecondary,
+          ),
         ),
       ),
     );

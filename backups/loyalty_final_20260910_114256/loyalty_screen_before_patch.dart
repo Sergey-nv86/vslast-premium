@@ -41,22 +41,10 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
   }
 
   Future<void> _loadLoyalty() async {
-    if (!mounted) return;
-
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    int goldThreshold = 50000;
+    int premiumThreshold = 150000;
 
     try {
-      final user = _supabase.auth.currentUser;
-
-      if (user == null) {
-        throw Exception('Пользователь не авторизован');
-      }
-      int goldThreshold = 50000;
-      int premiumThreshold = 150000;
-
       final settings = await _supabase
           .from('order_settings')
           .select('loyalty_gold_threshold,loyalty_premium_threshold')
@@ -69,7 +57,23 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
         premiumThreshold =
             (settings['loyalty_premium_threshold'] as num?)?.toInt() ?? 150000;
       }
+    } catch (_) {}
 
+    if (!mounted) return;
+
+    setState(() {
+      _goldThreshold = goldThreshold;
+      _premiumThreshold = premiumThreshold;
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final user = _supabase.auth.currentUser;
+
+      if (user == null) {
+        throw Exception('Пользователь не авторизован');
+      }
 
       // ------------------------------------------------------------
       // PROFILE
@@ -171,8 +175,6 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
         _cumulativePurchases = cumulativePurchases;
         _level = _normalizeLevel(level);
         _transactions = transactions;
-        _goldThreshold = goldThreshold;
-        _premiumThreshold = premiumThreshold;
         _loading = false;
       });
     } catch (error) {

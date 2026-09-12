@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:yandex_mapkit/yandex_mapkit.dart';
 
@@ -39,6 +40,7 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
 
   double _currentZoom = 15;
 
+  bool _isLocating = false;
   bool _isGeocoding = false;
   bool _detailsExpanded = false;
 
@@ -176,6 +178,88 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
     setState(() {
       _currentZoom = newZoom;
     });
+  }
+
+  Future<void> _useCurrentLocation() async {
+    setState(() {
+      _isLocating = true;
+    });
+
+    try {
+      var permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          FadeToast.show(
+            context,
+            'Нужен доступ к геолокации в настройках',
+            icon: Icons.location_disabled,
+          );
+        }
+        return;
+      }
+
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) {
+        if (mounted) {
+          FadeToast.show(
+            context,
+            'Включите геолокацию на устройстве',
+            icon: Icons.location_disabled,
+          );
+        }
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      ).timeout(const Duration(seconds: 8));
+
+      final point = Point(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+
+      if (kIsWeb) {
+        _onWebCameraChanged({
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+          'zoom': 16,
+        });
+      } else {
+        await _mapController?.moveCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(target: point, zoom: 16),
+          ),
+          animation: const MapAnimation(
+            type: MapAnimationType.smooth,
+            duration: 0.4,
+          ),
+        );
+
+        _onNativeCameraChanged(CameraPosition(target: point, zoom: 16), true);
+      }
+    } catch (_) {
+      if (mounted) {
+        FadeToast.show(
+          context,
+          'Не удалось определить местоположение',
+          icon: Icons.error_outline,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLocating = false;
+        });
+      }
+    }
   }
 
   void _confirm() {
@@ -360,16 +444,22 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
           ),
 
           Positioned(
-            right: 16,
-            bottom: 190,
-            child: Column(
-              children: [
-                _MapRoundButton(icon: Icons.add, onTap: () => _zoomBy(1)),
-                const SizedBox(height: 8),
-                _MapRoundButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
-              ],
+              right: 16,
+              bottom: 190,
+              child: Column(
+                children: [
+                  _MapRoundButton(icon: Icons.add, onTap: () => _zoomBy(1)),
+                  const SizedBox(height: 8),
+                  _MapRoundButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
+                  const SizedBox(height: 16),
+                  _MapRoundButton(
+                    icon: Icons.my_location,
+                    onTap: _isLocating ? null : _useCurrentLocation,
+                    loading: _isLocating,
+                  ),
+                ],
+              ),
             ),
-          ),
 
           Positioned(
             left: 0,
