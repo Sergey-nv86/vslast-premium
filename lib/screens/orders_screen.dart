@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/order_list_item.dart';
 import '../services/orders_service.dart';
@@ -18,12 +19,45 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen> {
   late Future<List<OrderListItem>> _ordersFuture;
   int _unreadNotifications = 0;
+  RealtimeChannel? _ordersChannel;
 
   @override
   void initState() {
     super.initState();
     _ordersFuture = OrdersService.instance.fetchMyOrders();
     _loadUnreadNotifications();
+    _subscribeToOrderUpdates();
+  }
+
+  void _subscribeToOrderUpdates() {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    _ordersChannel = Supabase.instance.client
+        .channel('client-orders-status-$userId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'orders',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: userId,
+          ),
+          callback: (_) {
+            if (!mounted) return;
+
+            debugPrint(
+              '[OrdersScreen] Order update received → refreshing orders',
+            );
+
+            _reload();
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _loadUnreadNotifications() async {
@@ -51,6 +85,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
     } catch (_) {}
 
     await _loadUnreadNotifications();
+  }
+
+  @override
+  void dispose() {
+    _ordersChannel?.unsubscribe();
+    _ordersChannel = null;
+    super.dispose();
   }
 
   @override

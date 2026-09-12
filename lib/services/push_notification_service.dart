@@ -441,6 +441,11 @@ class PushNotificationService with WidgetsBindingObserver {
         await showForegroundNotification(
           title: message.notification?.title ?? 'Всласть',
           body: message.notification?.body ?? '',
+          data: {
+            'type': message.data['type']?.toString() ?? '',
+            'order_id': message.data['order_id']?.toString() ?? '',
+            'product_id': message.data['product_id']?.toString() ?? '',
+          },
         );
       } catch (error, stackTrace) {
         debugPrint('[Push] Web foreground notification error: $error');

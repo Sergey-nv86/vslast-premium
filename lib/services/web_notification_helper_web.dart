@@ -8,6 +8,7 @@ import 'package:web/web.dart' as web;
 Future<void> showForegroundNotification({
   required String title,
   required String body,
+  Map<String, String>? data,
 }) async {
   try {
     final permission = web.Notification.permission;
@@ -16,10 +17,44 @@ Future<void> showForegroundNotification({
       return;
     }
 
-    web.Notification(
+    final notification = web.Notification(
       title,
       web.NotificationOptions(body: body, icon: '/icons/Icon-192.png'),
     );
+
+    final navigationData = data ?? const <String, String>{};
+    final pushType = navigationData['type']?.trim() ?? '';
+    final orderId = navigationData['order_id']?.trim() ?? '';
+    final productId = navigationData['product_id']?.trim() ?? '';
+
+    if (pushType.isNotEmpty || orderId.isNotEmpty || productId.isNotEmpty) {
+      final query = <String, String>{};
+
+      if (pushType.isNotEmpty) {
+        query['push_type'] = pushType;
+      }
+
+      if (orderId.isNotEmpty) {
+        query['order_id'] = orderId;
+      }
+
+      if (productId.isNotEmpty) {
+        query['product_id'] = productId;
+      }
+
+      final targetUrl = Uri(
+        path: '/',
+        queryParameters: query,
+      ).toString();
+
+      notification.addEventListener(
+        'click',
+        ((web.Event _) {
+          notification.close();
+          web.window.location.assign(targetUrl);
+        }).toJS,
+      );
+    }
   } catch (_) {
     // Foreground notification is best-effort on Web.
   }

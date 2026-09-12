@@ -296,27 +296,12 @@ class HomeHeader extends StatelessWidget {
         : '';
 
     if (name.isEmpty) {
-      return RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: 'Вы в цифровой пекарне ',
-              style: AppTextStyles.screenTitleSmall.copyWith(
-                color: AppColors.primaryBrown,
-                fontSize: 10,
-                height: 1.05,
-              ),
-            ),
-            TextSpan(
-              text: '«Всласть»',
-              style: AppTextStyles.screenTitleSmall.copyWith(
-                color: AppColors.primaryBrown,
-                fontSize: 14,
-                height: 1.05,
-              ),
-            ),
-            const TextSpan(text: ' ❤️'),
-          ],
+      return Text(
+        'Добро пожаловать\\nв пекарню Всласть',
+        style: AppTextStyles.screenTitleSmall.copyWith(
+          color: AppColors.primaryBrown,
+          fontSize: 14,
+          height: 1.05,
         ),
       );
     }

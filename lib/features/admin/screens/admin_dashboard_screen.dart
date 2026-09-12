@@ -483,7 +483,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               Text(
                                 'Лояльность',
                                 style: TextStyle(
-                                  fontSize: 15,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: dark,
                                 ),

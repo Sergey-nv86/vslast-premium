@@ -3,6 +3,7 @@ import 'dart:async';
 Future<void> showForegroundNotification({
   required String title,
   required String body,
+  Map<String, String>? data,
 }) async {}
 
 StreamSubscription<dynamic> listenServiceWorkerPushNavigation(
