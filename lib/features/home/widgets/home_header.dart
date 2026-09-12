@@ -89,9 +89,9 @@ class HomeHeader extends StatelessWidget {
                 label: 'Моя корзина',
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  Navigator.of(
-                    context,
-                  ).push(MaterialPageRoute(builder: (_) => const CartScreen()));
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const CartScreen()),
+                  );
                 },
               ),
               _ProfileMenuTile(
@@ -288,6 +288,49 @@ class HomeHeader extends StatelessWidget {
         : '$greeting,\n$name!';
   }
 
+  Widget _buildGreeting(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final displayName = auth.displayName.trim();
+    final name = displayName.isNotEmpty && displayName != 'Пользователь'
+        ? displayName.split(' ').first
+        : '';
+
+    if (name.isEmpty) {
+      return RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: 'Вы в цифровой пекарне ',
+              style: AppTextStyles.screenTitleSmall.copyWith(
+                color: AppColors.primaryBrown,
+                fontSize: 10,
+                height: 1.05,
+              ),
+            ),
+            TextSpan(
+              text: '«Всласть»',
+              style: AppTextStyles.screenTitleSmall.copyWith(
+                color: AppColors.primaryBrown,
+                fontSize: 14,
+                height: 1.05,
+              ),
+            ),
+            const TextSpan(text: ' ❤️'),
+          ],
+        ),
+      );
+    }
+
+    return Text(
+      _greeting(context),
+      style: AppTextStyles.screenTitleSmall.copyWith(
+        color: AppColors.primaryBrown,
+        fontSize: 22,
+        height: 1.05,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
@@ -320,8 +363,6 @@ class HomeHeader extends StatelessWidget {
               ),
             ),
           ),
-          // Прозрачное меню в левом верхнем углу Hero.
-          // Цвет линий совпадает с цветом приветствия.
           Positioned(
             left: AppSpacing.lg,
             top: top + 2,
@@ -344,21 +385,11 @@ class HomeHeader extends StatelessWidget {
               ),
             ),
           ),
-
-          // Приветствие опущено ниже, чтобы визуально освободить
-          // верхнюю часть Hero под меню.
           Positioned(
             left: AppSpacing.lg,
             top: top + 58,
             right: 24,
-            child: Text(
-              _greeting(context),
-              style: AppTextStyles.screenTitleSmall.copyWith(
-                color: AppColors.primaryBrown,
-                fontSize: 22,
-                height: 1.05,
-              ),
-            ),
+            child: _buildGreeting(context),
           ),
         ],
       ),
