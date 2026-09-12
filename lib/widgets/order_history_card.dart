@@ -42,64 +42,27 @@ class OrderHistoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Image.asset(
-                      order.imageUrl,
-                      width: 84,
-                      height: 84,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 84,
-                        height: 84,
-                        color: AppColors.surfaceMuted,
-                        child: const Icon(
-                          Icons.bakery_dining_outlined,
-                          size: 28,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (order.itemsCount > 1) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceMuted,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Text(
-                        '${order.itemsCount} ${pluralizeItems(order.itemsCount)}',
-                        style: AppTextStyles.rowValue.copyWith(fontSize: 11),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: onTap,
-                  behavior: HitTestBehavior.opaque,
+          GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Text(
-                            'Заказ №${order.number}',
-                            style: AppTextStyles.orderNumber,
+                          Expanded(
+                            child: Text(
+                              'Заказ №${order.number}',
+                              style: AppTextStyles.orderNumber,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           OrderStatusPill(status: order.status),
                         ],
                       ),
@@ -108,6 +71,7 @@ class OrderHistoryCard extends StatelessWidget {
                         order.title,
                         style: AppTextStyles.orderTitle,
                         maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -136,8 +100,8 @@ class OrderHistoryCard extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
