@@ -361,9 +361,11 @@ class _AdminLoyaltyScreenState extends State<AdminLoyaltyScreen> {
 
       final data = _rpcMap(result);
 
-      final bonusBalance = data?['bonus_balance'];
+      final bonusBalance = data?['new_balance'] ?? data?['bonus_balance'];
       final bonusAmount = data?['bonus_amount'];
-      final level = data?['level'];
+      final level = data?['new_level'] ?? data?['level'];
+      final newCumulativePurchases =
+          data?['new_cumulative_purchases'] ?? data?['cumulative_purchases'];
 
       String message = successPrefix;
 
@@ -379,7 +381,23 @@ class _AdminLoyaltyScreenState extends State<AdminLoyaltyScreen> {
         message += '\nБаланс: ${_formatMoney(_toInt(bonusBalance))} бонусов';
       }
 
+      final updatedAccount = Map<String, dynamic>.from(_account!);
+
+      if (bonusBalance != null) {
+        updatedAccount['bonus_balance'] = _toInt(bonusBalance);
+      }
+
+      if (newCumulativePurchases != null) {
+        updatedAccount['cumulative_purchases'] =
+            _toInt(newCumulativePurchases);
+      }
+
+      if (level != null) {
+        updatedAccount['level'] = level.toString();
+      }
+
       setState(() {
+        _account = updatedAccount;
         _loading = false;
         _success = message;
       });
@@ -390,7 +408,7 @@ class _AdminLoyaltyScreenState extends State<AdminLoyaltyScreen> {
         _purchaseAmountController.clear();
       }
 
-      await _findCard(cardNumber);
+
     } catch (e) {
       if (!mounted) return;
 
@@ -459,7 +477,7 @@ class _AdminLoyaltyScreenState extends State<AdminLoyaltyScreen> {
                 'Лояльность',
                 style: TextStyle(
                   color: brown,
-                  fontSize: 21,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
               ),

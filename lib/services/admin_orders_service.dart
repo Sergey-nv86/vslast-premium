@@ -27,6 +27,7 @@ class AdminOrdersService {
           id,
           order_number,
           user_id,
+          client_id,
           status,
           delivery_method,
           payment_method,
@@ -131,6 +132,7 @@ class AdminOrdersService {
           id,
           order_number,
           user_id,
+          client_id,
           status,
           delivery_method,
           payment_method,
@@ -313,6 +315,7 @@ class AdminOrdersService {
           id,
           order_number,
           user_id,
+          client_id,
           status,
           delivery_method,
           payment_method,
@@ -462,6 +465,8 @@ class AdminOrdersService {
         ? displayName
         : [firstName, lastName].where((value) => value.isNotEmpty).join(' ');
 
+    final clientId = row['client_id']?.toString().trim() ?? '';
+
     final customerPhone = customerProfile['phone']?.toString().trim() ?? '';
 
     final deliveryMethod = row['delivery_method']?.toString() ?? 'pickup';
@@ -487,7 +492,9 @@ class AdminOrdersService {
       id: row['id']?.toString() ?? '',
       number: '#${_toInt(row['order_number'])}',
 
-      customer: customerName.isNotEmpty ? customerName : 'Клиент',
+      customer: clientId.isNotEmpty
+          ? 'Клиент $clientId'
+          : (customerName.isNotEmpty ? customerName : 'Клиент'),
 
       phone: customerPhone,
 
