@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/admin_clients_service.dart';
+import 'admin_demand_product_orders_screen.dart';
 
 class DemandProduct {
   final String id;
@@ -65,10 +66,6 @@ class _AdminDemandWithoutStockScreenState
     try {
       final supabase = AdminClientsService.instance.supabase;
 
-      // --------------------------------------------------
-      // 1. Активные товары без наличия.
-      // --------------------------------------------------
-
       final productsResponse = await supabase
           .from('products')
           .select('id,name,price,in_stock,is_active');
@@ -77,7 +74,6 @@ class _AdminDemandWithoutStockScreenState
 
       for (final raw in productsResponse) {
         final product = Map<String, dynamic>.from(raw);
-
         final id = product['id']?.toString();
 
         if (id == null || id.isEmpty) continue;
@@ -106,14 +102,6 @@ class _AdminDemandWithoutStockScreenState
         return;
       }
 
-      // --------------------------------------------------
-      // 2. Реальные заказы + позиции заказов.
-      //
-      // Предзаказы также учитываются автоматически,
-      // поскольку они являются orders с order_items
-      // и дополнительно имеют is_preorder = true.
-      // --------------------------------------------------
-
       final ordersResponse = await supabase.from('orders').select('''
             id,
             status,
@@ -128,7 +116,6 @@ class _AdminDemandWithoutStockScreenState
 
       for (final raw in ordersResponse) {
         final order = Map<String, dynamic>.from(raw);
-
         final status = order['status']?.toString().toLowerCase();
 
         if (status == 'cancelled' ||
@@ -138,14 +125,12 @@ class _AdminDemandWithoutStockScreenState
         }
 
         final itemsRaw = order['order_items'];
-
         if (itemsRaw is! List) continue;
 
         for (final rawItem in itemsRaw) {
           if (rawItem is! Map) continue;
 
           final item = Map<String, dynamic>.from(rawItem);
-
           final productId = item['product_id']?.toString();
 
           if (productId == null ||
@@ -154,7 +139,6 @@ class _AdminDemandWithoutStockScreenState
           }
 
           final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-
           if (quantity <= 0) continue;
 
           demandByProduct[productId] =
@@ -162,15 +146,10 @@ class _AdminDemandWithoutStockScreenState
         }
       }
 
-      // --------------------------------------------------
-      // 3. Формируем только товары с реальным спросом.
-      // --------------------------------------------------
-
       final result = <DemandProduct>[];
 
       for (final entry in demandByProduct.entries) {
         final product = unavailableProducts[entry.key];
-
         if (product == null) continue;
 
         result.add(
@@ -354,60 +333,84 @@ class _AdminDemandWithoutStockScreenState
                     ..._items.map(
                       (item) => Container(
                         margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(15),
-                        decoration: BoxDecoration(
+                        child: Material(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: border),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFF1E8E0),
-                                shape: BoxShape.circle,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      AdminDemandProductOrdersScreen(
+                                    productId: item.id,
+                                    productName: item.name,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(15),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: border),
                               ),
-                              child: const Icon(
-                                Icons.shopping_cart_outlined,
-                                color: brown,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  Text(
-                                    item.name,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      color: dark,
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFF1E8E0),
+                                      shape: BoxShape.circle,
                                     ),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    '${item.favoritesCount} ${item.favoritesCount == 1 ? 'единица' : 'единиц'} в заказах',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: muted,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    '${_formatRubles(item.price)} · ${_formatRubles(item.potentialDemand)} спроса',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
+                                    child: const Icon(
+                                      Icons.shopping_cart_outlined,
                                       color: brown,
                                     ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.name,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: dark,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        Text(
+                                          '${item.favoritesCount} ${item.favoritesCount == 1 ? 'единица' : 'единиц'} в заказах',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: muted,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          '${_formatRubles(item.price)} · ${_formatRubles(item.potentialDemand)} спроса',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: brown,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: muted,
                                   ),
                                 ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
