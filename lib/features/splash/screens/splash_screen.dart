@@ -131,7 +131,7 @@ class _SplashScreenState extends State<SplashScreen>
               bottom: 24,
               child: Center(
                 child: Text(
-                  'Сборка: $buildLabel',
+                  buildLabel,
                   style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ),
