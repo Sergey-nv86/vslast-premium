@@ -119,10 +119,28 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Product> _productsFor(ProductCategory category) =>
       _visibleProducts.where((p) => p.category == category).toList();
 
+  int _gridCrossAxisCount(double width) {
+    if (width >= 1400) return 5;
+    if (width >= 1050) return 4;
+    if (width >= 760) return 3;
+    return 2;
+  }
+
+  double _gridItemWidth(double width) {
+    final count = _gridCrossAxisCount(width);
+    return (width -
+            _horizontalPadding * 2 -
+            _gridSpacing * (count - 1)) /
+        count;
+  }
+
   Map<ProductCategory, double> _categoryHeaderOffsets(double itemWidth) {
     const popularHeight = 168.0;
     const beforePopular = 12.0;
     const afterPopular = 14.0;
+    final viewportWidth =
+        _viewportKey.currentContext?.size?.width ?? MediaQuery.sizeOf(context).width;
+    final count = _gridCrossAxisCount(viewportWidth);
     double y =
         beforePopular + popularHeight + afterPopular + _pinnedBarHeight + 10;
     final result = <ProductCategory, double>{};
@@ -130,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
     for (final category in _categoriesShown) {
       result[category] = y;
       final products = _productsFor(category);
-      final rows = (products.length + 1) ~/ 2;
+      final rows = (products.length + count - 1) ~/ count;
       final gridHeight = rows > 0
           ? rows * (itemWidth / _cardImageRatio + _cardTextBlockHeight) +
                 (rows - 1) * _gridSpacing
@@ -157,8 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final viewportWidth =
         _viewportKey.currentContext?.size?.width ??
         MediaQuery.sizeOf(context).width;
-    final itemWidth =
-        (viewportWidth - _horizontalPadding * 2 - _gridSpacing) / 2;
+    final itemWidth = _gridItemWidth(viewportWidth);
     final offsets = _categoryHeaderOffsets(itemWidth);
     final probeY = _scrollController.offset + _spyThreshold;
 
@@ -230,8 +247,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     final categories = _categoriesShown;
-    final headerHeight =
-        MediaQuery.of(context).padding.top + _headerPhotoHeight;
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final headerHeight = MediaQuery.of(context).padding.top +
+        (viewportWidth >= 1200 ? 210.0 : viewportWidth >= 760 ? 185.0 : _headerPhotoHeight);
 
     return SafeArea(
       top: false,
@@ -246,11 +264,7 @@ class _HomeScreenState extends State<HomeScreen> {
             bottom: 0,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final itemWidth =
-                    (constraints.maxWidth -
-                        _horizontalPadding * 2 -
-                        _gridSpacing) /
-                    2;
+                final itemWidth = _gridItemWidth(constraints.maxWidth);
                 return CustomScrollView(
                   key: _viewportKey,
                   controller: _scrollController,
@@ -306,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               sliver: SliverGrid(
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
+                                      crossAxisCount: _gridCrossAxisCount(constraints.maxWidth),
                                       mainAxisSpacing: _gridSpacing,
                                       crossAxisSpacing: _gridSpacing,
                                       mainAxisExtent:
