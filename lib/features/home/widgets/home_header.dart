@@ -297,7 +297,7 @@ class HomeHeader extends StatelessWidget {
 
     if (name.isEmpty) {
       return Text(
-        'Добро пожаловать\\nв пекарню Всласть',
+        'Добро пожаловать в пекарню Всласть',
         style: AppTextStyles.screenTitleSmall.copyWith(
           color: AppColors.primaryBrown,
           fontSize: 14,
