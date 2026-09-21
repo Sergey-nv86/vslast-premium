@@ -4,10 +4,11 @@ import 'package:provider/provider.dart';
 import '../models/product.dart';
 import '../features/bake_schedule/screens/bake_schedule_screen.dart';
 import '../features/home/screens/home_screen.dart';
-import '../features/home/widgets/bottom_nav_bar.dart';
 import '../features/promotions/screens/promotions_screen.dart';
 import '../providers/tab_navigation_controller.dart';
 import '../services/product_service.dart';
+import '../widgets/adaptive_layout.dart';
+import 'desktop_main_screen.dart';
 import 'catalog_screen.dart';
 import 'loyalty_screen.dart';
 
@@ -100,7 +101,7 @@ class _MainScreenState extends State<MainScreen> {
 
     final currentIndex = context.watch<TabNavigationController>().currentIndex;
 
-    return Scaffold(
+    final mobile = Scaffold(
       backgroundColor: const Color(0xFFFAF8F5),
       body: IndexedStack(
         index: currentIndex,
@@ -117,6 +118,18 @@ class _MainScreenState extends State<MainScreen> {
         onTap: (index) {
           context.read<TabNavigationController>().setIndex(index);
         },
+      ),
+    );
+
+    return AdaptiveLayout(
+      mobile: mobile,
+      tablet: DesktopMainScreen(
+        products: _products,
+        isLoading: _isLoadingProducts,
+      ),
+      desktop: DesktopMainScreen(
+        products: _products,
+        isLoading: _isLoadingProducts,
       ),
     );
   }
