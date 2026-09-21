@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/product.dart';
 import '../features/bake_schedule/screens/bake_schedule_screen.dart';
 import '../features/home/screens/home_screen.dart';
+import '../features/home/widgets/bottom_nav_bar.dart';
 import '../features/promotions/screens/promotions_screen.dart';
 import '../providers/tab_navigation_controller.dart';
 import '../services/product_service.dart';
