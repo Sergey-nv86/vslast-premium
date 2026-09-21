@@ -310,7 +310,7 @@ class HomeHeader extends StatelessWidget {
       _greeting(context),
       style: AppTextStyles.screenTitleSmall.copyWith(
         color: AppColors.primaryBrown,
-        fontSize: 22,
+        fontSize: MediaQuery.sizeOf(context).width >= 1200 ? 30 : 22,
         height: 1.05,
       ),
     );
@@ -319,7 +319,10 @@ class HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
-    const photoHeight = 160.0;
+    final width = MediaQuery.sizeOf(context).width;
+    final photoHeight =
+        width >= 1200 ? 210.0 : width >= 760 ? 185.0 : 160.0;
+    final desktop = width >= 760;
 
     return SizedBox(
       width: double.infinity,
@@ -348,31 +351,32 @@ class HomeHeader extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            left: AppSpacing.lg,
-            top: top + 2,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(22),
-                onTap: () => _openProfileMenu(context),
-                child: const SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: Center(
-                    child: Icon(
-                      Icons.menu,
-                      size: 25,
-                      color: AppColors.primaryBrown,
+          if (!desktop)
+            Positioned(
+              left: AppSpacing.lg,
+              top: top + 2,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(22),
+                  onTap: () => _openProfileMenu(context),
+                  child: const SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(
+                      child: Icon(
+                        Icons.menu,
+                        size: 25,
+                        color: AppColors.primaryBrown,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
           Positioned(
             left: AppSpacing.lg,
-            top: top + 58,
+            top: top + (desktop ? 34 : 58),
             right: 24,
             child: _buildGreeting(context),
           ),
