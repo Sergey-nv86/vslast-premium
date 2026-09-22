@@ -7,6 +7,8 @@ import '../../../providers/location_provider.dart';
 import '../../../screens/auth_screen.dart';
 import '../../../screens/about_screen.dart';
 import '../../../screens/cart_screen.dart';
+import '../../../screens/chat_screen.dart';
+import '../../../services/chat_service.dart';
 import '../../../screens/favorite_screen.dart';
 import '../../../screens/orders_screen.dart';
 import '../../../screens/profile_screen.dart';
@@ -81,6 +83,26 @@ class HomeHeader extends StatelessWidget {
                   Navigator.pop(sheetContext);
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const OrdersScreen()),
+                  );
+                },
+              ),
+              _ProfileMenuTile(
+                icon: Icons.chat_bubble_outline_rounded,
+                label: 'Чат с «Всласть»',
+                trailing: const ChatUnreadBadge(),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  final auth = context.read<AuthProvider>();
+                  if (!auth.isLoggedIn) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AuthScreen(initialMode: AuthMode.login),
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ClientChatScreen()),
                   );
                 },
               ),
@@ -390,6 +412,7 @@ class _ProfileMenuTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String? value;
+  final Widget? trailing;
   final VoidCallback onTap;
 
   const _ProfileMenuTile({
@@ -397,6 +420,7 @@ class _ProfileMenuTile extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.value,
+    this.trailing,
   });
 
   @override
@@ -435,6 +459,10 @@ class _ProfileMenuTile extends StatelessWidget {
             ),
             if (value != null) ...[
               Text(value!, style: AppTextStyles.rowLabelMuted),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+            if (trailing != null) ...[
+              trailing!,
               const SizedBox(width: AppSpacing.xs),
             ],
             const Icon(Icons.chevron_right, color: AppColors.textSecondary),
