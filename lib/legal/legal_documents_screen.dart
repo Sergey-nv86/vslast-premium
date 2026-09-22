@@ -21,7 +21,7 @@ class LegalDocumentsScreen extends StatelessWidget {
           _DocumentCard(
             title: LegalConfig.personalDataConsentTitle,
             subtitle: 'Отдельное согласие на обработку персональных данных',
-            onTap: () => _openDocument(
+            onTap: () => openDocument(
               context,
               LegalConfig.personalDataConsentTitle,
               LegalConfig.personalDataConsentText,
@@ -67,7 +67,7 @@ class LegalDocumentsScreen extends StatelessWidget {
     );
   }
 
-  static void _openDocument(BuildContext context, String title, String text) {
+  static void openDocument(BuildContext context, String title, String text) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => _LegalDocumentPage(title: title, text: text),
