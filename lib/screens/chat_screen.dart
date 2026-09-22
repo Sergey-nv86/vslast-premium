@@ -396,6 +396,83 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
     }
   }
 
+  Future<void> _showBroadcastDialog() async {
+    final controller = TextEditingController();
+    var sending = false;
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: const Text('Сообщение всем клиентам'),
+                content: TextField(
+                  controller: controller,
+                  autofocus: true,
+                  maxLines: 6,
+                  minLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: 'Введите сообщение для всех клиентов',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: sending
+                        ? null
+                        : () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Отмена'),
+                  ),
+                  FilledButton(
+                    onPressed: sending
+                        ? null
+                        : () async {
+                            final text = controller.text.trim();
+                            if (text.isEmpty) return;
+
+                            setDialogState(() => sending = true);
+                            try {
+                              final count = await ChatService.instance
+                                  .broadcastMessage(text);
+                              if (!mounted) return;
+                              Navigator.of(dialogContext).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Сообщение отправлено $count клиентам',
+                                  ),
+                                ),
+                              );
+                              await _load();
+                            } catch (e) {
+                              setDialogState(() => sending = false);
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(e.toString())),
+                              );
+                            }
+                          },
+                    child: sending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Отправить всем'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
   @override
   void dispose() {
     final channel = _channel;
@@ -430,6 +507,17 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Написать всем',
+            onPressed: _showBroadcastDialog,
+            icon: const Icon(
+              Icons.campaign_outlined,
+              color: Color(0xFF8B5E3C),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _load,
