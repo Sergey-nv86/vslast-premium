@@ -116,6 +116,7 @@ class AdminOrdersService {
             line_total,
             products:product_id (
               id,
+              name,
               image_url,
               gallery_images
             )
@@ -133,6 +134,12 @@ class AdminOrdersService {
     }
 
     final row = Map<String, dynamic>.from(response);
+
+    // Надёжность: если PostgREST не вернул вложенный order_items,
+    // добираем позиции отдельным запросом. Сам заказ при этом не теряется.
+    if (row['order_items'] is! List || (row['order_items'] as List).isEmpty) {
+      row['order_items'] = await _fetchOrderItems(normalizedOrderId);
+    }
 
     final userId = row['user_id']?.toString().trim() ?? '';
 
@@ -308,6 +315,15 @@ class AdminOrdersService {
         .order('created_at', ascending: false);
 
     final rows = List<Map<String, dynamic>>.from(response);
+
+    for (final row in rows) {
+      final orderId = row['id']?.toString().trim() ?? '';
+      final rawItems = row['order_items'];
+      if (orderId.isEmpty || (rawItems is List && rawItems.isNotEmpty)) {
+        continue;
+      }
+      row['order_items'] = await _fetchOrderItems(orderId);
+    }
 
     debugPrint('ADMIN QR ORDERS: заказов клиента = ${rows.length}');
 
@@ -489,16 +505,57 @@ class AdminOrdersService {
     );
   }
 
+  Future<List<Map<String, dynamic>>> _fetchOrderItems(String orderId) async {
+    final response = await _supabase
+        .from('order_items')
+        .select('''
+          id,
+          order_id,
+          product_id,
+          product_name,
+          unit_price,
+          quantity,
+          weight_label,
+          line_total,
+          products:product_id (
+            id,
+            name,
+            image_url,
+            gallery_images
+          )
+        ''')
+        .eq('order_id', orderId)
+        .order('id');
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
   AdminOrderItem _mapItem(Map<String, dynamic> row) {
     final rawProduct = row['products'];
 
     final product = rawProduct is Map
         ? Map<String, dynamic>.from(rawProduct)
+        : (rawProduct is List &&
+              rawProduct.isNotEmpty &&
+              rawProduct.first is Map)
+        ? Map<String, dynamic>.from(rawProduct.first as Map)
         : <String, dynamic>{};
 
-    final imageUrl = product['image_url']?.toString().trim() ?? '';
+    var imageUrl = product['image_url']?.toString().trim() ?? '';
 
-    final name = row['product_name']?.toString().trim() ?? 'Товар';
+    if (imageUrl.isEmpty && product['gallery_images'] is List) {
+      final gallery = List<dynamic>.from(product['gallery_images'] as List);
+      final firstImage = gallery
+          .map((value) => value?.toString().trim() ?? '')
+          .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+      imageUrl = firstImage;
+    }
+
+    final storedName = row['product_name']?.toString().trim() ?? '';
+    final currentProductName = product['name']?.toString().trim() ?? '';
+    final name = storedName.isNotEmpty
+        ? storedName
+        : (currentProductName.isNotEmpty ? currentProductName : 'Товар');
 
     final weight = row['weight_label']?.toString().trim() ?? '';
 
