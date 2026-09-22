@@ -103,6 +103,13 @@ messaging.onBackgroundMessage(function(payload) {
   );
 
   const data = payload && payload.data ? payload.data : {};
+
+  // Notification payloads are displayed automatically by FCM in background.
+  // Keep manual display only for data-only messages to avoid duplicates.
+  if (payload && payload.notification) {
+    return;
+  }
+
   const title = data.title || 'Всласть';
   const body = data.body || 'Новое уведомление';
 
