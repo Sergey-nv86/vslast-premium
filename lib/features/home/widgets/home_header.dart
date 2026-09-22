@@ -8,7 +8,6 @@ import '../../../screens/auth_screen.dart';
 import '../../../screens/about_screen.dart';
 import '../../../screens/cart_screen.dart';
 import '../../../screens/chat_screen.dart';
-import '../../../services/chat_service.dart';
 import '../../../screens/favorite_screen.dart';
 import '../../../screens/orders_screen.dart';
 import '../../../screens/profile_screen.dart';
