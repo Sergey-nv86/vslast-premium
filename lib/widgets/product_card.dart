@@ -52,7 +52,6 @@ class ProductCard extends StatelessWidget {
                     child: ProductImage(
                       imageUrl: product.imageUrl,
                       fit: BoxFit.cover,
-                      alignment: Alignment.center,
                       iconSize: 32,
                     ),
                   ),
