@@ -104,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _scrollController.removeListener(_updateActiveCategory);
+    _scrollController.removeListener(_scheduleActiveCategoryUpdate);
     _scrollController.dispose();
     super.dispose();
   }
