@@ -20,18 +20,9 @@ class ChatService {
 
     if (existing != null) return Map<String, dynamic>.from(existing);
 
-    final account = await _supabase
-        .from('client_accounts')
-        .select('client_id')
-        .eq('legacy_user_id', user.id)
-        .maybeSingle();
-
     final inserted = await _supabase
         .from('chat_threads')
-        .insert({
-          'client_user_id': user.id,
-          'client_id': account?['client_id'],
-        })
+        .insert({'client_user_id': user.id})
         .select('id, client_user_id, client_id, last_message_at, last_message_preview')
         .single();
 
@@ -59,9 +50,7 @@ class ChatService {
         .eq('thread_id', threadId)
         .order('created_at', ascending: true);
 
-    return _withSignedUrls(
-      rows.map((e) => Map<String, dynamic>.from(e)).toList(),
-    );
+    return _withSignedUrls(rows.map((e) => Map<String, dynamic>.from(e)).toList());
   }
 
   Future<void> markIncomingRead(String threadId) async {
@@ -104,7 +93,7 @@ class ChatService {
     if (bytes.isEmpty) return null;
 
     final extension = _extension(picked.name);
-    final path = '${threadId}/${DateTime.now().microsecondsSinceEpoch}.$extension';
+    final path = threadId + '/' + DateTime.now().microsecondsSinceEpoch.toString() + '.' + extension;
 
     await _supabase.storage.from('chat-images').uploadBinary(
       path,
