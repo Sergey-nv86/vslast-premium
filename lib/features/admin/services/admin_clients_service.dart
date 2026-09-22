@@ -60,11 +60,12 @@ class AdminClientsService {
   SupabaseClient get supabase => _supabase;
 
   Future<Map<String, int>> fetchClientStats() async {
-    final response = await _supabase.from('profiles').select('*');
+    final response = await _supabase
+        .from('profiles')
+        .select('id, role, created_at')
+        .eq('role', 'customer');
 
-    final rows = List<Map<String, dynamic>>.from(response);
-
-    final customers = rows.where(_isCustomer).toList();
+    final customers = List<Map<String, dynamic>>.from(response);
 
     final now = DateTime.now();
     final weekAgo = now.subtract(const Duration(days: 7));
@@ -79,13 +80,18 @@ class AdminClientsService {
   }
 
   Future<List<AdminClient>> fetchClients() async {
-    final profilesResponse = await _supabase.from('profiles').select('*');
+    final profilesResponse = await _supabase
+        .from('profiles')
+        .select('id, first_name, last_name, display_name, phone, created_at, updated_at, role, bonus_balance')
+        .eq('role', 'customer');
 
     final profiles = List<Map<String, dynamic>>.from(profilesResponse);
 
     final customers = profiles.where(_isCustomer).toList();
 
-    final ordersResponse = await _supabase.from('orders').select('*');
+    final ordersResponse = await _supabase
+        .from('orders')
+        .select('id, user_id, client_id, status, total, created_at, updated_at');
 
     final orders = List<Map<String, dynamic>>.from(ordersResponse);
 
