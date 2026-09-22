@@ -145,7 +145,6 @@ class _MainScreenState extends State<MainScreen> {
             _ensurePage(index);
           }
           context.read<TabNavigationController>().setIndex(index);
-          if (mounted) setState(() {});
         },
       ),
     );
