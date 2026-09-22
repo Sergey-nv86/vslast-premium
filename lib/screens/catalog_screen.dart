@@ -35,6 +35,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   List<Product> _products = [];
   bool _isLoading = true;
   Object? _loadError;
+  bool _activeCategoryUpdateScheduled = false;
 
   List<ProductCategory> get _shownCategories {
     final query = _searchController.text.trim().toLowerCase();
@@ -89,11 +90,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_updateActiveCategory);
+    _scrollController.addListener(_scheduleActiveCategoryUpdate);
     _searchController.addListener(_onSearchChanged);
     _loadProducts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _updateActiveCategory();
+      if (mounted) _scheduleActiveCategoryUpdate();
     });
   }
 
@@ -153,6 +154,15 @@ class _CatalogScreenState extends State<CatalogScreen> {
     if (!mounted) return;
     setState(() => _activeCategory = null);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updateActiveCategory();
+    });
+  }
+
+  void _scheduleActiveCategoryUpdate() {
+    if (_activeCategoryUpdateScheduled || !mounted) return;
+    _activeCategoryUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _activeCategoryUpdateScheduled = false;
       if (mounted) _updateActiveCategory();
     });
   }
