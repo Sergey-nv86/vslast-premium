@@ -70,7 +70,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     }
 
     try {
-      final products = await _productService.getProducts();
+      final products = await _productService.getAdminProducts();
 
       if (!mounted) {
         return;
