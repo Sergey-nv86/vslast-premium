@@ -11,7 +11,7 @@ class LegalConfig {
   static const String operatorInn = '450200081088';
   static const String operatorOgrnip = '3228617000080890';
   static const String privacyContact =
-      'указать фактический телефон или e-mail оператора';
+      '+7 912 939-97-54, 9129399754@mail.ru';
 
   static const String personalDataConsentTitle =
       'Согласие на обработку персональных данных';
