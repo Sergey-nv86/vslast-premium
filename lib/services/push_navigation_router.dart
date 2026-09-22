@@ -41,6 +41,7 @@ class PushNavigationRouter {
     final type = uri.queryParameters['push_type']?.trim() ?? '';
     final orderId = uri.queryParameters['order_id']?.trim() ?? '';
     final productId = uri.queryParameters['product_id']?.trim() ?? '';
+    final threadId = uri.queryParameters['thread_id']?.trim() ?? '';
 
     if (type.isEmpty && orderId.isEmpty) return;
 
@@ -48,6 +49,7 @@ class PushNavigationRouter {
       'type': type,
       'order_id': orderId,
       'product_id': productId,
+      'thread_id': threadId,
     });
   }
 
