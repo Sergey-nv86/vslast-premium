@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'admin_demand_without_stock_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_orders_calendar_screen.dart';
@@ -45,6 +46,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _demandProducts = 0;
   double _demandAmount = 0;
   int _chatUnreadCount = 0;
+  RealtimeChannel? _chatChannel;
 
   @override
   void initState() {
@@ -53,6 +55,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _loadClientStats();
     _loadRealDemandSummary();
     _loadChatUnreadCount();
+    _chatChannel = Supabase.instance.client
+        .channel('admin-dashboard-chat')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'chat_messages',
+          callback: (_) => _loadChatUnreadCount(),
+        )
+        .subscribe();
   }
 
   Future<void> _loadClientStats() async {
@@ -257,6 +268,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       setState(() {});
     }
+  }
+
+  @override
+  void dispose() {
+    final channel = _chatChannel;
+    if (channel != null) {
+      Supabase.instance.client.removeChannel(channel);
+    }
+    super.dispose();
   }
 
   @override
