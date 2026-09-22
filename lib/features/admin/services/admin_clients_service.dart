@@ -169,7 +169,7 @@ class AdminClientsService {
           phone: _profilePhone(profile),
           registeredAt: registeredAt,
           lastActionAt: lastActionAt,
-          bonusBalance: bonusByUserId[id] ?? _bonusBalance(profile),
+          bonusBalance: bonusByUserId[id] ?? 0,
         ),
       );
     }
@@ -191,7 +191,7 @@ class AdminClientsService {
   Future<AdminClientDetails> fetchClientDetails(String clientId) async {
     final profileResponse = await _supabase
         .from('profiles')
-        .select('*')
+        .select('id, first_name, last_name, display_name, phone, email, city, birth_date, role, is_active, created_at, updated_at')
         .eq('id', clientId)
         .maybeSingle();
 
@@ -382,27 +382,6 @@ class AdminClientsService {
       order['amount'],
       order['grand_total'],
       order['final_total'],
-    ];
-
-    for (final value in candidates) {
-      final parsed = _number(value);
-
-      if (parsed != null) {
-        return parsed;
-      }
-    }
-
-    return 0;
-  }
-
-  double _bonusBalance(Map<String, dynamic> profile) {
-    final candidates = [
-      profile['bonus_balance'],
-      profile['bonus_points'],
-      profile['loyalty_points'],
-      profile['points'],
-      profile['bonuses'],
-      profile['balance'],
     ];
 
     for (final value in candidates) {
