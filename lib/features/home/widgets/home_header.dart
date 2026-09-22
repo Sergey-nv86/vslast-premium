@@ -381,15 +381,29 @@ class HomeHeader extends StatelessWidget {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(22),
                   onTap: () => _openProfileMenu(context),
-                  child: const SizedBox(
-                    width: 44,
-                    height: 44,
-                    child: Center(
-                      child: Icon(
-                        Icons.menu,
-                        size: 25,
-                        color: AppColors.primaryBrown,
-                      ),
+                  child: SizedBox(
+                    width: 52,
+                    height: 48,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: Icon(
+                              Icons.menu,
+                              size: 25,
+                              color: AppColors.primaryBrown,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: const ChatUnreadBadge(),
+                        ),
+                      ],
                     ),
                   ),
                 ),
