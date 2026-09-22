@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'chat_service.dart';
+import '../services/chat_service.dart';
 import '../theme/app_theme.dart';
 
 class ChatUnreadBadge extends StatefulWidget {
