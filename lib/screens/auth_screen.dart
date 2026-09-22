@@ -236,11 +236,6 @@ class _AuthScreenState extends State<AuthScreen> {
       );
   }
 
-  void _openDocuments() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const LegalDocumentsScreen()),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
