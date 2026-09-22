@@ -6,10 +6,12 @@ class LegalConfig {
   LegalConfig._();
 
   static const String documentVersion = '1.0';
-  static const String operatorName = 'ИП [указать ФИО оператора]';
+  static const String operatorName = 'ИП Колесников Сергей Юрьевич';
   static const String operatorAddress = 'г. Нижневартовск, ул. Пионерская, 12';
+  static const String operatorInn = '450200081088';
+  static const String operatorOgrnip = '3228617000080890';
   static const String privacyContact =
-      '[указать телефон или e-mail для обращений по персональным данным]';
+      'указать фактический телефон или e-mail оператора';
 
   static const String personalDataConsentTitle =
       'Согласие на обработку персональных данных';
@@ -20,6 +22,8 @@ class LegalConfig {
 от 27.07.2006 № 152-ФЗ «О персональных данных».
 
 Оператор: $operatorName.
+ИНН: $operatorInn.
+ОГРНИП: $operatorOgrnip.
 Адрес оператора: $operatorAddress.
 
 Цели обработки:
@@ -90,6 +94,8 @@ class LegalConfig {
 2. Оператор
 
 $operatorName.
+ИНН: $operatorInn.
+ОГРНИП: $operatorOgrnip.
 Адрес: $operatorAddress.
 Контакт для обращений: $privacyContact.
 
