@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../providers/tab_navigation_controller.dart';
 import '../screens/cart_screen.dart';
+import '../screens/chat_screen.dart';
 import '../screens/product_detail_screen.dart';
 import '../services/product_service.dart';
+import '../screens/chat_screen.dart';
 import 'push_notification_service.dart';
 
 /// Единственная точка маршрутизации действий после нажатия push.
@@ -72,12 +74,19 @@ class PushNavigationRouter {
     final type = (data['type'] ?? '').trim().toLowerCase();
     final orderId = (data['order_id'] ?? '').trim();
     final productId = (data['product_id'] ?? '').trim();
+    final threadId = (data['thread_id'] ?? '').trim();
 
     debugPrint(
       '[PushRouter] Handle type=$type order_id=$orderId product_id=$productId',
     );
 
     switch (type) {
+      case 'chat_message':
+        return _openClientChat();
+
+      case 'chat_message_admin':
+        if (threadId.isEmpty) return false;
+        return _openAdminChat(threadId);
       case 'new_order_admin':
       case 'new_preorder_admin':
       case 'order_created':
@@ -120,6 +129,31 @@ class PushNavigationRouter {
         debugPrint('[PushRouter] Unknown push type: $type');
         return false;
     }
+  }
+
+  bool _openClientChat() {
+    final navigator = PushNotificationService.navigatorKey.currentState;
+    if (navigator == null) return false;
+
+    navigator.push(
+      MaterialPageRoute(builder: (_) => const ClientChatScreen()),
+    );
+    return true;
+  }
+
+  bool _openAdminChat(String threadId) {
+    final navigator = PushNotificationService.navigatorKey.currentState;
+    if (navigator == null) return false;
+
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => AdminChatScreen(
+          threadId: threadId,
+          title: 'Чат с клиентом',
+        ),
+      ),
+    );
+    return true;
   }
 
   bool _openCart() {
