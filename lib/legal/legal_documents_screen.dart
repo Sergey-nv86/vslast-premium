@@ -31,7 +31,7 @@ class LegalDocumentsScreen extends StatelessWidget {
           _DocumentCard(
             title: LegalConfig.marketingConsentTitle,
             subtitle: 'Добровольное согласие на рекламу и специальные предложения',
-            onTap: () => _openDocument(
+            onTap: () => openDocument(
               context,
               LegalConfig.marketingConsentTitle,
               LegalConfig.marketingConsentText,
@@ -41,7 +41,7 @@ class LegalDocumentsScreen extends StatelessWidget {
           _DocumentCard(
             title: LegalConfig.termsTitle,
             subtitle: 'Условия использования сервиса',
-            onTap: () => _openDocument(
+            onTap: () => openDocument(
               context,
               LegalConfig.termsTitle,
               LegalConfig.termsText,
@@ -51,7 +51,7 @@ class LegalDocumentsScreen extends StatelessWidget {
           _DocumentCard(
             title: LegalConfig.privacyPolicyTitle,
             subtitle: 'Правила обработки и защиты персональных данных',
-            onTap: () => _openDocument(
+            onTap: () => openDocument(
               context,
               LegalConfig.privacyPolicyTitle,
               LegalConfig.privacyPolicyText,
