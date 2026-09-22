@@ -55,28 +55,24 @@ class _DesktopMainScreenState extends State<DesktopMainScreen> {
     }
   }
 
-  Widget _pageFor(int index) {
-    final existing = _pages[index];
-    if (existing is! SizedBox || index == 0) return existing;
+  void _ensurePage(int index) {
+    if (index == 0 || _pages[index] is! SizedBox) return;
 
-    final Widget page = switch (index) {
+    _pages[index] = switch (index) {
       1 => const CatalogScreen(),
       2 => const BakeScheduleScreen(),
       3 => const PromotionsScreen(),
       4 => const LoyaltyScreen(),
       _ => const SizedBox.shrink(),
     };
-    _pages[index] = page;
-    return page;
   }
-
-  List<Widget> _buildPages() =>
-      List<Widget>.generate(5, _pageFor);
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final compact = width < 1200;
+
+    _ensurePage(context.watch<TabNavigationController>().currentIndex);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -89,7 +85,7 @@ class _DesktopMainScreenState extends State<DesktopMainScreen> {
               child: IndexedStack(
                 index: context.watch<TabNavigationController>().currentIndex,
                 children: [
-                  ..._buildPages(),
+                  ..._pages,
                 ],
               ),
             ),
