@@ -9,6 +9,8 @@ import 'admin_promotions_screen.dart';
 import '../../../screens/main_screen.dart';
 import 'admin_loyalty_screen.dart';
 import 'admin_clients_screen.dart';
+import '../../../screens/chat_screen.dart';
+import '../../../services/chat_service.dart';
 import '../services/admin_clients_service.dart';
 import '../../../services/admin_orders_service.dart';
 
@@ -42,6 +44,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   int _demandProducts = 0;
   double _demandAmount = 0;
+  int _chatUnreadCount = 0;
 
   @override
   void initState() {
@@ -49,6 +52,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _loadOrderStats();
     _loadClientStats();
     _loadRealDemandSummary();
+    _loadChatUnreadCount();
   }
 
   Future<void> _loadClientStats() async {
@@ -92,6 +96,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       setState(() {
         _ordersStatsLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadChatUnreadCount() async {
+    try {
+      final count = await ChatService.instance.adminUnreadCount();
+      if (!mounted) return;
+      setState(() => _chatUnreadCount = count);
+    } catch (e) {
+      debugPrint('ADMIN CHAT UNREAD ERROR: $e');
     }
   }
 
@@ -503,6 +517,71 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AdminChatListScreen()),
+              );
+              _loadChatUnreadCount();
+            },
+            child: _Card(
+              child: Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF1E8E0),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.chat_bubble_outline_rounded, color: brown),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Чат с клиентами',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: dark,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Сообщения клиентов и ответы',
+                          style: TextStyle(fontSize: 12, color: muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_chatUnreadCount > 0)
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFB5423F),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _chatUnreadCount > 99 ? '99+' : '$_chatUnreadCount',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right_rounded, color: brown),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 20),
 
