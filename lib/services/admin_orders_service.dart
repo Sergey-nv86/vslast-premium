@@ -12,6 +12,8 @@ class AdminOrdersService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<List<AdminOrder>> fetchOrders() async {
+    // Список заказов должен быть быстрым: состав заказа и фотографии
+    // загружаются только при открытии конкретного заказа.
     final response = await _supabase
         .from('orders')
         .select('''
@@ -24,31 +26,15 @@ class AdminOrdersService {
           payment_method,
           pickup_date,
           pickup_time_slot,
-          delivery_address,
-          delivery_cost,
           comment,
-          items_total,
           pickup_discount,
           total,
-          created_at,
-          updated_at,
-          order_items (
-            id,
-            product_id,
-            product_name,
-            unit_price,
-            quantity,
-            weight_label,
-            line_total,
-            products:product_id (
-              id,
-              image_url
-            )
-          )
+          created_at
         ''')
         .order('created_at', ascending: false);
 
     final rows = List<Map<String, dynamic>>.from(response);
+
     final userIds = rows
         .map((row) => row['user_id']?.toString())
         .whereType<String>()
@@ -61,7 +47,7 @@ class AdminOrdersService {
     if (userIds.isNotEmpty) {
       final profilesResponse = await _supabase
           .from('profiles')
-          .select('id, display_name, first_name, last_name, phone, email')
+          .select('id, display_name, first_name, last_name, phone')
           .inFilter('id', userIds);
 
       for (final profile in profilesResponse) {
@@ -73,11 +59,9 @@ class AdminOrdersService {
       }
     }
 
-    final bakery = await BakeryService.instance.getActiveBakery();
-
     return rows.map((row) {
       final userId = row['user_id']?.toString() ?? '';
-      return _mapOrder(row, profile: profilesById[userId], bakery: bakery);
+      return _mapOrder(row, profile: profilesById[userId]);
     }).toList();
   }
 
