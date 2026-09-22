@@ -85,7 +85,7 @@ class PushNavigationRouter {
     // по клику на уведомление), не теряем навигацию — оставляем intent
     // в очереди и обрабатываем его после первого кадра.
     if ((type == 'chat_message' || type == 'chat_message_admin') &&
-        navigatorKey.currentState == null) {
+        PushNotificationService.navigatorKey.currentState == null) {
       setPendingData(data);
       return false;
     }
