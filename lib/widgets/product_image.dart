@@ -53,42 +53,54 @@ class ProductImage extends StatelessWidget {
       return _placeholder();
     }
 
-    if (_isNetworkImage) {
-      return Image.network(
-        url,
-        fit: fit,
-        filterQuality: FilterQuality.medium,
-        frameBuilder: (
-          context,
-          child,
-          frame,
-          wasSynchronouslyLoaded,
-        ) {
-          if (wasSynchronouslyLoaded || frame != null) {
-            return child;
-          }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.hasBoundedWidth && constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 600.0;
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final decodeWidth = (width * dpr).clamp(160.0, 1200.0).round();
 
-          return _placeholder();
-        },
-        errorBuilder: (
-          context,
-          error,
-          stackTrace,
-        ) {
-          return _placeholder();
-        },
-      );
-    }
+        if (_isNetworkImage) {
+          return Image.network(
+            url,
+            fit: fit,
+            cacheWidth: decodeWidth,
+            filterQuality: FilterQuality.medium,
+            frameBuilder: (
+              context,
+              child,
+              frame,
+              wasSynchronouslyLoaded,
+            ) {
+              if (wasSynchronouslyLoaded || frame != null) {
+                return child;
+              }
 
-    return Image.asset(
-      url,
-      fit: fit,
-      errorBuilder: (
-        context,
-        error,
-        stackTrace,
-      ) {
-        return _placeholder();
+              return _placeholder();
+            },
+            errorBuilder: (
+              context,
+              error,
+              stackTrace,
+            ) {
+              return _placeholder();
+            },
+          );
+        }
+
+        return Image.asset(
+          url,
+          fit: fit,
+          cacheWidth: decodeWidth,
+          errorBuilder: (
+            context,
+            error,
+            stackTrace,
+          ) {
+            return _placeholder();
+          },
+        );
       },
     );
   }
