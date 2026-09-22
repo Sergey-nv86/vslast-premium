@@ -16,7 +16,7 @@ import '../theme/premium_design_system.dart';
 import 'catalog_screen.dart';
 import 'loyalty_screen.dart';
 
-class DesktopMainScreen extends StatelessWidget {
+class DesktopMainScreen extends StatefulWidget {
   final List<Product> products;
   final bool isLoading;
 
@@ -27,9 +27,52 @@ class DesktopMainScreen extends StatelessWidget {
   });
 
   @override
+  State<DesktopMainScreen> createState() => _DesktopMainScreenState();
+}
+
+class _DesktopMainScreenState extends State<DesktopMainScreen> {
+  late List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = List<Widget>.generate(5, (_) => const SizedBox.shrink());
+    _pages[0] = HomeScreen(
+      products: widget.products,
+      isLoading: widget.isLoading,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant DesktopMainScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.products != widget.products ||
+        oldWidget.isLoading != widget.isLoading) {
+      _pages[0] = HomeScreen(
+        products: widget.products,
+        isLoading: widget.isLoading,
+      );
+    }
+  }
+
+  void _ensurePage(int index) {
+    if (index == 0 || _pages[index] is! SizedBox) return;
+
+    _pages[index] = switch (index) {
+      1 => const CatalogScreen(),
+      2 => const BakeScheduleScreen(),
+      3 => const PromotionsScreen(),
+      4 => const LoyaltyScreen(),
+      _ => const SizedBox.shrink(),
+    };
+  }
+
+  @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final compact = width < 1200;
+
+    _ensurePage(context.watch<TabNavigationController>().currentIndex);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -42,11 +85,7 @@ class DesktopMainScreen extends StatelessWidget {
               child: IndexedStack(
                 index: context.watch<TabNavigationController>().currentIndex,
                 children: [
-                  HomeScreen(products: products, isLoading: isLoading),
-                  const CatalogScreen(),
-                  const BakeScheduleScreen(),
-                  const PromotionsScreen(),
-                  const LoyaltyScreen(),
+                  ..._pages,
                 ],
               ),
             ),

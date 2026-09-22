@@ -25,6 +25,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   late List<Product> _products;
   bool _isLoadingProducts = false;
+  late List<Widget> _pages;
 
   @override
   void initState() {
@@ -34,7 +35,7 @@ class _MainScreenState extends State<MainScreen> {
     // 1. товары, переданные из Splash;
     // 2. последний успешно загруженный список из ProductService cache;
     // 3. загрузка из Supabase, если cache пуст.
-    final cachedProducts = ProductService.instance.cachedProducts;
+    final cachedProducts = ProductService.instance.cachedCatalogProducts;
 
     if (widget.products.isNotEmpty) {
       _products = List<Product>.of(widget.products);
@@ -54,6 +55,14 @@ class _MainScreenState extends State<MainScreen> {
       '${_products.where((product) => product.inStock).length}',
     );
 
+    _pages = List<Widget>.generate(5, (_) => const SizedBox.shrink());
+
+    // Only the initially visible page is constructed at startup.
+    _pages[0] = HomeScreen(
+      products: _products,
+      isLoading: _isLoadingProducts,
+    );
+
     if (_products.isEmpty) {
       _loadProducts();
     }
@@ -67,13 +76,17 @@ class _MainScreenState extends State<MainScreen> {
     });
 
     try {
-      final products = await ProductService.instance.getProducts();
+      final products = await ProductService.instance.getCatalogProducts();
 
       if (!mounted) return;
 
       setState(() {
         _products = products;
         _isLoadingProducts = false;
+        _pages[0] = HomeScreen(
+          products: _products,
+          isLoading: false,
+        );
       });
 
       debugPrint('===== MAIN PRODUCT LOAD SUCCESS =====');
@@ -95,6 +108,23 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  void _ensurePage(int index) {
+    if (index == 0 || _pages[index] is! SizedBox) return;
+
+    _pages[index] = switch (index) {
+      1 => const CatalogScreen(),
+      2 => const BakeScheduleScreen(),
+      3 => const PromotionsScreen(),
+      4 => const LoyaltyScreen(),
+      _ => const SizedBox.shrink(),
+    };
+  }
+
+  List<Widget> _ensureAndGetPages(int index) {
+    _ensurePage(index);
+    return _pages;
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint('===== MAIN BUILD =====');
@@ -106,17 +136,14 @@ class _MainScreenState extends State<MainScreen> {
       backgroundColor: const Color(0xFFFAF8F5),
       body: IndexedStack(
         index: currentIndex,
-        children: [
-          HomeScreen(products: _products, isLoading: _isLoadingProducts),
-          const CatalogScreen(),
-          const BakeScheduleScreen(),
-          const PromotionsScreen(),
-          const LoyaltyScreen(),
-        ],
+        children: _ensureAndGetPages(currentIndex),
       ),
       bottomNavigationBar: PremiumBottomNavBar(
         currentIndex: currentIndex,
         onTap: (index) {
+          if (index != 0) {
+            _ensurePage(index);
+          }
           context.read<TabNavigationController>().setIndex(index);
         },
       ),
