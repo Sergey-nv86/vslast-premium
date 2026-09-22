@@ -9,6 +9,7 @@ self.addEventListener('notificationclick', function(event) {
   const pushType = data.type ? String(data.type) : '';
   const orderId = data.order_id ? String(data.order_id) : '';
   const productId = data.product_id ? String(data.product_id) : '';
+  const threadId = data.thread_id ? String(data.thread_id) : '';
 
   console.log('[FCM SW] Notification click:', data);
 
@@ -28,11 +29,16 @@ self.addEventListener('notificationclick', function(event) {
     targetUrl.searchParams.set('product_id', productId);
   }
 
+  if (threadId) {
+    targetUrl.searchParams.set('thread_id', threadId);
+  }
+
   const navigationData = {
     type: 'push_navigation',
     push_type: pushType,
     order_id: orderId,
     product_id: productId,
+    thread_id: threadId,
   };
 
   console.log('[FCM SW] Navigation data:', navigationData);
@@ -108,6 +114,7 @@ messaging.onBackgroundMessage(function(payload) {
       type: data.type || '',
       order_id: data.order_id ? String(data.order_id) : '',
       product_id: data.product_id ? String(data.product_id) : '',
+      thread_id: data.thread_id ? String(data.thread_id) : '',
     },
   });
 });
