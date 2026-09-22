@@ -45,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
   HomeFilterState _filter = const HomeFilterState();
   late List<Product> _products;
   ProductCategory? _activeCategory;
+  bool _activeCategoryUpdateScheduled = false;
 
   @override
   void initState() {
@@ -67,10 +68,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final inStockCount = _products.where((p) => p.inStock).length;
     debugPrint('HOME IN STOCK COUNT: $inStockCount');
 
-    _scrollController.addListener(_updateActiveCategory);
+    _scrollController.addListener(_scheduleActiveCategoryUpdate);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _updateActiveCategory();
+      if (mounted) _scheduleActiveCategoryUpdate();
     });
   }
 
@@ -170,6 +171,15 @@ class _HomeScreenState extends State<HomeScreen> {
     ).push(MaterialPageRoute(builder: (_) => const CartScreen()));
   }
 
+  void _scheduleActiveCategoryUpdate() {
+    if (_activeCategoryUpdateScheduled || !mounted) return;
+    _activeCategoryUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _activeCategoryUpdateScheduled = false;
+      if (mounted) _updateActiveCategory();
+    });
+  }
+
   void _updateActiveCategory() {
     if (!_scrollController.hasClients || _categoriesShown.isEmpty) return;
     final viewportWidth =
@@ -218,8 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final viewportWidth =
         _viewportKey.currentContext?.size?.width ??
         MediaQuery.sizeOf(context).width;
-    final itemWidth =
-        (viewportWidth - _horizontalPadding * 2 - _gridSpacing) / 2;
+    final itemWidth = _gridItemWidth(viewportWidth);
     final headerY = _categoryHeaderOffsets(itemWidth)[category];
     if (headerY == null) return;
     final targetOffset = (headerY - _pinnedBarHeight).clamp(
@@ -330,8 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 delegate: SliverChildBuilderDelegate(
                                   (context, index) => ProductCard(
                                     product: products[index],
-                                    onOpenDetails: (p) =>
-                                        _openProductDetails(context, p),
+                                    onOpenDetails: (p) => _openProductDetails(context, p),
                                   ),
                                   childCount: products.length,
                                 ),
