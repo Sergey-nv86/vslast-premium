@@ -97,13 +97,32 @@ class _CatalogScreenState extends State<CatalogScreen> {
     });
   }
 
-  Future<void> _loadProducts() async {
-    setState(() {
-      _isLoading = true;
+  Future<void> _loadProducts({bool forceRefresh = false}) async {
+    // Use the already loaded Splash/Main cache immediately. This removes the
+    // duplicate Supabase request that previously happened when Catalog was
+    // constructed inside IndexedStack.
+    final cached = ProductService.instance.cachedProducts;
+    if (!forceRefresh && cached != null && cached.isNotEmpty) {
+      _products = cached;
+      _isLoading = false;
       _loadError = null;
-    });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _updateActiveCategory();
+      });
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+      });
+    }
+
     try {
-      final products = await ProductService.instance.getProducts();
+      final products = await ProductService.instance.getProducts(
+        forceRefresh: forceRefresh,
+      );
       if (!mounted) return;
       setState(() {
         _products = products;
