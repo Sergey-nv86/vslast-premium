@@ -150,6 +150,23 @@ class ProductService {
     }).then(List<Product>.of);
   }
 
+  /// Загружает все товары для административной панели, включая скрытые.
+  Future<List<Product>> getAdminProducts() async {
+    final rows = await _supabase
+        .from('products')
+        .select('''
+          id, external_id, name, price, image_url, gallery_images, badge,
+          in_stock, is_weighed, weight_label, description,
+          calories_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g,
+          composition, rating, reviews_count, is_active, created_at, updated_at,
+          category_id, categories (name, slug)
+        ''')
+        .order('created_at');
+    return (rows as List)
+        .map((row) => _fromSupabase(Map<String, dynamic>.from(row)))
+        .toList();
+  }
+
   Future<List<Product>> _fetchProducts() async {
     final rows = await _supabase
         .from('products')
@@ -345,6 +362,7 @@ class ProductService {
       'fat_per_100g': product.fatPer100g,
       'carbs_per_100g': product.carbsPer100g,
       'composition': product.composition,
+      'is_active': product.isActive,
       'updated_at': DateTime.now().toIso8601String(),
     };
 
@@ -790,6 +808,7 @@ class ProductService {
       galleryImages: _toStringList(row['gallery_images']),
       category: _parseCategory(category['slug']?.toString()),
       badge: _parseBadge(row['badge']?.toString()),
+      isActive: row['is_active'] != false,
       inStock: row['in_stock'] == true,
       isWeighed: row['is_weighed'] == true,
       weightLabel: row['weight_label']?.toString() ?? '1 шт',
