@@ -49,13 +49,11 @@ class ProductCard extends StatelessWidget {
                   Container(
                     color: AppColors.surfaceMuted,
                     alignment: Alignment.center,
-                    child: Transform.scale(
-                      scale: 0.92,
-                      child: ProductImage(
-                        imageUrl: product.imageUrl,
-                        fit: BoxFit.cover,
-                        iconSize: 32,
-                      ),
+                    child: ProductImage(
+                      imageUrl: product.imageUrl,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                      iconSize: 32,
                     ),
                   ),
                   Positioned(top: 8, left: 8, child: _Badge(product: product)),
