@@ -12,9 +12,6 @@ class AdminOrdersService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<List<AdminOrder>> fetchOrders() async {
-    final authUser = _supabase.auth.currentUser;
-    final session = _supabase.auth.currentSession;
-
     final response = await _supabase
         .from('orders')
         .select('''
