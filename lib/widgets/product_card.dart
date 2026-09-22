@@ -48,11 +48,14 @@ class ProductCard extends StatelessWidget {
                 children: [
                   Container(
                     color: AppColors.surfaceMuted,
-                    padding: const EdgeInsets.all(12),
-                    child: ProductImage(
-                      imageUrl: product.imageUrl,
-                      fit: BoxFit.contain,
-                      iconSize: 32,
+                    alignment: Alignment.center,
+                    child: Transform.scale(
+                      scale: 0.92,
+                      child: ProductImage(
+                        imageUrl: product.imageUrl,
+                        fit: BoxFit.cover,
+                        iconSize: 32,
+                      ),
                     ),
                   ),
                   Positioned(top: 8, left: 8, child: _Badge(product: product)),
