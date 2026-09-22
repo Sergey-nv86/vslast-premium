@@ -37,6 +37,10 @@ class ProductService {
   // состояние с пустым каталогом.
   List<Product>? _cachedProducts;
 
+  // Shared in-flight request. Prevents Home, Catalog and other screens
+  // from starting duplicate Supabase requests at the same time.
+  Future<List<Product>>? _productsRequest;
+
   /// Последний успешно загруженный список товаров.
   ///
   /// Возвращает null, если товары ещё ни разу не загружались.
@@ -53,7 +57,34 @@ class ProductService {
   // ---------------------------------------------------------------------------
 
   /// Загружает активные товары из Supabase.
-  Future<List<Product>> getProducts() async {
+  Future<List<Product>> getProducts({bool forceRefresh = false}) {
+    final cached = _cachedProducts;
+
+    // Cache-first: once Splash has loaded products, Home and Catalog can
+    // render immediately without waiting for the network again.
+    if (!forceRefresh && cached != null && cached.isNotEmpty) {
+      return Future<List<Product>>.value(List<Product>.of(cached));
+    }
+
+    // If another screen is already loading the same data, share that Future.
+    final inFlight = _productsRequest;
+    if (!forceRefresh && inFlight != null) {
+      return inFlight.then((products) => List<Product>.of(products));
+    }
+
+    final request = _fetchProducts();
+    _productsRequest = request;
+
+    return request.then((products) {
+      _productsRequest = null;
+      return List<Product>.of(products);
+    }).catchError((Object error, StackTrace stackTrace) {
+      _productsRequest = null;
+      Error.throwWithStackTrace(error, stackTrace);
+    });
+  }
+
+  Future<List<Product>> _fetchProducts() async {
     final rows = await _supabase
         .from('products')
         .select('''
@@ -87,34 +118,11 @@ class ProductService {
         .eq('is_active', true)
         .order('created_at');
 
-    developer.log('DEBUG getProducts COUNT: ${rows.length}');
-    for (final row in rows) {
-      developer.log(
-        'DEBUG PRODUCT: '
-        'id=${row['id']} '
-        'name=${row['name']} '
-        'in_stock=${row['in_stock']} '
-        'in_stock_type=${row['in_stock'].runtimeType} '
-        'category_id=${row['category_id']} '
-        'categories=${row['categories']} '
-        'rating=${row['rating']} '
-        'reviews_count=${row['reviews_count']}',
-      );
-    }
-
     final products = (rows as List)
         .map((row) => _fromSupabase(Map<String, dynamic>.from(row)))
         .toList();
 
-    // Сохраняем только успешно полученный результат.
-    // Благодаря этому MainScreen, открытый после Splash, получает
-    // товары сразу и не показывает промежуточное пустое состояние.
     _cachedProducts = List<Product>.of(products);
-
-    developer.log(
-      'DEBUG getProducts CACHE UPDATED: ${_cachedProducts!.length}',
-    );
-
     return products;
   }
 
