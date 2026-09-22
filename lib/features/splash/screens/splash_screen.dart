@@ -50,7 +50,11 @@ class _SplashScreenState extends State<SplashScreen>
     // Start independent initialization work together. The previous flow
     // waited for auth, then products, then an unconditional 3-second delay.
     final authFuture = auth.initialize();
-    final productsFuture = ProductService.instance.getProducts();
+    final productsFuture = ProductService.instance.getProducts().catchError((error, stackTrace) {
+      debugPrint('SPLASH PRODUCT PRELOAD ERROR: $error');
+      debugPrint('$stackTrace');
+      return <Product>[];
+    });
 
     List<Product> products = const [];
 
@@ -61,9 +65,9 @@ class _SplashScreenState extends State<SplashScreen>
     if (auth.isLoggedIn && !auth.canAccessAdmin) {
       try {
         products = await productsFuture;
-      } catch (error, stackTrace) {
-        debugPrint('SPLASH PRODUCT PRELOAD ERROR: $error');
-        debugPrint('$stackTrace');
+      } catch (_) {
+        // The preload future already logs and converts failures to an empty
+        // list, allowing auth/navigation to continue normally.
       }
     }
 
