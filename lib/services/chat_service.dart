@@ -107,6 +107,18 @@ class ChatService {
     return path;
   }
 
+  Future<int> broadcastMessage(String body) async {
+    final text = body.trim();
+    if (text.isEmpty) throw Exception('Сообщение не может быть пустым.');
+
+    final result = await _supabase.rpc(
+      'admin_broadcast_chat_message',
+      params: {'p_body': text},
+    );
+
+    return (result as num?)?.toInt() ?? 0;
+  }
+
   Future<List<Map<String, dynamic>>> adminThreads() async {
     final rows = await _supabase
         .from('chat_threads')
