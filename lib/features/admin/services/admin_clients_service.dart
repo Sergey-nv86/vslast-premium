@@ -89,9 +89,10 @@ class AdminClientsService {
 
     final customers = profiles.where(_isCustomer).toList();
 
+    // Только поля, необходимые для определения последнего действия.
     final ordersResponse = await _supabase
         .from('orders')
-        .select('id, user_id, client_id, status, total, created_at, updated_at');
+        .select('user_id, client_id, created_at, updated_at');
 
     final orders = List<Map<String, dynamic>>.from(ordersResponse);
 
@@ -177,13 +178,17 @@ class AdminClientsService {
 
     final profile = Map<String, dynamic>.from(profileResponse);
 
-    final ordersResponse = await _supabase.from('orders').select('*');
+    // Загружаем только историю этого клиента, а не всю таблицу orders.
+    final ordersResponse = await _supabase
+        .from('orders')
+        .select(
+          'id, user_id, client_id, status, total, created_at, '
+          'order_number, pickup_date',
+        )
+        .or('user_id.eq.$clientId,client_id.eq.$clientId')
+        .order('created_at', ascending: false);
 
-    final allOrders = List<Map<String, dynamic>>.from(ordersResponse);
-
-    final clientOrders = allOrders.where((order) {
-      return _userIdFromOrder(order) == clientId;
-    }).toList();
+    final clientOrders = List<Map<String, dynamic>>.from(ordersResponse);
 
     final parsedOrders = <AdminClientOrder>[];
 
