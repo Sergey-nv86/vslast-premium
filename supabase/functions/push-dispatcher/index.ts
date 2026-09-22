@@ -78,6 +78,18 @@ function getNotificationContent(
   const oldStatus = String(payload.old_status ?? "");
 
   switch (eventType) {
+    case "chat_message":
+      return {
+        title: "Новое сообщение в чате «Всласть»",
+        body: String(payload.message_preview ?? "У вас новое сообщение в чате."),
+      };
+
+    case "chat_message_admin":
+      return {
+        title: "Новое сообщение в чате «Всласть»",
+        body: String(payload.message_preview ?? "Клиент отправил новое сообщение."),
+      };
+
     case "order_created":
       return isPreorder
         ? {
@@ -171,6 +183,7 @@ async function sendToToken(
   body: string,
   type: string,
   orderId: string,
+  threadId: string,
   projectId: string,
   accessToken: string,
 ) {
@@ -185,11 +198,30 @@ async function sendToToken(
       body: JSON.stringify({
         message: {
           token: deviceToken,
+          notification: {
+            title: String(title),
+            body: String(body),
+          },
           data: {
             type: String(type),
             order_id: String(orderId),
+            thread_id: String(threadId),
             title: String(title),
             body: String(body),
+          },
+          android: {
+            priority: "high",
+            notification: {
+              channel_id: "vslast_messages",
+              sound: "default",
+            },
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: "default",
+              },
+            },
           },
         },
       }),
@@ -286,6 +318,7 @@ Deno.serve(async (req) => {
           body,
           String(type),
           String(order_id),
+          String(requestBody.thread_id ?? ""),
           projectId,
           accessToken,
         ));
@@ -381,6 +414,7 @@ Deno.serve(async (req) => {
         content.body,
         claimedEvent.event_type,
         claimedEvent.order_id ?? "",
+        String(eventPayload.thread_id ?? ""),
         projectId,
         accessToken,
       );
