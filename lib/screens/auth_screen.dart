@@ -532,7 +532,44 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
+
+        _ConsentRow(
+          value: _agreedToPersonalData,
+          onChanged: (value) => setState(() => _agreedToPersonalData = value),
+          title: 'Согласие на обработку персональных данных',
+          requiredLabel: true,
+          onOpen: () => LegalDocumentsScreen.openDocument(
+            context,
+            LegalConfig.personalDataConsentTitle,
+            LegalConfig.personalDataConsentText,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _ConsentRow(
+          value: _agreedToTerms,
+          onChanged: (value) => setState(() => _agreedToTerms = value),
+          title: 'Условия использования сервиса',
+          requiredLabel: true,
+          onOpen: () => LegalDocumentsScreen.openDocument(
+            context,
+            LegalConfig.termsTitle,
+            LegalConfig.termsText,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _ConsentRow(
+          value: _agreedToMarketing,
+          onChanged: (value) => setState(() => _agreedToMarketing = value),
+          title: 'Получать новости, акции и специальные предложения',
+          requiredLabel: false,
+          onOpen: () => LegalDocumentsScreen.openDocument(
+            context,
+            LegalConfig.marketingConsentTitle,
+            LegalConfig.marketingConsentText,
+          ),
+        ),
+        const SizedBox(height: 22),
 
         _GradientButton(
           label: _isSubmitting ? 'Создаём аккаунт...' : 'Зарегистрироваться',
