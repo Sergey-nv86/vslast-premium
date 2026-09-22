@@ -75,13 +75,11 @@ class ProductService {
     final request = _fetchProducts();
     _productsRequest = request;
 
-    return request.then((products) {
-      _productsRequest = null;
-      return List<Product>.of(products);
-    }).catchError((Object error, StackTrace stackTrace) {
-      _productsRequest = null;
-      Error.throwWithStackTrace(error, stackTrace);
-    });
+    return request.whenComplete(() {
+      if (identical(_productsRequest, request)) {
+        _productsRequest = null;
+      }
+    }).then(List<Product>.of);
   }
 
   Future<List<Product>> _fetchProducts() async {
