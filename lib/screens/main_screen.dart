@@ -76,7 +76,7 @@ class _MainScreenState extends State<MainScreen> {
     });
 
     try {
-      final products = await ProductService.instance.getProducts();
+      final products = await ProductService.instance.getCatalogProducts();
 
       if (!mounted) return;
 
