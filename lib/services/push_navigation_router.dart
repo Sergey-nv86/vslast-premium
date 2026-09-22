@@ -6,7 +6,6 @@ import '../screens/cart_screen.dart';
 import '../screens/chat_screen.dart';
 import '../screens/product_detail_screen.dart';
 import '../services/product_service.dart';
-import '../screens/chat_screen.dart';
 import 'push_notification_service.dart';
 
 /// Единственная точка маршрутизации действий после нажатия push.
