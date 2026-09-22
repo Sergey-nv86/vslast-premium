@@ -46,6 +46,28 @@ class ProductImage extends StatelessWidget {
     );
   }
 
+  String _optimizedNetworkUrl(String url, int width) {
+    // Supabase Storage can resize public images server-side. This reduces
+    // network transfer as well as decode memory; cacheWidth alone only limits
+    // the decoded bitmap and still downloads the original file.
+    try {
+      final uri = Uri.parse(url);
+      const marker = '/storage/v1/object/public/';
+      final path = uri.path;
+      final markerIndex = path.indexOf(marker);
+      if (markerIndex < 0) return url;
+
+      final renderPath = path.substring(0, markerIndex) +
+          '/storage/v1/render/image/public/' +
+          path.substring(markerIndex + marker.length);
+      final query = Map<String, String>.from(uri.queryParameters)
+        ..['width'] = width.toString();
+
+      return uri.replace(path: renderPath, queryParameters: query).toString();
+    } catch (_) {
+      return url;
+    }
+  }
   Widget _image() {
     final url = imageUrl.trim();
 
@@ -62,8 +84,9 @@ class ProductImage extends StatelessWidget {
         final decodeWidth = (width * dpr).clamp(160.0, 1200.0).round();
 
         if (_isNetworkImage) {
+          final optimizedUrl = _optimizedNetworkUrl(url, decodeWidth);
           return Image.network(
-            url,
+            optimizedUrl,
             fit: fit,
             cacheWidth: decodeWidth,
             filterQuality: FilterQuality.medium,
