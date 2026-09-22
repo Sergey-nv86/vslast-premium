@@ -81,6 +81,15 @@ class PushNavigationRouter {
       '[PushRouter] Handle type=$type order_id=$orderId product_id=$productId',
     );
 
+    // Если push пришёл до готовности Navigator (особенно при запуске PWA
+    // по клику на уведомление), не теряем навигацию — оставляем intent
+    // в очереди и обрабатываем его после первого кадра.
+    if ((type == 'chat_message' || type == 'chat_message_admin') &&
+        navigatorKey.currentState == null) {
+      setPendingData(data);
+      return false;
+    }
+
     switch (type) {
       case 'chat_message':
         return _openClientChat();
