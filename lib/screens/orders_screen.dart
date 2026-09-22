@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../models/order_list_item.dart';
 import '../services/orders_service.dart';
+import '../services/notification_service.dart';
 import '../screens/order_detail_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/order_history_card.dart';
+import 'notifications_screen.dart';
 
-/// Экран «Мои заказы».
-///
-/// UI/UX сохраняется утверждённым.
-/// Источник данных — Supabase orders.
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
 
@@ -19,11 +17,28 @@ class OrdersScreen extends StatefulWidget {
 
 class _OrdersScreenState extends State<OrdersScreen> {
   late Future<List<OrderListItem>> _ordersFuture;
+  int _unreadNotifications = 0;
 
   @override
   void initState() {
     super.initState();
     _ordersFuture = OrdersService.instance.fetchMyOrders();
+    _loadUnreadNotifications();
+  }
+
+  Future<void> _loadUnreadNotifications() async {
+    try {
+      final count = await NotificationService.instance.fetchUnreadCount();
+      if (!mounted) return;
+      setState(() => _unreadNotifications = count);
+    } catch (_) {}
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+    );
+    await _loadUnreadNotifications();
   }
 
   Future<void> _reload() async {
@@ -33,15 +48,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
     try {
       await _ordersFuture;
-    } catch (_) {
-      // Ошибка будет показана в состоянии экрана.
-    }
+    } catch (_) {}
+
+    await _loadUnreadNotifications();
   }
 
   @override
   Widget build(BuildContext context) {
-    const unreadNotifications = 2;
-
     return Scaffold(
       backgroundColor: const Color(0xFFFAF8F5),
       body: SafeArea(
@@ -59,8 +72,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     builder: (context, constraints) {
                       final compact = constraints.maxWidth < 360;
                       return _OrdersHeader(
-                        unreadNotifications: unreadNotifications,
+                        unreadNotifications: _unreadNotifications,
                         compact: compact,
+                        onNotificationsTap: _openNotifications,
                       );
                     },
                   ),
@@ -75,20 +89,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       child: FutureBuilder<List<OrderListItem>>(
                         future: _ordersFuture,
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
                             return const _OrdersLoadingState();
                           }
-
                           if (snapshot.hasError) {
                             return _OrdersErrorState(onRetry: _reload);
                           }
 
                           final orders = snapshot.data ?? [];
-
-                          if (orders.isEmpty) {
-                            return const _EmptyOrdersState();
-                          }
+                          if (orders.isEmpty) return const _EmptyOrdersState();
 
                           return Column(
                             children: [
@@ -97,9 +106,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                               ...orders.asMap().entries.map(
                                 (entry) => Padding(
                                   padding: EdgeInsets.only(
-                                    bottom: entry.key == orders.length - 1
-                                        ? 0
-                                        : 16,
+                                    bottom: entry.key == orders.length - 1 ? 0 : 16,
                                   ),
                                   child: OrderHistoryCard(
                                     order: entry.value,
@@ -112,11 +119,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                         ),
                                       );
                                     },
-                                    // Реальная оплата СБП будет подключена отдельно.
                                     onPay: () {},
-                                    // QR будет подключён отдельно.
                                     onShowQr: () {},
-                                    // Повтор заказа подключим отдельно.
                                     onRepeat: () {},
                                   ),
                                 ),
@@ -140,10 +144,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
 class _OrdersHeader extends StatelessWidget {
   final int unreadNotifications;
   final bool compact;
+  final VoidCallback onNotificationsTap;
 
   const _OrdersHeader({
     required this.unreadNotifications,
     required this.compact,
+    required this.onNotificationsTap,
   });
 
   @override
@@ -182,9 +188,7 @@ class _OrdersHeader extends StatelessWidget {
         _RoundButton(
           icon: Icons.notifications_none_rounded,
           badgeCount: unreadNotifications,
-          onTap: () {
-            // TODO: подключить экран уведомлений.
-          },
+          onTap: onNotificationsTap,
         ),
       ],
     );
@@ -193,7 +197,6 @@ class _OrdersHeader extends StatelessWidget {
 
 class _OrdersSummary extends StatelessWidget {
   final int count;
-
   const _OrdersSummary({required this.count});
 
   @override
@@ -291,7 +294,11 @@ class _RoundButton extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Icon(icon, size: 21, color: AppColors.primaryBrown),
+              child: Icon(
+                icon,
+                size: 21,
+                color: AppColors.primaryBrown,
+              ),
             ),
             if (badgeCount != null && badgeCount! > 0)
               Positioned(
@@ -340,9 +347,9 @@ class _OrdersLoadingState extends StatelessWidget {
           color: const Color(0xFFC4956A).withValues(alpha: 0.12),
         ),
       ),
-      child: Column(
+      child: const Column(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 28,
             height: 28,
             child: CircularProgressIndicator(
@@ -350,13 +357,10 @@ class _OrdersLoadingState extends StatelessWidget {
               color: Color(0xFFC4956A),
             ),
           ),
-          const SizedBox(height: 16),
-          Text('Загружаем заказы…', style: AppTextStyles.rowLabelMuted),
-          const SizedBox(height: 4),
-          Text(
-            'Подождите немного',
-            style: AppTextStyles.rowLabelMuted.copyWith(fontSize: 12),
-          ),
+          SizedBox(height: 16),
+          Text('Загружаем заказы…'),
+          SizedBox(height: 4),
+          Text('Подождите немного'),
         ],
       ),
     );
@@ -365,7 +369,6 @@ class _OrdersLoadingState extends StatelessWidget {
 
 class _OrdersErrorState extends StatelessWidget {
   final Future<void> Function() onRetry;
-
   const _OrdersErrorState({required this.onRetry});
 
   @override
@@ -395,15 +398,11 @@ class _OrdersErrorState extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          Text(
-            'Не удалось загрузить заказы',
-            style: AppTextStyles.sectionLabel,
-          ),
+          const Text('Не удалось загрузить заказы'),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Проверьте подключение к интернету и попробуйте снова.',
             textAlign: TextAlign.center,
-            style: AppTextStyles.rowLabelMuted,
           ),
           const SizedBox(height: 18),
           _ActionButton(label: 'Повторить', onTap: onRetry),
@@ -427,28 +426,26 @@ class _EmptyOrdersState extends StatelessWidget {
           color: const Color(0xFFC4956A).withValues(alpha: 0.12),
         ),
       ),
-      child: Column(
+      child: const Column(
         children: [
-          Container(
+          SizedBox(
             width: 60,
             height: 60,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF5E6D3),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.receipt_long_outlined,
-              size: 28,
-              color: Color(0xFFC4956A),
+            child: CircleAvatar(
+              backgroundColor: Color(0xFFF5E6D3),
+              child: Icon(
+                Icons.receipt_long_outlined,
+                size: 28,
+                color: Color(0xFFC4956A),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          Text('Заказов пока нет', style: AppTextStyles.sectionLabel),
-          const SizedBox(height: 8),
+          SizedBox(height: 16),
+          Text('Заказов пока нет'),
+          SizedBox(height: 8),
           Text(
             'Ваши покупки появятся здесь после оформления первого заказа.',
             textAlign: TextAlign.center,
-            style: AppTextStyles.rowLabelMuted,
           ),
         ],
       ),
@@ -459,7 +456,6 @@ class _EmptyOrdersState extends StatelessWidget {
 class _ActionButton extends StatelessWidget {
   final String label;
   final Future<void> Function() onTap;
-
   const _ActionButton({required this.label, required this.onTap});
 
   @override
@@ -479,7 +475,10 @@ class _ActionButton extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );

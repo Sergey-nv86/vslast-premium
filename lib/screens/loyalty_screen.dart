@@ -12,6 +12,9 @@ class LoyaltyScreen extends StatefulWidget {
 }
 
 class _LoyaltyScreenState extends State<LoyaltyScreen> {
+  int _goldThreshold = 50000;
+  int _premiumThreshold = 150000;
+
   static const Color background = Color(0xFFF8F4EE);
   static const Color brown = Color(0xFF2E1C13);
   static const Color gold = Color(0xFFD6A54B);
@@ -51,6 +54,22 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
       if (user == null) {
         throw Exception('Пользователь не авторизован');
       }
+      int goldThreshold = 50000;
+      int premiumThreshold = 150000;
+
+      final settings = await _supabase
+          .from('order_settings')
+          .select('loyalty_gold_threshold,loyalty_premium_threshold')
+          .eq('id', 1)
+          .maybeSingle();
+
+      if (settings != null) {
+        goldThreshold =
+            (settings['loyalty_gold_threshold'] as num?)?.toInt() ?? 50000;
+        premiumThreshold =
+            (settings['loyalty_premium_threshold'] as num?)?.toInt() ?? 150000;
+      }
+
 
       // ------------------------------------------------------------
       // PROFILE
@@ -152,6 +171,8 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
         _cumulativePurchases = cumulativePurchases;
         _level = _normalizeLevel(level);
         _transactions = transactions;
+        _goldThreshold = goldThreshold;
+        _premiumThreshold = premiumThreshold;
         _loading = false;
       });
     } catch (error) {
@@ -202,13 +223,13 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
   int? get _nextLevelTarget {
     switch (_level.toLowerCase()) {
       case 'silver':
-        return 50000;
+        return _goldThreshold;
       case 'gold':
-        return 150000;
+        return _premiumThreshold;
       case 'premium':
         return null;
       default:
-        return 50000;
+        return _goldThreshold;
     }
   }
 

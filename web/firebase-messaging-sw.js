@@ -1,3 +1,75 @@
+// IMPORTANT: register the custom notification click handler BEFORE loading
+// Firebase Messaging. Firebase may otherwise install/override its own
+// notificationclick handler and our navigation intent can be lost.
+self.addEventListener('notificationclick', function(event) {
+  event.preventDefault();
+  event.stopImmediatePropagation();
+
+  const data = event.notification.data || {};
+  const pushType = data.type ? String(data.type) : '';
+  const orderId = data.order_id ? String(data.order_id) : '';
+  const productId = data.product_id ? String(data.product_id) : '';
+
+  console.log('[FCM SW] Notification click:', data);
+
+  event.notification.close();
+
+  const baseUrl =
+    'https' + '://vslast-premium.web.app/';
+
+  const targetUrl = new URL(baseUrl);
+  targetUrl.searchParams.set('push_type', pushType);
+
+  if (orderId) {
+    targetUrl.searchParams.set('order_id', orderId);
+  }
+
+  if (productId) {
+    targetUrl.searchParams.set('product_id', productId);
+  }
+
+  const navigationData = {
+    type: 'push_navigation',
+    push_type: pushType,
+    order_id: orderId,
+    product_id: productId,
+  };
+
+  console.log('[FCM SW] Navigation data:', navigationData);
+  console.log('[FCM SW] Target URL:', targetUrl.toString());
+
+  event.waitUntil(
+    clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
+    }).then(function(clientList) {
+      // If the PWA is already open, route the push directly to Flutter.
+      // Prefer the vslast-premium origin and the most recently focused tab.
+      const sameOriginClients = clientList.filter(function(client) {
+        try {
+          return new URL(client.url).origin === new URL(baseUrl).origin;
+        } catch (_) {
+          return false;
+        }
+      });
+
+      sameOriginClients.sort(function(a, b) {
+        return (b.visibilityState === 'visible' ? 1 : 0) -
+          (a.visibilityState === 'visible' ? 1 : 0);
+      });
+
+      if (sameOriginClients.length > 0) {
+        const client = sameOriginClients[0];
+        client.postMessage(navigationData);
+        return client.focus();
+      }
+
+      // If the PWA is closed, start it with the navigation intent in the URL.
+      return clients.openWindow(targetUrl.toString());
+    })
+  );
+});
+
 importScripts(
   'https' + '://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js'
 );
@@ -27,7 +99,6 @@ messaging.onBackgroundMessage(function(payload) {
   const data = payload && payload.data ? payload.data : {};
   const title = data.title || 'Всласть';
   const body = data.body || 'Новое уведомление';
-  const orderId = data.order_id ? String(data.order_id) : '';
 
   self.registration.showNotification(title, {
     body: body,
@@ -35,49 +106,8 @@ messaging.onBackgroundMessage(function(payload) {
     badge: '/icons/Icon-192.png',
     data: {
       type: data.type || '',
-      order_id: orderId,
+      order_id: data.order_id ? String(data.order_id) : '',
+      product_id: data.product_id ? String(data.product_id) : '',
     },
   });
-});
-
-self.addEventListener('notificationclick', function(event) {
-  event.preventDefault();
-  event.stopImmediatePropagation();
-
-  const data = event.notification.data || {};
-  const orderId = data.order_id
-    ? String(data.order_id)
-    : '';
-
-  console.log('[FCM SW] Notification click:', data);
-  console.log('[FCM SW] order_id:', orderId);
-
-  event.notification.close();
-
-  const baseUrl =
-    'https' + '://vslast-premium.web.app/';
-
-  const targetUrl = orderId
-    ? baseUrl + '?order_id=' + encodeURIComponent(orderId)
-    : baseUrl;
-
-  console.log('[FCM SW] Target URL:', targetUrl);
-
-  event.waitUntil(
-    clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true,
-    }).then(function(clientList) {
-
-      for (const client of clientList) {
-        if ('focus' in client && 'navigate' in client) {
-          return client.navigate(targetUrl).then(function() {
-            return client.focus();
-          });
-        }
-      }
-
-      return clients.openWindow(targetUrl);
-    })
-  );
 });

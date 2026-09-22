@@ -1,0 +1,668 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/auth_provider.dart';
+import '../providers/location_provider.dart';
+import '../theme/app_theme.dart';
+import 'main_screen.dart';
+
+enum AuthMode { login, register }
+
+/// Экран авторизации «Всласть».
+///
+/// Вход:
+///   C-ID + пароль
+///
+/// Регистрация:
+///   пароль + повтор пароля
+///
+/// Телефон и e-mail на этапе регистрации не запрашиваются.
+/// C-ID генерируется сервером автоматически.
+class AuthScreen extends StatefulWidget {
+  final AuthMode initialMode;
+
+  const AuthScreen({super.key, this.initialMode = AuthMode.login});
+
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends State<AuthScreen> {
+  late AuthMode _mode = widget.initialMode;
+
+  final _clientIdController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _passwordConfirmController = TextEditingController();
+
+  bool _obscurePassword = true;
+  bool _obscurePasswordConfirm = true;
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _clientIdController.dispose();
+    _passwordController.dispose();
+    _passwordConfirmController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitLogin() async {
+    if (_isSubmitting) return;
+
+    final digits = _clientIdController.text.replaceAll(RegExp(r'\D'), '');
+    final clientId = 'C-$digits';
+    final password = _passwordController.text;
+
+    if (digits.length != 6) {
+      _showMessage('Введите 6 цифр ID клиента.');
+      return;
+    }
+
+    if (password.isEmpty) {
+      _showMessage('Введите пароль.');
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
+    setState(() => _isSubmitting = true);
+
+    final auth = context.read<AuthProvider>();
+
+    final success = await auth.signInWithClientId(
+      clientId: clientId,
+      password: password,
+    );
+
+    if (!mounted) return;
+
+    setState(() => _isSubmitting = false);
+
+    if (!success) {
+      _showMessage(auth.errorMessage ?? 'Не удалось выполнить вход.');
+      return;
+    }
+
+    context.read<LocationProvider>().setCity(
+      auth.city.isNotEmpty ? auth.city : 'Нижневартовск',
+    );
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MainScreen()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _submitRegister() async {
+    if (_isSubmitting) return;
+
+    final password = _passwordController.text;
+    final confirmation = _passwordConfirmController.text;
+
+    if (password.length < 6) {
+      _showMessage('Пароль должен содержать минимум 6 символов.');
+      return;
+    }
+
+    if (password != confirmation) {
+      _showMessage('Пароли не совпадают.');
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
+    setState(() => _isSubmitting = true);
+
+    final auth = context.read<AuthProvider>();
+
+    final success = await auth.signUp(password: password);
+
+    if (!mounted) return;
+
+    setState(() => _isSubmitting = false);
+
+    if (!success) {
+      _showMessage(auth.errorMessage ?? 'Не удалось зарегистрировать клиента.');
+      return;
+    }
+
+    final newClientId = auth.clientId;
+
+    context.read<LocationProvider>().setCity(
+      auth.city.isNotEmpty ? auth.city : 'Нижневартовск',
+    );
+
+    await _showRegistrationResult(newClientId);
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MainScreen()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _showRegistrationResult(String clientId) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.cardBackground,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: Text(
+            'Регистрация завершена',
+            style: AppTextStyles.authHeading,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Ваш постоянный ID клиента:', style: AppTextStyles.body),
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: SelectableText(
+                  clientId,
+                  style: AppTextStyles.screenTitleSmall,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Сохраните этот ID. Он используется '
+                'для входа в приложение. Пароль также '
+                'сохраните в надёжном месте.',
+                style: AppTextStyles.bodySecondary,
+              ),
+            ],
+          ),
+          actions: [
+            _DialogButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              label: 'Продолжить',
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.primaryBrown,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildLogo(),
+
+                  const SizedBox(height: 20),
+
+                  _ModeSwitch(
+                    mode: _mode,
+                    onChanged: (mode) {
+                      if (_isSubmitting) return;
+
+                      setState(() {
+                        _mode = mode;
+                        _passwordController.clear();
+                        _passwordConfirmController.clear();
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  Text(
+                    _mode == AuthMode.login
+                        ? 'Добро пожаловать!'
+                        : 'Создайте аккаунт',
+                    style: AppTextStyles.authHeading,
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  Text(
+                    _mode == AuthMode.login
+                        ? 'Войдите, чтобы делать покупки быстрее и удобнее'
+                        : 'Получите персональный ID клиента для входа во Всласть',
+                    style: AppTextStyles.rowLabelMuted,
+                  ),
+
+                  const SizedBox(height: 22),
+
+                  if (_mode == AuthMode.login)
+                    _buildLogin()
+                  else
+                    _buildRegister(),
+
+                  const SizedBox(height: 24),
+
+                  _buildHero(),
+
+                  if (auth.errorMessage != null &&
+                      auth.errorMessage!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Text(
+                        auth.errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodySecondary.copyWith(
+                          color: AppColors.danger,
+                        ),
+                      ),
+                    ),
+
+                  if (_isSubmitting || auth.isLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 20),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primaryBrown,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Image.asset(
+          'assets/images/logo_light.png',
+          width: double.infinity,
+          height: 130,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              height: 130,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceMuted,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.image_outlined,
+                  size: 36,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLogin() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LabeledTextField(
+          label: 'ID клиента',
+          hint: '000123',
+          leadingIcon: Icons.badge_outlined,
+          prefixText: 'C-',
+          controller: _clientIdController,
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(6),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        LabeledTextField(
+          label: 'Пароль',
+          hint: 'Введите пароль',
+          leadingIcon: Icons.lock_outline,
+          obscureText: _obscurePassword,
+          controller: _passwordController,
+          trailing: IconButton(
+            icon: Icon(
+              _obscurePassword
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+            onPressed: _isSubmitting
+                ? null
+                : () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        _GradientButton(
+          label: _isSubmitting ? 'Выполняется вход...' : 'Иду за покупками',
+          onTap: _isSubmitting ? () {} : _submitLogin,
+        ),
+
+        const SizedBox(height: 16),
+
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceMuted,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.info_outline,
+                size: 20,
+                color: AppColors.primaryBrown,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Введите только 6 цифр. Префикс C- '
+                  'добавляется автоматически.',
+                  style: AppTextStyles.bodySecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        Center(
+          child: Text(
+            'ID и пароль сохраняйте после регистрации.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.infoNote,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRegister() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceMuted,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.auto_awesome, color: AppColors.primaryBrown),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'ID клиента будет создан автоматически '
+                  'после регистрации. Телефон и e-mail '
+                  'вводить не нужно.',
+                  style: AppTextStyles.body,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 18),
+
+        LabeledTextField(
+          label: 'Пароль',
+          hint: 'Придумайте пароль',
+          leadingIcon: Icons.lock_outline,
+          obscureText: _obscurePassword,
+          controller: _passwordController,
+          trailing: IconButton(
+            icon: Icon(
+              _obscurePassword
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+            onPressed: _isSubmitting
+                ? null
+                : () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        LabeledTextField(
+          label: 'Повторите пароль',
+          hint: 'Повторите пароль',
+          leadingIcon: Icons.lock_outline,
+          obscureText: _obscurePasswordConfirm,
+          controller: _passwordConfirmController,
+          trailing: IconButton(
+            icon: Icon(
+              _obscurePasswordConfirm
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+            onPressed: _isSubmitting
+                ? null
+                : () {
+                    setState(() {
+                      _obscurePasswordConfirm = !_obscurePasswordConfirm;
+                    });
+                  },
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        _GradientButton(
+          label: _isSubmitting ? 'Создаём аккаунт...' : 'Зарегистрироваться',
+          onTap: _isSubmitting ? () {} : _submitRegister,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHero() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: Image.asset(
+        _mode == AuthMode.login
+            ? 'assets/images/hero_banner.jpg'
+            : 'assets/images/cake_crown_bordeaux.jpg',
+        width: double.infinity,
+        height: 220,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            height: 220,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceMuted,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.image_outlined,
+                size: 40,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ModeSwitch extends StatelessWidget {
+  final AuthMode mode;
+  final ValueChanged<AuthMode> onChanged;
+
+  const _ModeSwitch({required this.mode, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _tab('Вход', AuthMode.login)),
+          Expanded(child: _tab('Регистрация', AuthMode.register)),
+        ],
+      ),
+    );
+  }
+
+  Widget _tab(String label, AuthMode value) {
+    final selected = mode == value;
+
+    return GestureDetector(
+      onTap: () => onChanged(value),
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primaryBrown : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: AppTextStyles.categoryChip.copyWith(
+            color: selected ? Colors.white : AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GradientButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _GradientButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 17),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                AppColors.primaryBrown,
+                AppColors.primaryBrown.withValues(alpha: 0.78),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryBrown.withValues(alpha: 0.18),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: AppTextStyles.rowLabel.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DialogButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  final String label;
+
+  const _DialogButton({required this.onPressed, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.white,
+        backgroundColor: AppColors.primaryBrown,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      child: Text(label, style: AppTextStyles.button),
+    );
+  }
+}

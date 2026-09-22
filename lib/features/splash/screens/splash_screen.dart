@@ -6,10 +6,11 @@ import 'package:provider/provider.dart';
 import '../../../models/product.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/product_service.dart';
-import '../../../services/push_notification_service.dart';
+import '../../../services/push_navigation_router.dart';
 import '../../../screens/auth_screen.dart';
 import '../../../screens/main_screen.dart';
 import '../../admin/screens/app_mode_selection_screen.dart';
+import '../../../core/build_info.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -93,28 +94,20 @@ class _SplashScreenState extends State<SplashScreen>
       context,
     ).pushReplacement(MaterialPageRoute(builder: (_) => destination));
 
-    // Если приложение было открыто нажатием на push о заказе,
-    // передаём открытие заказа единому push-router.
-    final pendingOrderId = PushNotificationService.instance
-        .consumePendingOrderId();
+    // Push-навигация выполняется только после завершения перехода со Splash,
+    // чтобы не конкурировать с pushReplacement и не возвращать пользователя
+    // на последний открытый экран.
+    final pushDelay = auth.isLoggedIn
+        ? const Duration(milliseconds: 450)
+        : const Duration(milliseconds: 250);
 
-    if (pendingOrderId != null && pendingOrderId.isNotEmpty) {
-      debugPrint(
-        '[Push] Splash -> pending order navigation: '
-        'order_id=$pendingOrderId',
-      );
+    await Future<void>.delayed(pushDelay);
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+    if (!mounted) return;
 
-        debugPrint(
-          '[Push] Splash -> opening order '
-          'order_id=$pendingOrderId',
-        );
+    final handled = await PushNavigationRouter.instance.handlePending();
 
-        PushNotificationService.instance.openOrderById(pendingOrderId);
-      });
-    }
+    debugPrint('[PushRouter] Splash pending navigation handled=$handled');
   }
 
   @override
@@ -128,8 +121,22 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       body: FadeTransition(
         opacity: _opacity,
-        child: SizedBox.expand(
-          child: Image.asset('assets/images/splash.jpg', fit: BoxFit.cover),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset('assets/images/splash.jpg', fit: BoxFit.cover),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 24,
+              child: Center(
+                child: Text(
+                  'Сборка: $buildLabel',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

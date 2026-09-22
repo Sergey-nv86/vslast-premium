@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=2">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
+
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
@@ -20,9 +23,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Всласть">
-
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
-  <link rel="icon" type="image/png" href="favicon.png">
 
   <title>Всласть</title>
   <link rel="manifest" href="manifest.json">
@@ -97,6 +97,43 @@
         }
       }, 100);
     });
+  </script>
+
+  <script>
+    // Firebase Cloud Messaging Service Worker.
+    // Register it after the page is loaded and use the scope
+    // recommended by Firebase/FlutterFire.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register(
+          'firebase-messaging-sw.js',
+          {
+            scope: '/firebase-cloud-messaging-push-scope',
+          }
+        ).then(function (registration) {
+          console.log(
+            '[FCM] firebase-messaging-sw.js registered:',
+            registration.scope
+          );
+
+          return navigator.serviceWorker.ready;
+        }).then(function (registration) {
+          console.log(
+            '[FCM] Firebase Messaging Service Worker active:',
+            registration.scope
+          );
+        }).catch(function (error) {
+          console.error(
+            '[FCM] firebase-messaging-sw.js registration failed:',
+            error
+          );
+        });
+      });
+    } else {
+      console.error(
+        '[FCM] Service Worker API is not supported.'
+      );
+    }
   </script>
 
   <script src="vslast_yandex_map.js"></script>

@@ -206,28 +206,42 @@ class AdminOrdersService {
   ) async {
     var normalizedCardNumber = cardNumber.trim().toUpperCase();
 
-    // QR из клиентского приложения:
-    // VSLAST|CARD|VSL-89870620
-    final qrMatch = RegExp(
-      r'VSLAST\|CARD\|(VSL-\d{8})',
+    // Нормализуем все поддерживаемые форматы клиентского QR.
+    //
+    // Поддерживаем:
+    // VSL-31471850
+    // VSLAST|CARD|VSL-31471850
+    // VSLAST|CARD|31471850
+    // 31471850
+    // VSL31471850
+    normalizedCardNumber = normalizedCardNumber.trim();
+
+    final embeddedCard = RegExp(
+      r'(VSL-\d{8})',
       caseSensitive: false,
     ).firstMatch(normalizedCardNumber);
 
-    if (qrMatch != null) {
-      normalizedCardNumber = qrMatch.group(1)!.toUpperCase();
+    if (embeddedCard != null) {
+      normalizedCardNumber = embeddedCard.group(1)!.toUpperCase();
     } else {
-      // Убираем пробелы.
+      final qrMatch = RegExp(
+        r'VSLAST\|CARD\|([^|\s]+)',
+        caseSensitive: false,
+      ).firstMatch(normalizedCardNumber);
+
+      if (qrMatch != null) {
+        normalizedCardNumber = qrMatch.group(1)!.trim().toUpperCase();
+      }
+
       normalizedCardNumber = normalizedCardNumber.replaceAll(
         RegExp(r'\s+'),
         '',
       );
 
-      // 89870620 -> VSL-89870620
       if (RegExp(r'^\d{8}$').hasMatch(normalizedCardNumber)) {
         normalizedCardNumber = 'VSL-$normalizedCardNumber';
       }
 
-      // VSL89870620 -> VSL-89870620
       final withoutDash = RegExp(
         r'^VSL(\d{8})$',
         caseSensitive: false,
@@ -249,7 +263,7 @@ class AdminOrdersService {
 
     final account = await _supabase
         .from('loyalty_accounts')
-        .select('id, user_id, card_number')
+        .select('id, user_id, client_id, card_number')
         .eq('card_number', normalizedCardNumber)
         .maybeSingle();
 

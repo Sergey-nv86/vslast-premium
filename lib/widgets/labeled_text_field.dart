@@ -10,6 +10,7 @@ class LabeledTextField extends StatelessWidget {
   final String hint;
   final IconData? leadingIcon;
   final Widget? trailing;
+  final String? prefixText;
   final bool obscureText;
   final TextEditingController? controller;
   final TextInputType? keyboardType;
@@ -23,6 +24,7 @@ class LabeledTextField extends StatelessWidget {
     required this.hint,
     this.leadingIcon,
     this.trailing,
+    this.prefixText,
     this.obscureText = false,
     this.controller,
     this.keyboardType,
@@ -66,6 +68,11 @@ class LabeledTextField extends StatelessWidget {
               prefixIconConstraints: const BoxConstraints(
                 minWidth: 42,
                 minHeight: 20,
+              ),
+              prefixText: prefixText,
+              prefixStyle: AppTextStyles.rowLabel.copyWith(
+                color: AppColors.primaryBrown,
+                fontWeight: FontWeight.w600,
               ),
               suffixIcon: trailing,
             ),
