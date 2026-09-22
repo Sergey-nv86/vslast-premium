@@ -35,7 +35,7 @@ class _MainScreenState extends State<MainScreen> {
     // 1. товары, переданные из Splash;
     // 2. последний успешно загруженный список из ProductService cache;
     // 3. загрузка из Supabase, если cache пуст.
-    final cachedProducts = ProductService.instance.cachedProducts;
+    final cachedProducts = ProductService.instance.cachedCatalogProducts;
 
     if (widget.products.isNotEmpty) {
       _products = List<Product>.of(widget.products);
