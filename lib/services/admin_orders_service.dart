@@ -15,12 +15,6 @@ class AdminOrdersService {
     final authUser = _supabase.auth.currentUser;
     final session = _supabase.auth.currentSession;
 
-    debugPrint('ADMIN AUTH USER: ${authUser?.id}');
-    debugPrint('ADMIN AUTH EMAIL: ${authUser?.email}');
-    debugPrint('ADMIN AUTH SESSION: ${session != null}');
-
-    debugPrint('ADMIN ORDERS: начинаем загрузку заказов');
-
     final response = await _supabase
         .from('orders')
         .select('''
@@ -51,18 +45,13 @@ class AdminOrdersService {
             line_total,
             products:product_id (
               id,
-              image_url,
-              gallery_images
+              image_url
             )
           )
         ''')
         .order('created_at', ascending: false);
 
-    debugPrint('ADMIN ORDERS: response = $response');
-
     final rows = List<Map<String, dynamic>>.from(response);
-    debugPrint('ADMIN ORDERS: получено строк = ${rows.length}');
-
     final userIds = rows
         .map((row) => row['user_id']?.toString())
         .whereType<String>()
@@ -73,13 +62,10 @@ class AdminOrdersService {
     final profilesById = <String, Map<String, dynamic>>{};
 
     if (userIds.isNotEmpty) {
-      debugPrint('ADMIN PROFILES: userIds = $userIds');
       final profilesResponse = await _supabase
           .from('profiles')
           .select('id, display_name, first_name, last_name, phone, email')
           .inFilter('id', userIds);
-
-      debugPrint('ADMIN PROFILES: response = $profilesResponse');
 
       for (final profile in profilesResponse) {
         final map = Map<String, dynamic>.from(profile as Map);
@@ -91,13 +77,6 @@ class AdminOrdersService {
     }
 
     final bakery = await BakeryService.instance.getActiveBakery();
-
-    debugPrint(
-      'ADMIN BAKERY: '
-      'name=${bakery?.name}, '
-      'city=${bakery?.city}, '
-      'address=${bakery?.address}',
-    );
 
     return rows.map((row) {
       final userId = row['user_id']?.toString() ?? '';
@@ -395,8 +374,6 @@ class AdminOrdersService {
   /// total — незавершённые заказы, которые должны быть получены сегодня.
   /// newOrders — новые заказы на сегодня.
   Future<Map<String, int>> fetchOrderStats() async {
-    debugPrint('ADMIN DASHBOARD ORDERS: загрузка всех незавершённых заказов');
-
     final response = await _supabase.from('orders').select('id, status');
 
     final finishedStatuses = {'completed', 'cancelled', 'canceled', 'rejected'};
@@ -431,9 +408,6 @@ class AdminOrdersService {
         newOrders++;
       }
     }
-
-    debugPrint('ADMIN DASHBOARD STATUS COUNTS: $statusCounts');
-    debugPrint('ADMIN DASHBOARD ORDERS: all unfinished=$total, new=$newOrders');
 
     return {'total': total, 'new': newOrders};
   }
