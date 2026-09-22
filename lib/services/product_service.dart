@@ -155,11 +155,8 @@ class ProductService {
     final rows = await _supabase
         .from('products')
         .select('''
-          id, external_id, name, price, image_url, gallery_images, badge,
-          in_stock, is_weighed, weight_label, description,
-          calories_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g,
-          composition, rating, reviews_count, is_active, created_at, updated_at,
-          category_id, categories (name, slug)
+          id, name, price, image_url, badge, in_stock, is_weighed,
+          weight_label, is_active, created_at, category_id, categories (slug)
         ''')
         .order('created_at');
     return (rows as List)
