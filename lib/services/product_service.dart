@@ -209,6 +209,34 @@ class ProductService {
     return products;
   }
 
+  void _syncCaches(Product product) {
+    if (_cachedProducts != null) {
+      final index = _cachedProducts!.indexWhere((item) => item.id == product.id);
+      if (product.isActive) {
+        if (index >= 0) {
+          _cachedProducts![index] = product;
+        } else {
+          _cachedProducts!.add(product);
+        }
+      } else if (index >= 0) {
+        _cachedProducts!.removeAt(index);
+      }
+    }
+
+    if (_cachedCatalogProducts != null) {
+      final index = _cachedCatalogProducts!.indexWhere((item) => item.id == product.id);
+      if (product.isActive) {
+        if (index >= 0) {
+          _cachedCatalogProducts![index] = product;
+        } else {
+          _cachedCatalogProducts!.add(product);
+        }
+      } else if (index >= 0) {
+        _cachedCatalogProducts!.removeAt(index);
+      }
+    }
+  }
+
   /// Загружает один товар по ID.
   Future<Product?> getProduct(String id) async {
     final rows = await _supabase
@@ -401,7 +429,9 @@ class ProductService {
           ''')
           .single();
 
-      return _fromSupabase(Map<String, dynamic>.from(row));
+      final product = _fromSupabase(Map<String, dynamic>.from(row));
+      _syncCaches(product);
+      return product;
     } on PostgrestException catch (error) {
       throw ProductServiceException(
         'Не удалось обновить товар: ${error.message}',
@@ -575,6 +605,8 @@ class ProductService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', productId);
+      _cachedProducts?.removeWhere((item) => item.id == productId);
+      _cachedCatalogProducts?.removeWhere((item) => item.id == productId);
     } on PostgrestException catch (error) {
       throw ProductServiceException(
         'Не удалось скрыть товар: ${error.message}',
@@ -643,13 +675,10 @@ class ProductService {
   /// Активирует товар.
   Future<void> activateProduct(String productId) async {
     try {
-      await _supabase
-          .from('products')
-          .update({
-            'is_active': true,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', productId);
+      final product = await getProduct(productId);
+      if (product != null) {
+        _syncCaches(product);
+      }
     } on PostgrestException catch (error) {
       throw ProductServiceException(
         'Не удалось показать товар: ${error.message}',
