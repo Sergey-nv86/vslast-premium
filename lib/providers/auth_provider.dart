@@ -454,6 +454,9 @@ class AuthProvider extends ChangeNotifier {
     String? displayName,
     String? city,
     DateTime? birthDate,
+    bool consentPersonalData = false,
+    bool acceptTerms = false,
+    bool consentMarketing = false,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -465,12 +468,19 @@ class AuthProvider extends ChangeNotifier {
         _errorMessage = 'Пароль должен содержать минимум 6 символов.';
         return false;
       }
+      if (!consentPersonalData || !acceptTerms) {
+        _errorMessage = 'Необходимо подтвердить обязательные документы регистрации.';
+        return false;
+      }
 
       final response = await _supabase.functions.invoke(
         'client-auth',
         body: {
           'action': 'register',
           'password': password,
+          'consent_personal_data': consentPersonalData,
+          'accept_terms': acceptTerms,
+          'consent_marketing': consentMarketing,
         },
       );
 
