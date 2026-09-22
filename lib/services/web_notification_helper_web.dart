@@ -26,6 +26,7 @@ Future<void> showForegroundNotification({
     final pushType = navigationData['type']?.trim() ?? '';
     final orderId = navigationData['order_id']?.trim() ?? '';
     final productId = navigationData['product_id']?.trim() ?? '';
+    final threadId = navigationData['thread_id']?.trim() ?? '';
 
     if (pushType.isNotEmpty || orderId.isNotEmpty || productId.isNotEmpty) {
       final query = <String, String>{};
@@ -40,6 +41,10 @@ Future<void> showForegroundNotification({
 
       if (productId.isNotEmpty) {
         query['product_id'] = productId;
+      }
+
+      if (threadId.isNotEmpty) {
+        query['thread_id'] = threadId;
       }
 
       final targetUrl = Uri(
@@ -107,6 +112,7 @@ StreamSubscription<web.MessageEvent> listenServiceWorkerPushNavigation(
         'type': dartData['push_type']?.toString() ?? '',
         'order_id': dartData['order_id']?.toString() ?? '',
         'product_id': dartData['product_id']?.toString() ?? '',
+        'thread_id': dartData['thread_id']?.toString() ?? '',
       };
 
       debugPrint('[Push] Service Worker navigation: $navigation');
