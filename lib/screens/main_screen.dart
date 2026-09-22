@@ -108,26 +108,21 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  Widget _pageFor(int index) {
-    final existing = _pages[index];
-    if (existing is! SizedBox || index == 0) {
-      return existing;
-    }
+  void _ensurePage(int index) {
+    if (index == 0 || _pages[index] is! SizedBox) return;
 
-    final Widget page = switch (index) {
+    _pages[index] = switch (index) {
       1 => const CatalogScreen(),
       2 => const BakeScheduleScreen(),
       3 => const PromotionsScreen(),
       4 => const LoyaltyScreen(),
       _ => const SizedBox.shrink(),
     };
-
-    _pages[index] = page;
-    return page;
   }
 
-  List<Widget> _buildPages() {
-    return List<Widget>.generate(5, _pageFor);
+  List<Widget> _ensureAndGetPages(int index) {
+    _ensurePage(index);
+    return _pages;
   }
 
   @override
@@ -141,13 +136,13 @@ class _MainScreenState extends State<MainScreen> {
       backgroundColor: const Color(0xFFFAF8F5),
       body: IndexedStack(
         index: currentIndex,
-        children: _buildPages(),
+        children: _ensureAndGetPages(currentIndex),
       ),
       bottomNavigationBar: PremiumBottomNavBar(
         currentIndex: currentIndex,
         onTap: (index) {
           if (index != 0) {
-            _pageFor(index);
+            _ensurePage(index);
           }
           context.read<TabNavigationController>().setIndex(index);
           if (mounted) setState(() {});
