@@ -101,7 +101,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
     // Use the already loaded Splash/Main cache immediately. This removes the
     // duplicate Supabase request that previously happened when Catalog was
     // constructed inside IndexedStack.
-    final cached = ProductService.instance.cachedProducts;
+    final cached = ProductService.instance.cachedCatalogProducts;
     if (!forceRefresh && cached != null && cached.isNotEmpty) {
       _products = cached;
       _isLoading = false;
@@ -120,7 +120,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
     }
 
     try {
-      final products = await ProductService.instance.getProducts(
+      final products = await ProductService.instance.getCatalogProducts(
         forceRefresh: forceRefresh,
       );
       if (!mounted) return;
