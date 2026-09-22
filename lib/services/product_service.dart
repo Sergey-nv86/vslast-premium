@@ -56,6 +56,74 @@ class ProductService {
   // SELECT
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // SELECT
+  // ---------------------------------------------------------------------------
+
+  // Lightweight projection used by Home/Catalog. Detail-only fields such as
+  // gallery, description and nutrition are deliberately excluded from the
+  // hot-path query to reduce Supabase payload and JSON decoding work.
+  static const String _catalogSelect = '''
+    id,
+    name,
+    price,
+    image_url,
+    badge,
+    in_stock,
+    is_weighed,
+    weight_label,
+    category_id,
+    categories (
+      slug
+    )
+  ''';
+
+  List<Product>? _cachedCatalogProducts;
+  Future<List<Product>>? _catalogProductsRequest;
+
+  List<Product>? get cachedCatalogProducts {
+    final products = _cachedCatalogProducts;
+    return products == null ? null : List<Product>.of(products);
+  }
+
+  /// Fast catalog read for Home/Catalog. Keeps the existing full getProducts()
+  /// contract intact for screens that need detail fields.
+  Future<List<Product>> getCatalogProducts({bool forceRefresh = false}) {
+    final cached = _cachedCatalogProducts;
+    if (!forceRefresh && cached != null && cached.isNotEmpty) {
+      return Future<List<Product>>.value(List<Product>.of(cached));
+    }
+
+    final inFlight = _catalogProductsRequest;
+    if (!forceRefresh && inFlight != null) {
+      return inFlight.then((products) => List<Product>.of(products));
+    }
+
+    final request = _fetchCatalogProducts();
+    _catalogProductsRequest = request;
+
+    return request.whenComplete(() {
+      if (identical(_catalogProductsRequest, request)) {
+        _catalogProductsRequest = null;
+      }
+    }).then(List<Product>.of);
+  }
+
+  Future<List<Product>> _fetchCatalogProducts() async {
+    final rows = await _supabase
+        .from('products')
+        .select(_catalogSelect)
+        .eq('is_active', true)
+        .order('created_at');
+
+    final products = (rows as List)
+        .map((row) => _fromSupabase(Map<String, dynamic>.from(row)))
+        .toList();
+
+    _cachedCatalogProducts = List<Product>.of(products);
+    return products;
+  }
+
   /// Загружает активные товары из Supabase.
   Future<List<Product>> getProducts({bool forceRefresh = false}) {
     final cached = _cachedProducts;
