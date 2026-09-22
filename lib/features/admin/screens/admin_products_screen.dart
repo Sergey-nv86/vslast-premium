@@ -271,10 +271,17 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   }
 
   Future<void> _openEdit(Product product) async {
+    final fullProduct =
+        await _productService.getProduct(product.id) ?? product;
+
+    if (!mounted) return;
+
     final result = await Navigator.of(context).push<AdminProductEditResult>(
       MaterialPageRoute(
-        builder: (_) =>
-            AdminProductEditScreen(product: product, meta: _metas[product.id]),
+        builder: (_) => AdminProductEditScreen(
+          product: fullProduct,
+          meta: _metas[product.id],
+        ),
       ),
     );
 
