@@ -442,11 +442,8 @@ class PushNotificationService with WidgetsBindingObserver {
       'body=${message.notification?.body}',
     );
 
-    if (message.data['type']?.toString().startsWith('chat_message') == true) {
-      unawaited(PushNavigationRouter.instance.handleData(
-        message.data.map((key, value) => MapEntry(key, value.toString())),
-      ));
-    } else {
+    final pushType = message.data['type']?.toString().trim().toLowerCase() ?? '';
+    if (!pushType.startsWith('chat_message')) {
       _queueOrderFromMessage(message);
     }
 
