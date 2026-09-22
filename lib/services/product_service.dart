@@ -426,9 +426,9 @@ class ProductService {
           ''')
           .single();
 
-      final product = _fromSupabase(Map<String, dynamic>.from(row));
-      _syncCaches(product);
-      return product;
+      final updatedProduct = _fromSupabase(Map<String, dynamic>.from(row));
+      _syncCaches(updatedProduct);
+      return updatedProduct;
     } on PostgrestException catch (error) {
       throw ProductServiceException(
         'Не удалось обновить товар: ${error.message}',
