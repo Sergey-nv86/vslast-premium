@@ -143,7 +143,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   @override
   void dispose() {
-    _scrollController.removeListener(_updateActiveCategory);
+    _scrollController.removeListener(_scheduleActiveCategoryUpdate);
     _searchController.removeListener(_onSearchChanged);
     _scrollController.dispose();
     _searchController.dispose();
