@@ -25,6 +25,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   late List<Product> _products;
   bool _isLoadingProducts = false;
+  late List<Widget> _pages;
 
   @override
   void initState() {
@@ -54,6 +55,14 @@ class _MainScreenState extends State<MainScreen> {
       '${_products.where((product) => product.inStock).length}',
     );
 
+    _pages = List<Widget>.generate(5, (_) => const SizedBox.shrink());
+
+    // Only the initially visible page is constructed at startup.
+    _pages[0] = HomeScreen(
+      products: _products,
+      isLoading: _isLoadingProducts,
+    );
+
     if (_products.isEmpty) {
       _loadProducts();
     }
@@ -74,6 +83,10 @@ class _MainScreenState extends State<MainScreen> {
       setState(() {
         _products = products;
         _isLoadingProducts = false;
+        _pages[0] = HomeScreen(
+          products: _products,
+          isLoading: false,
+        );
       });
 
       debugPrint('===== MAIN PRODUCT LOAD SUCCESS =====');
@@ -95,6 +108,28 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  Widget _pageFor(int index) {
+    final existing = _pages[index];
+    if (existing is! SizedBox || index == 0) {
+      return existing;
+    }
+
+    final Widget page = switch (index) {
+      1 => const CatalogScreen(),
+      2 => const BakeScheduleScreen(),
+      3 => const PromotionsScreen(),
+      4 => const LoyaltyScreen(),
+      _ => const SizedBox.shrink(),
+    };
+
+    _pages[index] = page;
+    return page;
+  }
+
+  List<Widget> _buildPages() {
+    return List<Widget>.generate(5, _pageFor);
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint('===== MAIN BUILD =====');
@@ -106,18 +141,16 @@ class _MainScreenState extends State<MainScreen> {
       backgroundColor: const Color(0xFFFAF8F5),
       body: IndexedStack(
         index: currentIndex,
-        children: [
-          HomeScreen(products: _products, isLoading: _isLoadingProducts),
-          const CatalogScreen(),
-          const BakeScheduleScreen(),
-          const PromotionsScreen(),
-          const LoyaltyScreen(),
-        ],
+        children: _buildPages(),
       ),
       bottomNavigationBar: PremiumBottomNavBar(
         currentIndex: currentIndex,
         onTap: (index) {
+          if (index != 0) {
+            _pageFor(index);
+          }
           context.read<TabNavigationController>().setIndex(index);
+          if (mounted) setState(() {});
         },
       ),
     );
