@@ -50,7 +50,7 @@ class _SplashScreenState extends State<SplashScreen>
     // Start independent initialization work together. The previous flow
     // waited for auth, then products, then an unconditional 3-second delay.
     final authFuture = auth.initialize();
-    final productsFuture = ProductService.instance.getProducts().catchError((error, stackTrace) {
+    final productsFuture = ProductService.instance.getCatalogProducts().catchError((error, stackTrace) {
       debugPrint('SPLASH PRODUCT PRELOAD ERROR: $error');
       debugPrint('$stackTrace');
       return <Product>[];
