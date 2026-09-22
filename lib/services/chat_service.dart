@@ -68,12 +68,10 @@ class ChatService {
     final user = _supabase.auth.currentUser;
     if (user == null) return;
 
-    await _supabase
-        .from('chat_messages')
-        .update({'read_at': DateTime.now().toUtc().toIso8601String()})
-        .eq('thread_id', threadId)
-        .neq('sender_user_id', user.id)
-        .isFilter('read_at', null);
+    await _supabase.rpc(
+      'mark_chat_messages_read',
+      params: {'p_thread_id': threadId},
+    );
   }
 
   Future<void> sendMessage({
