@@ -82,12 +82,35 @@ class AdminClientsService {
   Future<List<AdminClient>> fetchClients() async {
     final profilesResponse = await _supabase
         .from('profiles')
-        .select('id, first_name, last_name, display_name, phone, created_at, updated_at, role, bonus_balance')
+        .select('id, first_name, last_name, display_name, phone, created_at, updated_at, role')
         .eq('role', 'customer');
 
     final profiles = List<Map<String, dynamic>>.from(profilesResponse);
 
     final customers = profiles.where(_isCustomer).toList();
+
+    final customerIds = customers
+        .map((profile) => profile['id']?.toString())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toList();
+
+    final bonusByUserId = <String, double>{};
+
+    if (customerIds.isNotEmpty) {
+      final loyaltyResponse = await _supabase
+          .from('loyalty_accounts')
+          .select('user_id, bonus_balance')
+          .inFilter('user_id', customerIds);
+
+      for (final account in loyaltyResponse) {
+        final row = Map<String, dynamic>.from(account as Map);
+        final userId = row['user_id']?.toString();
+        if (userId == null || userId.isEmpty) continue;
+
+        bonusByUserId[userId] = _number(row['bonus_balance']) ?? 0;
+      }
+    }
 
     // Только поля, необходимые для определения последнего действия.
     final ordersResponse = await _supabase
@@ -146,7 +169,7 @@ class AdminClientsService {
           phone: _profilePhone(profile),
           registeredAt: registeredAt,
           lastActionAt: lastActionAt,
-          bonusBalance: _bonusBalance(profile),
+          bonusBalance: bonusByUserId[id] ?? _bonusBalance(profile),
         ),
       );
     }
@@ -177,6 +200,16 @@ class AdminClientsService {
     }
 
     final profile = Map<String, dynamic>.from(profileResponse);
+
+    final loyaltyResponse = await _supabase
+        .from('loyalty_accounts')
+        .select('bonus_balance')
+        .eq('user_id', clientId)
+        .maybeSingle();
+
+    final bonusBalance = loyaltyResponse == null
+        ? 0.0
+        : (_number(loyaltyResponse['bonus_balance']) ?? 0);
 
     // Загружаем только историю этого клиента, а не всю таблицу orders.
     final ordersResponse = await _supabase
@@ -249,7 +282,7 @@ class AdminClientsService {
       phone: _profilePhone(profile),
       registeredAt: registeredAt,
       lastActionAt: lastActionAt,
-      bonusBalance: _bonusBalance(profile),
+      bonusBalance: bonusBalance,
     );
 
     return AdminClientDetails(
