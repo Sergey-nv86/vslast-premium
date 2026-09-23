@@ -124,149 +124,74 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     try {
       final supabase = AdminClientsService.instance.supabase;
 
-      // --------------------------------------------------
-      // 1. Находим активные товары, которых сейчас нет
-      //    в наличии.
-      // --------------------------------------------------
-
       final productsResponse = await supabase
           .from('products')
-          .select('id,price,in_stock,is_active');
+          .select('id')
+          .eq('is_active', true)
+          .eq('in_stock', false);
 
-      final unavailableIds = <String>{};
-
-      for (final raw in productsResponse) {
-        final product = Map<String, dynamic>.from(raw);
-
-        final id = product['id']?.toString();
-
-        if (id == null || id.isEmpty) continue;
-
-        final isActive = product['is_active'] != false;
-        final inStock = product['in_stock'] == true;
-
-        if (isActive && !inStock) {
-          unavailableIds.add(id);
-        }
-      }
+      final unavailableIds = productsResponse
+          .map((row) => row['id']?.toString())
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet();
 
       if (unavailableIds.isEmpty) {
         if (!mounted) return;
-
         setState(() {
           _demandProducts = 0;
           _demandAmount = 0;
         });
-
         return;
       }
 
-      // --------------------------------------------------
-      // 2. Реальный спрос берём из orders + order_items.
-      //
-      // Предзаказы тоже попадают сюда:
-      // create_preorders_from_bake_schedule()
-      // создаёт обычный order + order_items,
-      // после чего выставляет orders.is_preorder = true.
-      //
-      // cart_items намеренно НЕ используется.
-      // --------------------------------------------------
-
-      final ordersResponse = await supabase.from('orders').select('''
-            id,
-            status,
-            is_preorder,
-            order_items (
-              product_id,
-              quantity,
-              unit_price,
-              line_total
-            )
-          ''');
+      final orderItemsResponse = await supabase.from('order_items').select('''
+        product_id,
+        quantity,
+        unit_price,
+        line_total,
+        orders!inner(status)
+      ''').not(
+        'orders.status',
+        'in',
+        '("cancelled","canceled","rejected")',
+      );
 
       final demandByProduct = <String, int>{};
       double potentialRub = 0;
 
-      for (final raw in ordersResponse) {
-        final order = Map<String, dynamic>.from(raw);
+      for (final raw in orderItemsResponse) {
+        final item = Map<String, dynamic>.from(raw as Map);
+        final productId = item['product_id']?.toString();
 
-        final status = order['status']?.toString().toLowerCase();
-
-        // Отменённые и отклонённые заказы
-        // не являются спросом.
-        if (status == 'cancelled' ||
-            status == 'canceled' ||
-            status == 'rejected') {
+        if (productId == null || !unavailableIds.contains(productId)) {
           continue;
         }
 
-        final itemsRaw = order['order_items'];
+        final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+        if (quantity <= 0) continue;
 
-        if (itemsRaw is! List) continue;
+        demandByProduct[productId] =
+            (demandByProduct[productId] ?? 0) + quantity;
 
-        for (final rawItem in itemsRaw) {
-          if (rawItem is! Map) continue;
-
-          final item = Map<String, dynamic>.from(rawItem);
-
-          final productId = item['product_id']?.toString();
-
-          if (productId == null || !unavailableIds.contains(productId)) {
-            continue;
-          }
-
-          final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-
-          if (quantity <= 0) continue;
-
-          demandByProduct[productId] =
-              (demandByProduct[productId] ?? 0) + quantity;
-
-          // Сначала используем зафиксированную сумму позиции.
-          // Это важно: цена заказа могла отличаться
-          // от текущей цены товара.
-          final lineTotal = (item['line_total'] as num?)?.toDouble();
-
-          if (lineTotal != null && lineTotal > 0) {
-            potentialRub += lineTotal;
-          } else {
-            final unitPrice = (item['unit_price'] as num?)?.toDouble() ?? 0;
-
-            potentialRub += unitPrice * quantity;
-          }
+        final lineTotal = (item['line_total'] as num?)?.toDouble();
+        if (lineTotal != null && lineTotal > 0) {
+          potentialRub += lineTotal;
+        } else {
+          final unitPrice = (item['unit_price'] as num?)?.toDouble() ?? 0;
+          potentialRub += unitPrice * quantity;
         }
       }
-
-      // --------------------------------------------------
-      // 3. Считаем только товары, по которым действительно
-      //    есть спрос.
-      //
-      // Раньше здесь ошибочно показывались ВСЕ товары
-      // без наличия.
-      // --------------------------------------------------
-
-      final productsWithDemand = demandByProduct.keys.toSet();
 
       if (!mounted) return;
 
       setState(() {
-        _demandProducts = productsWithDemand.length;
+        _demandProducts = demandByProduct.length;
         _demandAmount = potentialRub;
       });
-
-      debugPrint(
-        'REAL DEMAND: '
-        'unavailable=${unavailableIds.length}, '
-        'productsWithDemand=${productsWithDemand.length}, '
-        'potential=${potentialRub.toStringAsFixed(2)} ₽',
-      );
     } catch (e, st) {
       debugPrint('REAL DEMAND ERROR: $e');
       debugPrintStack(stackTrace: st);
-
-      if (!mounted) return;
-
-      setState(() {});
     }
   }
 
