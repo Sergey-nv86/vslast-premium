@@ -193,7 +193,7 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
           ? 0.0
           : (index / _messages.length.clamp(1, 100000)) * max;
       _scrollController.jumpTo(
-        estimated.clamp(0.0, max),
+        estimated.clamp(0.0, max).toDouble(),
       );
       await Future<void>.delayed(const Duration(milliseconds: 60));
     }
@@ -751,7 +751,7 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
           ? 0.0
           : (index / _messages.length.clamp(1, 100000)) * max;
       _scrollController.jumpTo(
-        estimated.clamp(0.0, max),
+        estimated.clamp(0.0, max).toDouble(),
       );
       await Future<void>.delayed(const Duration(milliseconds: 60));
     }
