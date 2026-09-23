@@ -28,6 +28,9 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
     super.initState();
     unawaited(context.read<FavoritesProvider>().load());
     _productsFuture = ProductService.instance.getCatalogProducts();
+    unawaited(_productsFuture!.then((_) {
+      if (mounted) setState(() {});
+    }));
   }
 
   void _openProductDetails(BuildContext context, Product product) {
