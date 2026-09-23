@@ -68,6 +68,7 @@ class ProductImage extends StatelessWidget {
       return url;
     }
   }
+
   Widget _image() {
     final url = imageUrl.trim();
 
