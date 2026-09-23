@@ -42,7 +42,7 @@ class ProductCard extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
             child: AspectRatio(
-              aspectRatio: 1.28,
+              aspectRatio: 1.0,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -51,7 +51,7 @@ class ProductCard extends StatelessWidget {
                     alignment: Alignment.center,
                     child: ProductImage(
                       imageUrl: product.imageUrl,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       iconSize: 32,
                     ),
                   ),
