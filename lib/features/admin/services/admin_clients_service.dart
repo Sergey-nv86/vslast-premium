@@ -65,18 +65,23 @@ class AdminClientsService {
         .toUtc()
         .toIso8601String();
 
-    final total = await _supabase
+    final totalResponse = await _supabase
         .from('profiles')
-        .count()
-        .eq('role', 'customer');
-
-    final newThisWeek = await _supabase
-        .from('profiles')
-        .count()
+        .select('id')
         .eq('role', 'customer')
-        .gte('created_at', weekAgoIso);
+        .count();
 
-    return {'total': total, 'new': newThisWeek};
+    final newResponse = await _supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'customer')
+        .gte('created_at', weekAgoIso)
+        .count();
+
+    return {
+      'total': totalResponse.count,
+      'new': newResponse.count,
+    };
   }
 
   Future<List<AdminClient>> fetchClients() async {
