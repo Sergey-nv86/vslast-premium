@@ -371,44 +371,22 @@ class AdminOrdersService {
   /// total — незавершённые заказы, которые должны быть получены сегодня.
   /// newOrders — новые заказы на сегодня.
   Future<Map<String, int>> fetchOrderStats() async {
-    final response = await _supabase.from('orders').select('id, status');
+    const finishedStatuses = ['completed', 'cancelled', 'canceled', 'rejected'];
+    const newStatuses = ['new', 'processing', 'pending', 'pending_confirmation',
+      'awaiting_confirmation', 'awaiting_payment', 'awaitingpayment'];
 
-    final finishedStatuses = {'completed', 'cancelled', 'canceled', 'rejected'};
+    final totalCount = await _supabase
+        .from('orders')
+        .count()
+        .not('status', 'in', '(' + finishedStatuses.join(',') + ')');
 
-    const newStatuses = {
-      'new',
-      'processing',
-      'pending',
-      'pending_confirmation',
-      'awaiting_confirmation',
-      'awaiting_payment',
-      'awaitingpayment',
-    };
+    final newCount = await _supabase
+        .from('orders')
+        .count()
+        .inFilter('status', newStatuses);
 
-    final statusCounts = <String, int>{};
-    int total = 0;
-    int newOrders = 0;
-
-    for (final raw in response) {
-      final row = Map<String, dynamic>.from(raw as Map);
-      final status = row['status']?.toString().trim().toLowerCase() ?? '';
-
-      statusCounts[status] = (statusCounts[status] ?? 0) + 1;
-
-      if (finishedStatuses.contains(status)) {
-        continue;
-      }
-
-      total++;
-
-      if (newStatuses.contains(status)) {
-        newOrders++;
-      }
-    }
-
-    return {'total': total, 'new': newOrders};
+    return {'total': totalCount, 'new': newCount};
   }
-
   AdminOrder _mapOrder(
     Map<String, dynamic> row, {
     Map<String, dynamic>? profile,
