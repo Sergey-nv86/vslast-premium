@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/product.dart';
 import '../../../services/product_service.dart';
+import '../../../services/storefront_settings_service.dart';
 import '../../../theme/app_theme.dart';
 
 import '../models/admin_product_meta.dart';
@@ -17,6 +18,8 @@ class AdminProductsScreen extends StatefulWidget {
 
 class _AdminProductsScreenState extends State<AdminProductsScreen> {
   final ProductService _productService = ProductService.instance;
+  final StorefrontSettingsService _storefrontSettings =
+      StorefrontSettingsService.instance;
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -29,6 +32,8 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   final Map<String, AdminProductMeta> _metas = {};
 
   bool _loading = true;
+  bool _homeAvailabilityEnabled = true;
+  bool _savingHomeAvailability = false;
 
   String? _error;
 
@@ -70,7 +75,13 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     }
 
     try {
-      final products = await _productService.getAdminProducts();
+      final results = await Future.wait<dynamic>([
+        _productService.getAdminProducts(),
+        _storefrontSettings.getHomeAvailabilityEnabled(),
+      ]);
+
+      final products = results[0] as List<Product>;
+      final homeAvailabilityEnabled = results[1] as bool;
 
       if (!mounted) {
         return;
@@ -78,6 +89,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
 
       setState(() {
         _products = products;
+        _homeAvailabilityEnabled = homeAvailabilityEnabled;
 
         _metas.clear();
 
@@ -96,6 +108,59 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         _loading = false;
         _error = error.toString();
       });
+    }
+  }
+
+  Future<void> _toggleHomeAvailability(bool enabled) async {
+    if (_savingHomeAvailability) {
+      return;
+    }
+
+    final previous = _homeAvailabilityEnabled;
+
+    setState(() {
+      _homeAvailabilityEnabled = enabled;
+      _savingHomeAvailability = true;
+    });
+
+    try {
+      await _storefrontSettings.setHomeAvailabilityEnabled(enabled);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              enabled
+                  ? 'Наличие на Главной включено'
+                  : 'Наличие на Главной отключено: все позиции доступны как предзаказ',
+            ),
+          ),
+        );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _homeAvailabilityEnabled = previous;
+      });
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('Не удалось сохранить настройку: $error')),
+        );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingHomeAvailability = false;
+        });
+      }
     }
   }
 
@@ -444,6 +509,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
             slivers: [
               SliverToBoxAdapter(child: _header(context)),
               SliverToBoxAdapter(child: _topSummary()),
+              SliverToBoxAdapter(child: _homeAvailabilityControl()),
               SliverToBoxAdapter(child: _search()),
               SliverToBoxAdapter(child: _categoryChips()),
 
@@ -594,6 +660,73 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _homeAvailabilityControl() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceMuted,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.inventory_2_outlined,
+                color: AppColors.primaryBrown,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Наличие на Главной',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Отключить наличие для всех позиций',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_savingHomeAvailability)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              Switch(
+                value: !_homeAvailabilityEnabled,
+                onChanged: (disabled) =>
+                    _toggleHomeAvailability(!disabled),
+                activeTrackColor: AppColors.primaryBrown,
+              ),
+          ],
+        ),
       ),
     );
   }
