@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -60,14 +58,14 @@ class ProductImage extends StatelessWidget {
     final image = _isNetworkImage
         ? Image.network(
             _optimizedNetworkUrl(url, decodeWidth),
-            fit: BoxFit.contain,
+            fit: fit,
             cacheWidth: decodeWidth,
             filterQuality: FilterQuality.medium,
             errorBuilder: (context, error, stackTrace) => _placeholder(),
           )
         : Image.asset(
             url,
-            fit: BoxFit.contain,
+            fit: fit,
             cacheWidth: decodeWidth,
             errorBuilder: (context, error, stackTrace) => _placeholder(),
           );
@@ -87,25 +85,12 @@ class ProductImage extends StatelessWidget {
         final dpr = MediaQuery.devicePixelRatioOf(context);
         final decodeWidth = (width * dpr).clamp(160.0, 1200.0).round();
 
-        // The background fills the card, while the foreground keeps the
-        // complete product visible. This avoids the excessive crop caused by
-        // BoxFit.cover without leaving an empty image area.
-        final background = _buildImage(url, decodeWidth);
-        final foreground = _buildImage(url, decodeWidth);
-
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: Opacity(
-                opacity: 0.28,
-                child: background,
-              ),
-            ),
-            Container(color: AppColors.surfaceMuted.withValues(alpha: 0.34)),
-            foreground,
-          ],
+        // Product photography must remain fully visible. Do not zoom/crop the
+        // source image to fill the card height.
+        return Container(
+          color: AppColors.surfaceMuted,
+          alignment: Alignment.center,
+          child: _buildImage(url, decodeWidth),
         );
       },
     );
