@@ -336,7 +336,7 @@ class HomeHeader extends StatelessWidget {
         children: [
           ProductImage(
             imageUrl: 'assets/images/hero_banner.jpg',
-            fit: BoxFit.contain,
+            fit: BoxFit.cover,
             iconSize: 40,
           ),
           Positioned.fill(
