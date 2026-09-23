@@ -285,36 +285,12 @@ class HomeHeader extends StatelessWidget {
     );
   }
 
-  String _greeting(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final displayName = auth.displayName.trim();
-    final name = displayName.isNotEmpty && displayName != 'Пользователь'
-        ? displayName.split(' ').first
-        : '';
-    final hour = DateTime.now().hour;
-
-    String greeting;
-    if (hour >= 5 && hour < 12) {
-      greeting = 'Доброе утро';
-    } else if (hour >= 12 && hour < 18) {
-      greeting = 'Добрый день';
-    } else if (hour >= 18) {
-      greeting = 'Добрый вечер';
-    } else {
-      greeting = 'Доброй ночи';
-    }
-
-    return name.isEmpty
-        ? 'Вы в цифровой пекарне «Всласть» ❤️'
-        : '$greeting,\n$name!';
-  }
-
   Widget _buildGreeting(BuildContext context) {
     return Text(
-      'Добро пожаловать\nв пекарню Всласть ♥️',
+      'Добро пожаловать\nв пекарню Всласть',
       style: AppTextStyles.screenTitleSmall.copyWith(
         color: AppColors.primaryBrown,
-        fontSize: MediaQuery.sizeOf(context).width >= 1200 ? 30 : 22,
+        fontSize: MediaQuery.sizeOf(context).width >= 1200 ? 24 : 18,
         height: 1.05,
       ),
     );
