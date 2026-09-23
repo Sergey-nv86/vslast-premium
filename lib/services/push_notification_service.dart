@@ -453,10 +453,8 @@ class PushNotificationService with WidgetsBindingObserver {
           title: message.notification?.title ?? 'Всласть',
           body: message.notification?.body ?? '',
           data: {
-            'type': message.data['type']?.toString() ?? '',
-            'order_id': message.data['order_id']?.toString() ?? '',
-            'product_id': message.data['product_id']?.toString() ?? '',
-            'thread_id': message.data['thread_id']?.toString() ?? '',
+            for (final entry in message.data.entries)
+              entry.key: entry.value.toString(),
           },
         );
       } catch (error, stackTrace) {
