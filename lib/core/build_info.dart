@@ -1,9 +1,8 @@
-// GENERATED FILE — DO NOT EDIT MANUALLY.
-//
-// Generated automatically at build time.
+// GENERATED FILE — build marker for the current GitHub release commit.
+// Keep this value synchronized with the release commit.
 
-const String buildDate = '2026-09-12';
-const String buildTime = '12:48:38';
-const String buildId = '20260912-124838';
-const String buildCommit = '625b43d';
-const String buildLabel = 'build 625b43d · 2026-09-12 12:48:38';
+const String buildDate = '2026-09-23';
+const String buildTime = '08:30:00';
+const String buildId = '20260923-083000';
+const String buildCommit = 'pending';
+const String buildLabel = 'build 20260923-083000 · release 23';
