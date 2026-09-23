@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/tab_navigation_controller.dart';
 import '../screens/cart_screen.dart';
+import '../features/admin/screens/admin_clients_screen.dart';
 import '../screens/chat_screen.dart';
 import '../screens/product_detail_screen.dart';
 import '../services/product_service.dart';
@@ -42,6 +43,9 @@ class PushNavigationRouter {
     final orderId = uri.queryParameters['order_id']?.trim() ?? '';
     final productId = uri.queryParameters['product_id']?.trim() ?? '';
     final threadId = uri.queryParameters['thread_id']?.trim() ?? '';
+    final messageId = uri.queryParameters['message_id']?.trim() ?? '';
+    final clientId = uri.queryParameters['client_id']?.trim() ?? '';
+    final clientUserId = uri.queryParameters['client_user_id']?.trim() ?? '';
 
     if (type.isEmpty && orderId.isEmpty) return;
 
@@ -50,6 +54,9 @@ class PushNavigationRouter {
       'order_id': orderId,
       'product_id': productId,
       'thread_id': threadId,
+      'message_id': messageId,
+      'client_id': clientId,
+      'client_user_id': clientUserId,
     });
   }
 
@@ -76,6 +83,9 @@ class PushNavigationRouter {
     final orderId = (data['order_id'] ?? '').trim();
     final productId = (data['product_id'] ?? '').trim();
     final threadId = (data['thread_id'] ?? '').trim();
+    final messageId = (data['message_id'] ?? '').trim();
+    final clientId = (data['client_id'] ?? '').trim();
+    final clientUserId = (data['client_user_id'] ?? '').trim();
 
     debugPrint(
       '[PushRouter] Handle type=$type order_id=$orderId product_id=$productId',
@@ -92,11 +102,18 @@ class PushNavigationRouter {
 
     switch (type) {
       case 'chat_message':
-        return _openClientChat();
+        return _openClientChat(messageId);
 
       case 'chat_message_admin':
         if (threadId.isEmpty) return false;
-        return _openAdminChat(threadId);
+        return _openAdminChat(threadId, messageId);
+
+      case 'client_registered_admin':
+      case 'client_login_admin':
+        return _openAdminClient(
+          clientUserId: clientUserId,
+          clientId: clientId,
+        );
       case 'new_order_admin':
       case 'new_preorder_admin':
       case 'order_created':
@@ -104,6 +121,8 @@ class PushNavigationRouter {
       case 'order_status_changed':
       case 'order_ready':
       case 'order_completed':
+      case 'order_changed':
+      case 'order_status_changed':
       case 'preorder_confirmed':
       case 'order_cancelled':
       case 'pickup_reminder':
@@ -141,7 +160,7 @@ class PushNavigationRouter {
     }
   }
 
-  bool _openClientChat() {
+  bool _openClientChat(String messageId) {
     final navigator = PushNotificationService.navigatorKey.currentState;
     if (navigator == null) return false;
 
@@ -151,7 +170,7 @@ class PushNavigationRouter {
     return true;
   }
 
-  bool _openAdminChat(String threadId) {
+  bool _openAdminChat(String threadId, String messageId) {
     final navigator = PushNotificationService.navigatorKey.currentState;
     if (navigator == null) return false;
 
@@ -160,7 +179,42 @@ class PushNavigationRouter {
         builder: (_) => AdminChatScreen(
           threadId: threadId,
           title: 'Чат с клиентом',
+          targetMessageId: messageId.isEmpty ? null : messageId,
         ),
+      ),
+    );
+    return true;
+  }
+
+  Future<bool> _openAdminClient({
+    required String clientUserId,
+    required String clientId,
+  }) async {
+    final navigator = PushNotificationService.navigatorKey.currentState;
+    if (navigator == null) return false;
+
+    var resolvedUserId = clientUserId.trim();
+    if (resolvedUserId.isEmpty && clientId.trim().isNotEmpty) {
+      try {
+        final row = await Supabase.instance.client
+            .from('client_accounts')
+            .select('legacy_user_id')
+            .eq('client_id', clientId.trim())
+            .maybeSingle();
+        resolvedUserId = row?['legacy_user_id']?.toString().trim() ?? '';
+      } catch (error) {
+        debugPrint('[PushRouter] Client lookup error: $error');
+      }
+    }
+
+    if (resolvedUserId.isEmpty) {
+      debugPrint('[PushRouter] Client notification has no client user id');
+      return false;
+    }
+
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => AdminClientDetailScreen(clientId: resolvedUserId),
       ),
     );
     return true;
