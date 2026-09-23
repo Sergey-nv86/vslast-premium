@@ -60,23 +60,23 @@ class AdminClientsService {
   SupabaseClient get supabase => _supabase;
 
   Future<Map<String, int>> fetchClientStats() async {
-    final response = await _supabase
+    final weekAgoIso = DateTime.now()
+        .subtract(const Duration(days: 7))
+        .toUtc()
+        .toIso8601String();
+
+    final total = await _supabase
         .from('profiles')
-        .select('id, role, created_at')
+        .count()
         .eq('role', 'customer');
 
-    final customers = List<Map<String, dynamic>>.from(response);
+    final newThisWeek = await _supabase
+        .from('profiles')
+        .count()
+        .eq('role', 'customer')
+        .gte('created_at', weekAgoIso);
 
-    final now = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 7));
-
-    final newThisWeek = customers.where((profile) {
-      final createdAt = _dateFrom(profile['created_at']);
-
-      return createdAt != null && !createdAt.isBefore(weekAgo);
-    }).length;
-
-    return {'total': customers.length, 'new': newThisWeek};
+    return {'total': total, 'new': newThisWeek};
   }
 
   Future<List<AdminClient>> fetchClients() async {
