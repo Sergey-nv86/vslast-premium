@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const double _horizontalPadding = 18;
   static const double _gridSpacing = 10;
   static const double _cardTextBlockHeight = 116;
-  static const double _cardImageRatio = 1.28;
+  static const double _cardImageRatio = 1.0;
   static const double _headerPhotoHeight = 160;
   static const double _pinnedBarHeight = 56;
   static const double _spyThreshold = _pinnedBarHeight + 12;
