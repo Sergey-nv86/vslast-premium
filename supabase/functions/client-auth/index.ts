@@ -101,6 +101,61 @@ async function signInByClientId(
   };
 }
 
+async function notifyAdminsOfClientEvent(
+  supabase: ReturnType<typeof createAdminClient>,
+  eventType: "client_registered_admin" | "client_login_admin",
+  clientId: string,
+  clientUserId: string,
+) {
+  try {
+    const { data: admins, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("is_active", true)
+      .in("role", ["owner", "admin", "manager", "seller"]);
+
+    if (error) {
+      console.error("[client-auth] admin notification lookup failed", error);
+      return;
+    }
+
+    for (const admin of admins ?? []) {
+      const adminId = String(admin.id ?? "").trim();
+      if (!adminId || adminId === clientUserId) continue;
+
+      const dedupKey = eventType === "client_registered_admin"
+        ? "client_registered_admin:" + clientId
+        : null;
+
+      const { error: pushError } = await supabase.rpc("enqueue_push_event", {
+        p_event_type: eventType,
+        p_recipient_user_id: adminId,
+        p_recipient_client_id: null,
+        p_order_id: null,
+        p_payload: {
+          type: eventType,
+          client_id: clientId,
+          client_user_id: clientUserId,
+        },
+        p_dedup_key: dedupKey,
+      });
+
+      if (pushError) {
+        console.error(
+          "[client-auth] admin notification enqueue failed",
+          pushError,
+        );
+      }
+    }
+
+    console.log(
+      "[client-auth] admin client event queued: " + eventType + " " + clientId,
+    );
+  } catch (error) {
+    console.error("[client-auth] admin client notification error", error);
+  }
+}
+
 async function registerClient(
   supabase: ReturnType<typeof createAdminClient>,
   password: string,
@@ -213,6 +268,13 @@ async function registerClient(
     throw new Error("Не удалось зафиксировать согласия пользователя.");
   }
 
+  await notifyAdminsOfClientEvent(
+    supabase,
+    "client_registered_admin",
+    clientId,
+    created.user.id,
+  );
+
   return {
     ...session,
     client_id: clientId,
@@ -251,6 +313,13 @@ Deno.serve(async (req) => {
       if (!session) {
         return json({ error: "Неверный ID клиента или пароль." }, 401);
       }
+
+      await notifyAdminsOfClientEvent(
+        supabase,
+        "client_login_admin",
+        clientId,
+        session.user.id,
+      );
 
       return json({
         client_id: clientId,
