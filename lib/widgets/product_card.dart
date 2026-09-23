@@ -48,7 +48,7 @@ class ProductCard extends StatelessWidget {
                 children: [
                   ProductImage(
                     imageUrl: product.imageUrl,
-                    fit: BoxFit.cover,
+                    fit: BoxFit.contain,
                     iconSize: 32,
                   ),
                   Positioned(top: 8, left: 8, child: _Badge(product: product)),
