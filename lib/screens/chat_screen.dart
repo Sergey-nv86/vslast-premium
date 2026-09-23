@@ -172,7 +172,7 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
     );
     if (index < 0) return;
 
-    final key = _messageKeys.putIfAbsent(targetId, GlobalKey());
+    final key = _messageKeys.putIfAbsent(targetId, () => GlobalKey());
 
     for (var attempt = 0; attempt < 6; attempt++) {
       final targetContext = key.currentContext;
@@ -282,7 +282,7 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
                             final id = message['id']?.toString() ?? '';
                             final key = id.isEmpty
                                 ? null
-                                : _messageKeys.putIfAbsent(id, GlobalKey());
+                                : _messageKeys.putIfAbsent(id, () => GlobalKey());
                             return KeyedSubtree(
                               key: key,
                               child: _MessageBubble(
@@ -730,7 +730,7 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
     );
     if (index < 0) return;
 
-    final key = _messageKeys.putIfAbsent(targetId, GlobalKey());
+    final key = _messageKeys.putIfAbsent(targetId, () => GlobalKey());
 
     for (var attempt = 0; attempt < 6; attempt++) {
       final targetContext = key.currentContext;
@@ -822,7 +822,7 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
                       final id = message['id']?.toString() ?? '';
                       final key = id.isEmpty
                           ? null
-                          : _messageKeys.putIfAbsent(id, GlobalKey());
+                          : _messageKeys.putIfAbsent(id, () => GlobalKey());
                       return KeyedSubtree(
                         key: key,
                         child: _MessageBubble(
