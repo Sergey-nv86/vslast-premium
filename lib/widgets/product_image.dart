@@ -46,7 +46,10 @@ class ProductImage extends StatelessWidget {
           '/storage/v1/render/image/public/' +
           path.substring(markerIndex + marker.length);
       final query = Map<String, String>.from(uri.queryParameters)
-        ..['width'] = width.toString();
+        ..['width'] = width.toString()
+        ..['height'] = width.toString()
+        ..['resize'] = 'cover'
+        ..['quality'] = '75';
 
       return uri.replace(path: renderPath, queryParameters: query).toString();
     } catch (_) {
@@ -83,7 +86,7 @@ class ProductImage extends StatelessWidget {
             ? constraints.maxWidth
             : 600.0;
         final dpr = MediaQuery.devicePixelRatioOf(context);
-        final decodeWidth = (width * dpr).clamp(160.0, 1200.0).round();
+        final decodeWidth = (width * dpr).clamp(180.0, 640.0).round();
 
         return SizedBox.expand(
           child: _buildImage(url, decodeWidth),
