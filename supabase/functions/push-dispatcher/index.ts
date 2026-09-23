@@ -176,6 +176,30 @@ function getNotificationContent(
   }
 }
 
+function buildNavigationData(
+  type: string,
+  orderId: string,
+  threadId: string,
+  payload: Record<string, unknown> = {},
+): Record<string, string> {
+  const data: Record<string, string> = {
+    type: String(type),
+    order_id: String(orderId || payload.order_id || ""),
+    thread_id: String(threadId || payload.thread_id || ""),
+    product_id: String(payload.product_id ?? ""),
+    message_id: String(payload.message_id ?? ""),
+    client_id: String(payload.client_id ?? ""),
+    client_user_id: String(payload.client_user_id ?? ""),
+    promotion_id: String(payload.promotion_id ?? ""),
+    assortment_date: String(payload.assortment_date ?? ""),
+    cart_id: String(payload.cart_id ?? ""),
+    title: String(payload.title ?? ""),
+    body: String(payload.body ?? ""),
+  };
+
+  return data;
+}
+
 function isInvalidFcmToken(result: unknown): boolean {
   const text = JSON.stringify(result ?? {}).toUpperCase();
   return text.includes("UNREGISTERED") ||
@@ -192,6 +216,7 @@ async function sendToToken(
   threadId: string,
   projectId: string,
   accessToken: string,
+  navigationPayload: Record<string, unknown> = {},
 ) {
   const fcmResponse = await fetch(
     `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
@@ -208,13 +233,16 @@ async function sendToToken(
             title: String(title),
             body: String(body),
           },
-          data: {
-            type: String(type),
-            order_id: String(orderId),
-            thread_id: String(threadId),
-            title: String(title),
-            body: String(body),
-          },
+          data: buildNavigationData(
+            type,
+            orderId,
+            threadId,
+            {
+              ...navigationPayload,
+              title,
+              body,
+            },
+          ),
           android: {
             priority: "high",
             notification: {
@@ -327,6 +355,7 @@ Deno.serve(async (req) => {
           String(requestBody.thread_id ?? ""),
           projectId,
           accessToken,
+          requestBody,
         ));
       }
 
@@ -423,6 +452,7 @@ Deno.serve(async (req) => {
         String(eventPayload.thread_id ?? ""),
         projectId,
         accessToken,
+        eventPayload,
       );
       results.push({ device_id: device.id, ...result });
       if (result.invalid_token) {
