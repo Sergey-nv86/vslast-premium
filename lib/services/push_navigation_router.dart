@@ -6,6 +6,7 @@ import '../providers/tab_navigation_controller.dart';
 import '../screens/cart_screen.dart';
 import '../features/admin/screens/admin_clients_screen.dart';
 import '../features/admin/screens/admin_dashboard_screen.dart';
+import '../features/promotions/screens/promotions_screen.dart';
 import '../screens/chat_screen.dart';
 import '../screens/product_detail_screen.dart';
 import '../services/product_service.dart';
@@ -48,6 +49,7 @@ class PushNavigationRouter {
     final messageId = uri.queryParameters['message_id']?.trim() ?? '';
     final clientId = uri.queryParameters['client_id']?.trim() ?? '';
     final clientUserId = uri.queryParameters['client_user_id']?.trim() ?? '';
+    final promotionId = uri.queryParameters['promotion_id']?.trim() ?? '';
 
     if (type.isEmpty && orderId.isEmpty) return;
 
@@ -59,6 +61,7 @@ class PushNavigationRouter {
       'message_id': messageId,
       'client_id': clientId,
       'client_user_id': clientUserId,
+      'promotion_id': promotionId,
     });
   }
 
@@ -88,6 +91,7 @@ class PushNavigationRouter {
     final messageId = (data['message_id'] ?? '').trim();
     final clientId = (data['client_id'] ?? '').trim();
     final clientUserId = (data['client_user_id'] ?? '').trim();
+    final promotionId = (data['promotion_id'] ?? '').trim();
 
     debugPrint(
       '[PushRouter] Handle type=$type order_id=$orderId product_id=$productId',
@@ -159,7 +163,7 @@ class PushNavigationRouter {
 
       case 'promotion':
       case 'promotion_published':
-        return _openPromotions();
+        return _openPromotions(promotionId);
 
       default:
         debugPrint('[PushRouter] Unknown push type: $type');
@@ -265,15 +269,27 @@ class PushNavigationRouter {
     return true;
   }
 
-  bool _openPromotions() {
-    final context = PushNotificationService.navigatorKey.currentContext;
-    if (context == null) {
-      debugPrint('[PushRouter] Context is not ready for promotions');
+  bool _openPromotions(String promotionId) {
+    final navigator = PushNotificationService.navigatorKey.currentState;
+    if (navigator == null) {
+      debugPrint('[PushRouter] Navigator is not ready for promotions');
       return false;
     }
 
-    context.read<TabNavigationController>().goToPromotions();
-    debugPrint('[PushRouter] Promotions selected');
+    if (promotionId.isEmpty) {
+      final context = PushNotificationService.navigatorKey.currentContext;
+      if (context == null) return false;
+      context.read<TabNavigationController>().goToPromotions();
+      debugPrint('[PushRouter] Promotions selected');
+      return true;
+    }
+
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => PromotionsScreen(targetPromotionId: promotionId),
+      ),
+    );
+    debugPrint('[PushRouter] Promotion opened: $promotionId');
     return true;
   }
 
