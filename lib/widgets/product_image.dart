@@ -85,11 +85,7 @@ class ProductImage extends StatelessWidget {
         final dpr = MediaQuery.devicePixelRatioOf(context);
         final decodeWidth = (width * dpr).clamp(160.0, 1200.0).round();
 
-        // Product photography must remain fully visible. Do not zoom/crop the
-        // source image to fill the card height.
-        return Container(
-          color: AppColors.surfaceMuted,
-          alignment: Alignment.center,
+        return SizedBox.expand(
           child: _buildImage(url, decodeWidth),
         );
       },
