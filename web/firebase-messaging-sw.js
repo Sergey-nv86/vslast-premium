@@ -47,6 +47,9 @@ self.addEventListener('notificationclick', function(event) {
   if (clientUserId) {
     targetUrl.searchParams.set('client_user_id', clientUserId);
   }
+  if (promotionId) {
+    targetUrl.searchParams.set('promotion_id', promotionId);
+  }
 
   const navigationData = {
     type: 'push_navigation',
