@@ -33,7 +33,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
     );
 
     _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
@@ -80,7 +80,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Keep the splash on screen for a consistent branded presentation.
     // The minimum total display time is 3.5 seconds, including initialization.
-    const minimumSplashDuration = Duration(milliseconds: 3500);
+    const minimumSplashDuration = Duration(milliseconds: 4000);
     final remaining = minimumSplashDuration - _splashTimer.elapsed;
 
     if (remaining > Duration.zero) {
