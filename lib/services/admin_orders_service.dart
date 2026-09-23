@@ -12,8 +12,9 @@ class AdminOrdersService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<List<AdminOrder>> fetchOrders() async {
-    // Список заказов должен быть быстрым: состав заказа и фотографии
-    // загружаются только при открытии конкретного заказа.
+    // Список заказов должен быть быстрым: изображения и данные products
+    // загружаются только при открытии конкретного заказа. Лёгкие позиции
+    // (название/количество/цена) загружаются отдельно для календаря товаров.
     final response = await _supabase
         .from('orders')
         .select('''
@@ -35,6 +36,17 @@ class AdminOrdersService {
 
     final rows = List<Map<String, dynamic>>.from(response);
 
+    // Для списка заказов нужны только лёгкие позиции: название, количество,
+    // цена и сумма. Изображения/товары products здесь намеренно НЕ загружаем.
+    // Это одновременно делает календарь товаров корректным и сохраняет
+    // быстрый список заказов.
+    final orderIds = rows
+        .map((row) => row['id']?.toString())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+
     final userIds = rows
         .map((row) => row['user_id']?.toString())
         .whereType<String>()
@@ -43,13 +55,37 @@ class AdminOrdersService {
         .toList();
 
     final profilesById = <String, Map<String, dynamic>>{};
+    final itemsByOrderId = <String, List<Map<String, dynamic>>>{};
+
+    // Профили и позиции независимы — загружаем их параллельно,
+    // чтобы не удваивать время ожидания Supabase.
+    final results = await Future.wait<dynamic>([
+      if (userIds.isNotEmpty)
+        _supabase
+            .from('profiles')
+            .select('id, display_name, first_name, last_name, phone')
+            .inFilter('id', userIds),
+      if (orderIds.isNotEmpty)
+        _supabase
+            .from('order_items')
+            .select('''
+              id,
+              order_id,
+              product_id,
+              product_name,
+              unit_price,
+              quantity,
+              weight_label,
+              line_total
+            ''')
+            .inFilter('order_id', orderIds)
+            .order('id'),
+    ]);
+
+    var resultIndex = 0;
 
     if (userIds.isNotEmpty) {
-      final profilesResponse = await _supabase
-          .from('profiles')
-          .select('id, display_name, first_name, last_name, phone')
-          .inFilter('id', userIds);
-
+      final profilesResponse = results[resultIndex++];
       for (final profile in profilesResponse) {
         final map = Map<String, dynamic>.from(profile as Map);
         final id = map['id']?.toString();
@@ -59,8 +95,24 @@ class AdminOrdersService {
       }
     }
 
+    if (orderIds.isNotEmpty) {
+      final itemsResponse = results[resultIndex++];
+      for (final item in itemsResponse) {
+        final map = Map<String, dynamic>.from(item as Map);
+        final orderId = map['order_id']?.toString();
+        if (orderId == null || orderId.isEmpty) continue;
+        (itemsByOrderId[orderId] ??= <Map<String, dynamic>>[]).add(map);
+      }
+    }
+
     return rows.map((row) {
       final userId = row['user_id']?.toString() ?? '';
+      final orderId = row['id']?.toString() ?? '';
+
+      if (itemsByOrderId.containsKey(orderId)) {
+        row['order_items'] = itemsByOrderId[orderId];
+      }
+
       return _mapOrder(row, profile: profilesById[userId]);
     }).toList();
   }
