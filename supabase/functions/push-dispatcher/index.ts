@@ -165,6 +165,12 @@ function getNotificationContent(
       };
     }
 
+    case "favorite_product_back_in_stock":
+      return {
+        title: "Товар снова в наличии",
+        body: String(payload.product_name ?? "Любимый товар снова доступен"),
+      };
+
     default:
       return { title: "Всласть", body: "Новое уведомление" };
   }
