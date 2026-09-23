@@ -119,44 +119,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Product> get _visibleProducts {
-    final products = _products.where(_filter.matches).toList();
-
-    if (_homeAvailabilityEnabled) {
-      return products.where((product) => product.inStock).toList();
+    // Главная всегда показывает только фактически доступные товары.
+    // Глобальный переключатель в Админке позволяет полностью отключить
+    // наличие на Главной, поэтому в этом режиме список намеренно пуст.
+    if (!_homeAvailabilityEnabled) {
+      return const <Product>[];
     }
 
-    // Global availability is disabled from Admin → Products.
-    // Keep every active product visible on Home, but make it unavailable so
-    // ProductCard offers Preorder instead of adding it to the cart.
-    return products.map(_asUnavailable).toList();
-  }
-
-  Product _asUnavailable(Product product) {
-    if (!product.inStock) {
-      return product;
-    }
-
-    return Product(
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      imageUrl: product.imageUrl,
-      category: product.category,
-      badge: product.badge,
-      isActive: product.isActive,
-      inStock: false,
-      isWeighed: product.isWeighed,
-      rating: product.rating,
-      reviewsCount: product.reviewsCount,
-      weightLabel: product.weightLabel,
-      description: product.description,
-      caloriesPer100g: product.caloriesPer100g,
-      proteinPer100g: product.proteinPer100g,
-      fatPer100g: product.fatPer100g,
-      carbsPer100g: product.carbsPer100g,
-      composition: product.composition,
-      galleryImages: product.galleryImages,
-    );
+    return _products
+        .where((product) => product.inStock && _filter.matches(product))
+        .toList();
   }
 
   Future<void> _loadHomeAvailability() async {
