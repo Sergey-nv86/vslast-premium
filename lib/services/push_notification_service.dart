@@ -141,10 +141,9 @@ class PushNotificationService with WidgetsBindingObserver {
 
       debugPrint('FCM service initialized');
 
-      // Если разрешение Push уже было выдано ранее,
-      // автоматически регистрируем текущий FCM token.
-      // Новый системный запрос permission здесь НЕ выполняется.
-      await _registerExistingPermissionToken();
+      // Регистрацию уже выданного permission выполняем в фоне,
+      // чтобы не задерживать запуск приложения.
+      unawaited(_registerExistingPermissionToken());
 
       // Если push был получен до полной готовности Navigator,
       // пробуем открыть заказ после завершения initialize().
@@ -276,10 +275,10 @@ class PushNotificationService with WidgetsBindingObserver {
       debugPrint('FCM WEB TOKEN >>> $token <<<');
 
       _pendingToken = token;
-      await _savePendingToken();
+      unawaited(_savePendingToken());
 
       _lastPushDiagnostic =
-          'Уведомления разрешены. FCM token получен и сохранён.';
+          'Уведомления разрешены. FCM token получен.';
 
       debugPrint('WEB PUSH DIAGNOSTIC: $_lastPushDiagnostic');
 
