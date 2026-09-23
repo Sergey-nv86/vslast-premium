@@ -375,17 +375,22 @@ class AdminOrdersService {
     const newStatuses = ['new', 'processing', 'pending', 'pending_confirmation',
       'awaiting_confirmation', 'awaiting_payment', 'awaitingpayment'];
 
-    final totalCount = await _supabase
+    final totalResponse = await _supabase
         .from('orders')
-        .count()
-        .not('status', 'in', '(' + finishedStatuses.join(',') + ')');
+        .select('id')
+        .not('status', 'in', '(' + finishedStatuses.join(',') + ')')
+        .count();
 
-    final newCount = await _supabase
+    final newResponse = await _supabase
         .from('orders')
-        .count()
-        .inFilter('status', newStatuses);
+        .select('id')
+        .inFilter('status', newStatuses)
+        .count();
 
-    return {'total': totalCount, 'new': newCount};
+    return {
+      'total': totalResponse.count,
+      'new': newResponse.count,
+    };
   }
   AdminOrder _mapOrder(
     Map<String, dynamic> row, {
