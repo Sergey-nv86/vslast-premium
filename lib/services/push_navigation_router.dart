@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/tab_navigation_controller.dart';
 import '../screens/cart_screen.dart';
 import '../features/admin/screens/admin_clients_screen.dart';
+import '../features/admin/screens/admin_dashboard_screen.dart';
 import '../screens/chat_screen.dart';
 import '../screens/product_detail_screen.dart';
 import '../services/product_service.dart';
@@ -254,11 +255,13 @@ class PushNavigationRouter {
   }
 
   bool _openAdminDashboard() {
-    final context = PushNotificationService.navigatorKey.currentContext;
-    if (context == null) return false;
+    final navigator = PushNotificationService.navigatorKey.currentState;
+    if (navigator == null) return false;
 
-    context.read<TabNavigationController>().goToAdmin();
-    debugPrint('[PushRouter] Admin dashboard selected');
+    navigator.push(
+      MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+    );
+    debugPrint('[PushRouter] Admin dashboard opened');
     return true;
   }
 
