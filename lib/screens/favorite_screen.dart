@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/product.dart';
@@ -11,8 +13,22 @@ import 'product_detail_screen.dart';
 /// прямо на «Главной»). Используется и как вкладка нижней панели
 /// (IndexedStack — тогда кнопка "назад" ничего не делает), и как
 /// push-экран из меню профиля (тогда кнопка "назад" возвращает обратно).
-class FavoriteScreen extends StatelessWidget {
+class FavoriteScreen extends StatefulWidget {
   const FavoriteScreen({super.key});
+
+  @override
+  State<FavoriteScreen> createState() => _FavoriteScreenState();
+}
+
+class _FavoriteScreenState extends State<FavoriteScreen> {
+  Future<List<Product>>? _productsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(context.read<FavoritesProvider>().load());
+    _productsFuture = ProductService.instance.getCatalogProducts();
+  }
 
   void _openProductDetails(BuildContext context, Product product) {
     Navigator.of(context).push(
@@ -51,12 +67,12 @@ class FavoriteScreen extends StatelessWidget {
     //
     // ProductService хранит последний успешно загруженный список
     // в кеше после Splash / загрузки каталога.
-    final products = ProductService.instance.cachedProducts ?? const <Product>[];
+    final products = ProductService.instance.cachedCatalogProducts ??
+        ProductService.instance.cachedProducts ??
+        const <Product>[];
 
-    final favoriteProducts = products
-        .where(favorites.isFavorite)
-        .toList();
-
+    final favoriteProducts =
+        products.where(favorites.isFavorite).toList();
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
