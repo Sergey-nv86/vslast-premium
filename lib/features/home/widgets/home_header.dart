@@ -310,25 +310,8 @@ class HomeHeader extends StatelessWidget {
   }
 
   Widget _buildGreeting(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final displayName = auth.displayName.trim();
-    final name = displayName.isNotEmpty && displayName != 'Пользователь'
-        ? displayName.split(' ').first
-        : '';
-
-    if (name.isEmpty) {
-      return Text(
-        'Добро пожаловать\nв пекарню Всласть ♥️',
-        style: AppTextStyles.screenTitleSmall.copyWith(
-          color: AppColors.primaryBrown,
-          fontSize: 14,
-          height: 1.05,
-        ),
-      );
-    }
-
     return Text(
-      _greeting(context),
+      'Добро пожаловать\nв пекарню Всласть ♥️',
       style: AppTextStyles.screenTitleSmall.copyWith(
         color: AppColors.primaryBrown,
         fontSize: MediaQuery.sizeOf(context).width >= 1200 ? 30 : 22,
@@ -353,7 +336,7 @@ class HomeHeader extends StatelessWidget {
         children: [
           ProductImage(
             imageUrl: 'assets/images/hero_banner.jpg',
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
             iconSize: 40,
           ),
           Positioned.fill(
