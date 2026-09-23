@@ -330,7 +330,7 @@ class PushNotificationService with WidgetsBindingObserver {
     debugPrint('FCM native: token received');
 
     _pendingToken = token;
-    await _savePendingToken();
+    unawaited(_savePendingToken());
 
     return true;
   }
