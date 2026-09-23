@@ -123,7 +123,6 @@ class PushNavigationRouter {
       case 'order_ready':
       case 'order_completed':
       case 'order_changed':
-      case 'order_status_changed':
       case 'preorder_confirmed':
       case 'order_cancelled':
       case 'pickup_reminder':
@@ -148,8 +147,14 @@ class PushNavigationRouter {
         return _openLoyalty();
 
       case 'daily_assortment':
+      case 'daily_assortment_published':
       case 'daily_assortment_reminder':
+      case 'fresh_bakery_published':
         return _openCatalog();
+
+      case 'admin_assortment_reminder':
+      case 'admin_assortment_overdue':
+        return _openAdminDashboard();
 
       case 'promotion':
       case 'promotion_published':
@@ -245,6 +250,15 @@ class PushNavigationRouter {
 
     context.read<TabNavigationController>().goToCatalog();
     debugPrint('[PushRouter] Catalog selected');
+    return true;
+  }
+
+  bool _openAdminDashboard() {
+    final context = PushNotificationService.navigatorKey.currentContext;
+    if (context == null) return false;
+
+    context.read<TabNavigationController>().goToAdmin();
+    debugPrint('[PushRouter] Admin dashboard selected');
     return true;
   }
 
