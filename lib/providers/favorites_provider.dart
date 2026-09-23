@@ -131,9 +131,10 @@ class FavoritesProvider extends ChangeNotifier {
           payload['client_id'] = clientId;
         }
 
-        await _supabase
-            .from('favorites')
-            .upsert(payload, onConflict: 'user_id,product_id');
+        // favorites has INSERT/DELETE/SELECT RLS, but no UPDATE policy.
+        // upsert() turns an existing row into UPDATE and is therefore rejected
+        // by RLS. A normal INSERT is the correct operation for adding a favorite.
+        await _supabase.from('favorites').insert(payload);
       } else {
         await _supabase
             .from('favorites')
