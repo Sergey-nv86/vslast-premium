@@ -76,8 +76,23 @@ function getNotificationContent(
   const isPreorder = payload.is_preorder === true;
   const status = String(payload.status ?? "");
   const oldStatus = String(payload.old_status ?? "");
+  const clientId = String(payload.client_id ?? "");
+  const productName = String(payload.product_name ?? "Товар");
+  const assortmentDate = String(payload.assortment_date ?? "");
 
   switch (eventType) {
+    case "client_registered_admin":
+      return {
+        title: "Новый клиент",
+        body: `Клиент ${clientId} зарегистрировался и вошёл в приложение`,
+      };
+
+    case "client_login_admin":
+      return {
+        title: "Вход клиента",
+        body: `Клиент ${clientId} вошёл в приложение`,
+      };
+
     case "chat_message":
       return {
         title: "Новое сообщение в чате «Всласть»",
@@ -113,6 +128,24 @@ function getNotificationContent(
         body: orderNumber ? `Поступил новый предзаказ ${orderNumber}` : "Поступил новый предзаказ",
       };
 
+    case "order_confirmed":
+      return {
+        title: "Заказ подтверждён",
+        body: orderNumber ? `Заказ ${orderNumber} подтверждён` : "Ваш заказ подтверждён",
+      };
+
+    case "order_completed":
+      return {
+        title: "Заказ выполнен",
+        body: orderNumber ? `Заказ ${orderNumber} выполнен` : "Ваш заказ выполнен",
+      };
+
+    case "order_changed":
+      return {
+        title: "Заказ изменён",
+        body: orderNumber ? `Изменён заказ ${orderNumber}` : "Данные заказа изменены",
+      };
+
     case "order_status_changed":
       if (status === "confirmed" && oldStatus === "pending_confirmation") {
         return {
@@ -120,10 +153,16 @@ function getNotificationContent(
           body: orderNumber ? `Заказ ${orderNumber} подтверждён` : "Ваш заказ подтверждён",
         };
       }
-      if (status === "completed" && oldStatus === "confirmed") {
+      if (status === "completed") {
         return {
           title: "Заказ выполнен",
           body: orderNumber ? `Заказ ${orderNumber} выполнен` : "Ваш заказ выполнен",
+        };
+      }
+      if (status === "cancelled" || status === "canceled") {
+        return {
+          title: "Заказ отменён",
+          body: orderNumber ? `Заказ ${orderNumber} отменён` : "Ваш заказ отменён",
         };
       }
       return {
@@ -149,26 +188,82 @@ function getNotificationContent(
         body: orderNumber ? `Заказ ${orderNumber} отменён` : "Ваш заказ отменён",
       };
 
-    case "crm_bonus_granted": {
-      const amount = Number(payload.bonus_amount ?? 0);
+    case "pickup_reminder":
       return {
-        title: "Вам начислены бонусы",
-        body: `${amount.toLocaleString("ru-RU")} бонусов уже на вашем счёте.`,
+        title: "Напоминание о получении",
+        body: orderNumber ? `Заказ ${orderNumber} можно будет забрать примерно через час` : "До получения заказа около часа",
       };
-    }
-
-    case "crm_bonus_redeemed": {
-      const amount = Number(payload.bonus_amount ?? 0);
-      return {
-        title: "Бонусы списаны",
-        body: `${amount.toLocaleString("ru-RU")} бонусов списано с вашего счёта.`,
-      };
-    }
 
     case "favorite_product_back_in_stock":
       return {
         title: "Товар снова в наличии",
-        body: String(payload.product_name ?? "Любимый товар снова доступен"),
+        body: productName,
+      };
+
+    case "new_product_published":
+      return {
+        title: "Новый товар",
+        body: `${productName} появился в каталоге`,
+      };
+
+    case "fresh_bakery_published":
+      return {
+        title: "Свежая выпечка",
+        body: String(payload.message ?? "В каталоге появилась свежая выпечка"),
+      };
+
+    case "promotion_published":
+      return {
+        title: "Новая акция",
+        body: String(payload.promotion_title ?? "Появилась новая акция"),
+      };
+
+    case "daily_assortment_published":
+      return {
+        title: "Витрина обновлена",
+        body: assortmentDate ? `Витрина на ${assortmentDate} опубликована` : "Сегодняшняя витрина опубликована",
+      };
+
+    case "admin_assortment_reminder":
+      return {
+        title: "Не опубликована витрина",
+        body: assortmentDate ? `Опубликуйте витрину на ${assortmentDate}` : "Опубликуйте сегодняшнюю витрину",
+      };
+
+    case "admin_assortment_overdue":
+      return {
+        title: "Витрина просрочена",
+        body: assortmentDate ? `Витрина на ${assortmentDate} ещё не опубликована` : "Сегодняшняя витрина ещё не опубликована",
+      };
+
+    case "cart_abandoned":
+      return {
+        title: "Корзина ждёт вас",
+        body: "Вы оставили товары в корзине — возможно, пора вернуться.",
+      };
+
+    case "crm_inactive":
+      return {
+        title: "Мы скучаем",
+        body: "Давно не виделись в «Всласть». Загляните посмотреть свежую выпечку.",
+      };
+
+    case "crm_bonus_granted":
+      return {
+        title: "Вам начислены бонусы",
+        body: `${Number(payload.bonus_amount ?? 0).toLocaleString("ru-RU")} бонусов уже на вашем счёте.`,
+      };
+
+    case "crm_bonus_redeemed":
+      return {
+        title: "Бонусы списаны",
+        body: `${Number(payload.bonus_amount ?? 0).toLocaleString("ru-RU")} бонусов списано с вашего счёта.`,
+      };
+
+    case "crm_bonus_expiring":
+      return {
+        title: "Бонусы скоро сгорят",
+        body: `${Number(payload.bonus_amount ?? 0).toLocaleString("ru-RU")} бонусов скоро сгорит.`,
       };
 
     default:
