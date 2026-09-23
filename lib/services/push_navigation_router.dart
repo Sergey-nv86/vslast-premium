@@ -176,7 +176,11 @@ class PushNavigationRouter {
     if (navigator == null) return false;
 
     navigator.push(
-      MaterialPageRoute(builder: (_) => const ClientChatScreen()),
+      MaterialPageRoute(
+        builder: (_) => ClientChatScreen(
+          targetMessageId: messageId.isEmpty ? null : messageId,
+        ),
+      ),
     );
     return true;
   }
