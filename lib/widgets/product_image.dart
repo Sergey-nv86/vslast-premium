@@ -1,18 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
 /// Универсальное изображение товара.
-///
-/// Поддерживает:
-/// - локальные Flutter assets;
-/// - http/https URL из Supabase Storage;
-/// - безопасный fallback при пустом или некорректном URL.
-///
-/// Без flutter_cache_manager / sqflite.
-/// Это исключает ошибку iOS:
-/// "attempt to write a readonly database".
-
 class ProductImage extends StatelessWidget {
   final String imageUrl;
   final BoxFit fit;
@@ -29,9 +21,7 @@ class ProductImage extends StatelessWidget {
 
   bool get _isNetworkImage {
     final url = imageUrl.trim().toLowerCase();
-
-    return url.startsWith('http://') ||
-        url.startsWith('https://');
+    return url.startsWith('http://') || url.startsWith('https://');
   }
 
   Widget _placeholder() {
@@ -47,9 +37,6 @@ class ProductImage extends StatelessWidget {
   }
 
   String _optimizedNetworkUrl(String url, int width) {
-    // Supabase Storage can resize public images server-side. This reduces
-    // network transfer as well as decode memory; cacheWidth alone only limits
-    // the decoded bitmap and still downloads the original file.
     try {
       final uri = Uri.parse(url);
       const marker = '/storage/v1/object/public/';
@@ -69,12 +56,28 @@ class ProductImage extends StatelessWidget {
     }
   }
 
+  Widget _buildImage(String url, int decodeWidth) {
+    final image = _isNetworkImage
+        ? Image.network(
+            _optimizedNetworkUrl(url, decodeWidth),
+            fit: BoxFit.contain,
+            cacheWidth: decodeWidth,
+            filterQuality: FilterQuality.medium,
+            errorBuilder: (context, error, stackTrace) => _placeholder(),
+          )
+        : Image.asset(
+            url,
+            fit: BoxFit.contain,
+            cacheWidth: decodeWidth,
+            errorBuilder: (context, error, stackTrace) => _placeholder(),
+          );
+
+    return image;
+  }
+
   Widget _image() {
     final url = imageUrl.trim();
-
-    if (url.isEmpty) {
-      return _placeholder();
-    }
+    if (url.isEmpty) return _placeholder();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -84,46 +87,25 @@ class ProductImage extends StatelessWidget {
         final dpr = MediaQuery.devicePixelRatioOf(context);
         final decodeWidth = (width * dpr).clamp(160.0, 1200.0).round();
 
-        if (_isNetworkImage) {
-          final optimizedUrl = _optimizedNetworkUrl(url, decodeWidth);
-          return Image.network(
-            optimizedUrl,
-            fit: fit,
-            cacheWidth: decodeWidth,
-            filterQuality: FilterQuality.medium,
-            frameBuilder: (
-              context,
-              child,
-              frame,
-              wasSynchronouslyLoaded,
-            ) {
-              if (wasSynchronouslyLoaded || frame != null) {
-                return child;
-              }
+        // The background fills the card, while the foreground keeps the
+        // complete product visible. This avoids the excessive crop caused by
+        // BoxFit.cover without leaving an empty image area.
+        final background = _buildImage(url, decodeWidth);
+        final foreground = _buildImage(url, decodeWidth);
 
-              return _placeholder();
-            },
-            errorBuilder: (
-              context,
-              error,
-              stackTrace,
-            ) {
-              return _placeholder();
-            },
-          );
-        }
-
-        return Image.asset(
-          url,
-          fit: fit,
-          cacheWidth: decodeWidth,
-          errorBuilder: (
-            context,
-            error,
-            stackTrace,
-          ) {
-            return _placeholder();
-          },
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Opacity(
+                opacity: 0.28,
+                child: background,
+              ),
+            ),
+            Container(color: AppColors.surfaceMuted.withValues(alpha: 0.34)),
+            foreground,
+          ],
         );
       },
     );
