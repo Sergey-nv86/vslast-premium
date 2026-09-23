@@ -76,7 +76,12 @@ class _ChatUnreadBadgeState extends State<ChatUnreadBadge> {
 }
 
 class ClientChatScreen extends StatefulWidget {
-  const ClientChatScreen({super.key});
+  final String? targetMessageId;
+
+  const ClientChatScreen({
+    super.key,
+    this.targetMessageId,
+  });
 
   @override
   State<ClientChatScreen> createState() => _ClientChatScreenState();
@@ -92,6 +97,7 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
   bool _loading = true;
   bool _sending = false;
   String? _pendingImagePath;
+  final Map<String, GlobalKey> _messageKeys = {};
 
   @override
   void initState() {
@@ -144,7 +150,9 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
       if (!mounted) return;
       setState(() => _messages = messages);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
+        if (widget.targetMessageId != null) {
+          _revealTargetMessage();
+        } else if (_scrollController.hasClients) {
           _scrollController.animateTo(
             _scrollController.position.maxScrollExtent,
             duration: const Duration(milliseconds: 240),
@@ -153,6 +161,42 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
         }
       });
     } catch (_) {}
+  }
+
+  Future<void> _revealTargetMessage() async {
+    final targetId = widget.targetMessageId?.trim();
+    if (targetId == null || targetId.isEmpty) return;
+
+    final index = _messages.indexWhere(
+      (message) => message['id']?.toString() == targetId,
+    );
+    if (index < 0) return;
+
+    final key = _messageKeys.putIfAbsent(targetId, GlobalKey.new);
+
+    for (var attempt = 0; attempt < 6; attempt++) {
+      final targetContext = key.currentContext;
+      if (targetContext != null) {
+        await Scrollable.ensureVisible(
+          targetContext,
+          alignment: 0.35,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        );
+        return;
+      }
+
+      if (!_scrollController.hasClients) return;
+
+      final max = _scrollController.position.maxScrollExtent;
+      final estimated = max == 0
+          ? 0.0
+          : (index / _messages.length.clamp(1, 100000)) * max;
+      _scrollController.jumpTo(
+        estimated.clamp(0.0, max),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+    }
   }
 
   Future<void> _send() async {
@@ -233,8 +277,20 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
                           controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
                           itemCount: _messages.length,
-                          itemBuilder: (_, index) =>
-                              _MessageBubble(message: _messages[index]),
+                          itemBuilder: (_, index) {
+                            final message = _messages[index];
+                            final id = message['id']?.toString() ?? '';
+                            final key = id.isEmpty
+                                ? null
+                                : _messageKeys.putIfAbsent(id, GlobalKey.new);
+                            return KeyedSubtree(
+                              key: key,
+                              child: _MessageBubble(
+                                message: message,
+                                highlighted: id == widget.targetMessageId,
+                              ),
+                            );
+                          },
                         ),
                 ),
                 if (_pendingImagePath != null)
@@ -313,7 +369,12 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
 
 class _MessageBubble extends StatelessWidget {
   final Map<String, dynamic> message;
-  const _MessageBubble({required this.message});
+  final bool highlighted;
+
+  const _MessageBubble({
+    required this.message,
+    this.highlighted = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -332,7 +393,14 @@ class _MessageBubble extends StatelessWidget {
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(18),
-          border: mine ? null : Border.all(color: AppColors.border),
+          border: highlighted
+              ? Border.all(color: AppColors.caramel, width: 2)
+              : mine
+                  ? null
+                  : Border.all(color: AppColors.border),
+          boxShadow: highlighted
+              ? const [BoxShadow(blurRadius: 12, spreadRadius: 1, color: Color(0x335E4030))]
+              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,7 +657,14 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
 class AdminChatScreen extends StatefulWidget {
   final String threadId;
   final String title;
-  const AdminChatScreen({super.key, required this.threadId, required this.title});
+  final String? targetMessageId;
+
+  const AdminChatScreen({
+    super.key,
+    required this.threadId,
+    required this.title,
+    this.targetMessageId,
+  });
 
   @override
   State<AdminChatScreen> createState() => _AdminChatScreenState();
@@ -603,6 +678,7 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
   bool _loading = true;
   bool _sending = false;
   String? _pendingImagePath;
+  final Map<String, GlobalKey> _messageKeys = {};
 
   @override
   void initState() {
@@ -634,12 +710,50 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
       if (!mounted) return;
       setState(() { _messages = messages; _loading = false; });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
+        if (widget.targetMessageId != null) {
+          _revealTargetMessage();
+        } else if (_scrollController.hasClients) {
           _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
         }
       });
     } catch (e) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _revealTargetMessage() async {
+    final targetId = widget.targetMessageId?.trim();
+    if (targetId == null || targetId.isEmpty) return;
+
+    final index = _messages.indexWhere(
+      (message) => message['id']?.toString() == targetId,
+    );
+    if (index < 0) return;
+
+    final key = _messageKeys.putIfAbsent(targetId, GlobalKey.new);
+
+    for (var attempt = 0; attempt < 6; attempt++) {
+      final targetContext = key.currentContext;
+      if (targetContext != null) {
+        await Scrollable.ensureVisible(
+          targetContext,
+          alignment: 0.35,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        );
+        return;
+      }
+
+      if (!_scrollController.hasClients) return;
+
+      final max = _scrollController.position.maxScrollExtent;
+      final estimated = max == 0
+          ? 0.0
+          : (index / _messages.length.clamp(1, 100000)) * max;
+      _scrollController.jumpTo(
+        estimated.clamp(0.0, max),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 60));
     }
   }
 
@@ -703,7 +817,20 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16),
                     itemCount: _messages.length,
-                    itemBuilder: (_, i) => _MessageBubble(message: _messages[i]),
+                    itemBuilder: (_, i) {
+                      final message = _messages[i];
+                      final id = message['id']?.toString() ?? '';
+                      final key = id.isEmpty
+                          ? null
+                          : _messageKeys.putIfAbsent(id, GlobalKey.new);
+                      return KeyedSubtree(
+                        key: key,
+                        child: _MessageBubble(
+                          message: message,
+                          highlighted: id == widget.targetMessageId,
+                        ),
+                      );
+                    },
                   ),
                 ),
                 if (_pendingImagePath != null)
