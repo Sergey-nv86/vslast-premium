@@ -464,9 +464,14 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
     }
   }
 
-  Future<void> _showBroadcastDialog() async {
+  Future<void> _showBroadcastDialog({String? level, String? title}) async {
     final controller = TextEditingController();
     var sending = false;
+    final recipientLabel = level == 'gold'
+        ? 'клиентам Голд'
+        : level == 'premium'
+            ? 'клиентам Премиум'
+            : 'всем клиентам';
 
     try {
       await showDialog<void>(
@@ -475,22 +480,20 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
           return StatefulBuilder(
             builder: (context, setDialogState) {
               return AlertDialog(
-                title: const Text('Сообщение всем клиентам'),
+                title: Text(title ?? ('Сообщение ' + recipientLabel)),
                 content: TextField(
                   controller: controller,
                   autofocus: true,
                   maxLines: 6,
                   minLines: 3,
-                  decoration: const InputDecoration(
-                    hintText: 'Введите сообщение для всех клиентов',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    hintText: 'Введите сообщение для ' + recipientLabel,
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 actions: [
                   TextButton(
-                    onPressed: sending
-                        ? null
-                        : () => Navigator.of(dialogContext).pop(),
+                    onPressed: sending ? null : () => Navigator.of(dialogContext).pop(),
                     child: const Text('Отмена'),
                   ),
                   FilledButton(
@@ -503,14 +506,12 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
                             setDialogState(() => sending = true);
                             try {
                               final count = await ChatService.instance
-                                  .broadcastMessage(text);
+                                  .broadcastMessage(text, level: level);
                               if (!mounted) return;
                               Navigator.of(dialogContext).pop();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(
-                                    'Сообщение отправлено $count клиентам',
-                                  ),
+                                  content: Text('Сообщение отправлено ' + count.toString() + ' клиентам'),
                                 ),
                               );
                               await _load();
@@ -528,7 +529,7 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Отправить всем'),
+                        : const Text('Отправить'),
                   ),
                 ],
               );
@@ -541,6 +542,120 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
     }
   }
 
+  Future<void> _showClientPicker() async {
+    List<ChatClient> clients = [];
+    var loading = true;
+    var query = '';
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              if (loading) {
+                ChatService.instance.adminChatClients().then((value) {
+                  if (context.mounted) {
+                    setDialogState(() {
+                      clients = value;
+                      loading = false;
+                    });
+                  }
+                }).catchError((error) {
+                  if (context.mounted) {
+                    setDialogState(() => loading = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(error.toString())),
+                    );
+                  }
+                });
+              }
+
+              final filtered = clients.where((client) {
+                final q = query.trim().toLowerCase();
+                if (q.isEmpty) return true;
+                return client.clientId.toLowerCase().contains(q) ||
+                    client.name.toLowerCase().contains(q) ||
+                    client.phone.toLowerCase().contains(q);
+              }).toList();
+
+              return AlertDialog(
+                title: const Text('Написать клиенту'),
+                content: SizedBox(
+                  width: 520,
+                  height: 520,
+                  child: loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : Column(
+                          children: [
+                            TextField(
+                              autofocus: true,
+                              onChanged: (value) => setDialogState(() => query = value),
+                              decoration: const InputDecoration(
+                                hintText: 'Поиск: C-000000, имя или телефон',
+                                prefixIcon: Icon(Icons.search_rounded),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Expanded(
+                              child: filtered.isEmpty
+                                  ? const Center(child: Text('Клиенты не найдены'))
+                                  : ListView.separated(
+                                      itemCount: filtered.length,
+                                      separatorBuilder: (_, __) => const Divider(height: 1),
+                                      itemBuilder: (_, index) {
+                                        final client = filtered[index];
+                                        return ListTile(
+                                          leading: const CircleAvatar(
+                                            backgroundColor: Color(0xFFF1E8E0),
+                                            child: Icon(Icons.person_outline, color: Color(0xFF8B5E3C)),
+                                          ),
+                                          title: Text(
+                                            client.label,
+                                            style: const TextStyle(fontWeight: FontWeight.w700),
+                                          ),
+                                          subtitle: Text(
+                                            client.name + ' · ' + client.levelLabel,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          onTap: () async {
+                                            Navigator.of(dialogContext).pop();
+                                            try {
+                                              final threadId = await ChatService.instance
+                                                  .ensureAdminThreadForClient(client.userId);
+                                              if (!mounted) return;
+                                              await Navigator.of(this.context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) => AdminChatScreen(
+                                                    threadId: threadId,
+                                                    title: client.label,
+                                                  ),
+                                                ),
+                                              );
+                                              await _load();
+                                            } catch (e) {
+                                              if (!mounted) return;
+                                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                                SnackBar(content: Text(e.toString())),
+                                              );
+                                            }
+                                          },
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     final channel = _channel;
@@ -549,15 +664,20 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
   }
 
   String _name(Map<String, dynamic> thread) {
+    final clientId = thread['client_id']?.toString().trim() ?? '';
+    if (clientId.isNotEmpty) return 'Клиент $clientId';
+
     final p = thread['profile'] as Map<String, dynamic>?;
-    if (p == null) return thread['client_id']?.toString() ?? 'Клиент';
+    if (p == null) return 'Клиент';
+
     final display = p['display_name']?.toString().trim() ?? '';
     if (display.isNotEmpty) return display;
+
     final full = [p['first_name'], p['last_name']]
         .map((e) => e?.toString().trim() ?? '')
         .where((e) => e.isNotEmpty)
         .join(' ');
-    return full.isNotEmpty ? full : (thread['client_id']?.toString() ?? 'Клиент');
+    return full.isNotEmpty ? full : 'Клиент';
   }
 
   @override
@@ -576,13 +696,42 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            tooltip: 'Написать всем',
-            onPressed: _showBroadcastDialog,
+          PopupMenuButton<String>(
+            tooltip: 'Новая рассылка',
+            onSelected: (value) {
+              if (value == 'client') {
+                _showClientPicker();
+              } else if (value == 'all') {
+                _showBroadcastDialog();
+              } else if (value == 'gold') {
+                _showBroadcastDialog(level: 'gold', title: 'Сообщение группе Голд');
+              } else if (value == 'premium') {
+                _showBroadcastDialog(level: 'premium', title: 'Сообщение группе Премиум');
+              }
+            },
             icon: const Icon(
-              Icons.campaign_outlined,
+              Icons.edit_outlined,
               color: Color(0xFF8B5E3C),
             ),
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'client',
+                child: Text('Написать клиенту'),
+              ),
+              PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'all',
+                child: Text('Всем клиентам'),
+              ),
+              PopupMenuItem(
+                value: 'gold',
+                child: Text('Группа · Голд'),
+              ),
+              PopupMenuItem(
+                value: 'premium',
+                child: Text('Группа · Премиум'),
+              ),
+            ],
           ),
           const SizedBox(width: 8),
         ],
