@@ -1,6 +1,35 @@
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+class ChatClient {
+  final String userId;
+  final String clientId;
+  final String level;
+  final String name;
+  final String phone;
+
+  const ChatClient({
+    required this.userId,
+    required this.clientId,
+    required this.level,
+    required this.name,
+    required this.phone,
+  });
+
+  String get label => 'Клиент $clientId';
+
+  String get levelLabel {
+    switch (level.toLowerCase()) {
+      case 'premium':
+        return 'Премиум';
+      case 'gold':
+        return 'Голд';
+      default:
+        return 'Серебро';
+    }
+  }
+}
+
 class ChatService {
   ChatService._();
   static final instance = ChatService._();
@@ -107,13 +136,40 @@ class ChatService {
     return path;
   }
 
-  Future<int> broadcastMessage(String body) async {
+  Future<String> ensureAdminThreadForClient(String clientUserId) async {
+    final result = await _supabase.rpc(
+      'admin_ensure_chat_thread',
+      params: {'p_client_user_id': clientUserId},
+    );
+    return result.toString();
+  }
+
+  Future<List<ChatClient>> adminChatClients() async {
+    final result = await _supabase.rpc('admin_chat_clients');
+    final rows = List<Map<String, dynamic>>.from(
+      (result as List).map((row) => Map<String, dynamic>.from(row as Map)),
+    );
+
+    return rows.map((row) {
+      return ChatClient(
+        userId: row['client_user_id']?.toString() ?? '',
+        clientId: row['client_id']?.toString() ?? '',
+        level: row['level']?.toString() ?? 'silver',
+        name: row['display_name']?.toString().trim().isNotEmpty == true
+            ? row['display_name'].toString().trim()
+            : 'Клиент',
+        phone: row['phone']?.toString() ?? '',
+      );
+    }).where((client) => client.userId.isNotEmpty && client.clientId.isNotEmpty).toList();
+  }
+
+  Future<int> broadcastMessage(String body, {String? level}) async {
     final text = body.trim();
     if (text.isEmpty) throw Exception('Сообщение не может быть пустым.');
 
     final result = await _supabase.rpc(
       'admin_broadcast_chat_message',
-      params: {'p_body': text},
+      params: {'p_body': text, 'p_level': level},
     );
 
     return (result as num?)?.toInt() ?? 0;
