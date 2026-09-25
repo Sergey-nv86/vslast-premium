@@ -172,6 +172,7 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
     );
     if (index < 0) return;
 
+    if (!mounted) return;
     final key = _messageKeys.putIfAbsent(targetId, () => GlobalKey());
 
     for (var attempt = 0; attempt < 6; attempt++) {
@@ -480,14 +481,14 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
           return StatefulBuilder(
             builder: (context, setDialogState) {
               return AlertDialog(
-                title: Text(title ?? ('Сообщение ' + recipientLabel)),
+                title: Text(title ?? 'Сообщение $recipientLabel'),
                 content: TextField(
                   controller: controller,
                   autofocus: true,
                   maxLines: 6,
                   minLines: 3,
                   decoration: InputDecoration(
-                    hintText: 'Введите сообщение для ' + recipientLabel,
+                    hintText: 'Введите сообщение для $recipientLabel',
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -503,22 +504,24 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
                             final text = controller.text.trim();
                             if (text.isEmpty) return;
 
+                            final dialogNavigator = Navigator.of(dialogContext);
+                            final messenger = ScaffoldMessenger.of(this.context);
                             setDialogState(() => sending = true);
                             try {
                               final count = await ChatService.instance
                                   .broadcastMessage(text, level: level);
                               if (!mounted) return;
-                              Navigator.of(dialogContext).pop();
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              dialogNavigator.pop();
+                              messenger.showSnackBar(
                                 SnackBar(
-                                  content: Text('Сообщение отправлено ' + count.toString() + ' клиентам'),
+                                  content: Text('Сообщение отправлено $count клиентам'),
                                 ),
                               );
                               await _load();
                             } catch (e) {
                               setDialogState(() => sending = false);
                               if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              messenger.showSnackBar(
                                 SnackBar(content: Text(e.toString())),
                               );
                             }
@@ -602,7 +605,7 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
                                   ? const Center(child: Text('Клиенты не найдены'))
                                   : ListView.separated(
                                       itemCount: filtered.length,
-                                      separatorBuilder: (_, __) => const Divider(height: 1),
+                                      separatorBuilder: (_, _) => const Divider(height: 1),
                                       itemBuilder: (_, index) {
                                         final client = filtered[index];
                                         return ListTile(
@@ -615,17 +618,19 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
                                             style: const TextStyle(fontWeight: FontWeight.w700),
                                           ),
                                           subtitle: Text(
-                                            client.name + ' · ' + client.levelLabel,
+                                            '${client.name} · ${client.levelLabel}',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           onTap: () async {
+                                            final navigator = Navigator.of(this.context);
+                                            final messenger = ScaffoldMessenger.of(this.context);
                                             Navigator.of(dialogContext).pop();
                                             try {
                                               final threadId = await ChatService.instance
                                                   .ensureAdminThreadForClient(client.userId);
                                               if (!mounted) return;
-                                              await Navigator.of(this.context).push(
+                                              await navigator.push(
                                                 MaterialPageRoute(
                                                   builder: (_) => AdminChatScreen(
                                                     threadId: threadId,
@@ -636,7 +641,7 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
                                               await _load();
                                             } catch (e) {
                                               if (!mounted) return;
-                                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                              messenger.showSnackBar(
                                                 SnackBar(content: Text(e.toString())),
                                               );
                                             }
@@ -748,7 +753,7 @@ class _AdminChatListScreenState extends State<AdminChatListScreen> {
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: _threads.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (_, index) {
                       final thread = _threads[index];
                       final unread = (thread['unread_count'] as num?)?.toInt() ?? 0;
