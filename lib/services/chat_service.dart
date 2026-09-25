@@ -122,7 +122,7 @@ class ChatService {
     if (bytes.isEmpty) return null;
 
     final extension = _extension(picked.name);
-    final path = threadId + '/' + DateTime.now().microsecondsSinceEpoch.toString() + '.' + extension;
+    final path = '$threadId/${DateTime.now().microsecondsSinceEpoch}.$extension';
 
     await _supabase.storage.from('chat-images').uploadBinary(
       path,
