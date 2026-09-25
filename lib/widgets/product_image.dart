@@ -42,9 +42,7 @@ class ProductImage extends StatelessWidget {
       final markerIndex = path.indexOf(marker);
       if (markerIndex < 0) return url;
 
-      final renderPath = path.substring(0, markerIndex) +
-          '/storage/v1/render/image/public/' +
-          path.substring(markerIndex + marker.length);
+      final renderPath = '${path.substring(0, markerIndex)}/storage/v1/render/image/public/${path.substring(markerIndex + marker.length)}';
       final query = Map<String, String>.from(uri.queryParameters)
         ..['width'] = width.toString()
         ..['height'] = width.toString()
