@@ -178,7 +178,7 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
     for (var attempt = 0; attempt < 6; attempt++) {
       final targetContext = key.currentContext;
       if (targetContext != null) {
-        await Scrollable.ensureVisible(
+        return Scrollable.ensureVisible(
           targetContext,
           alignment: 0.35,
           duration: const Duration(milliseconds: 280),
@@ -889,7 +889,7 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
     for (var attempt = 0; attempt < 6; attempt++) {
       final targetContext = key.currentContext;
       if (targetContext != null) {
-        await Scrollable.ensureVisible(
+        return Scrollable.ensureVisible(
           targetContext,
           alignment: 0.35,
           duration: const Duration(milliseconds: 280),
