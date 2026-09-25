@@ -176,6 +176,8 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
     final key = _messageKeys.putIfAbsent(targetId, () => GlobalKey());
 
     for (var attempt = 0; attempt < 6; attempt++) {
+      if (!_scrollController.hasClients) return;
+
       final targetContext = key.currentContext;
       if (targetContext != null) {
         return Scrollable.ensureVisible(
@@ -184,10 +186,9 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
           duration: const Duration(milliseconds: 280),
           curve: Curves.easeOutCubic,
         );
-        return;
       }
 
-      if (!_scrollController.hasClients) return;
+      if (!mounted) return;
 
       final max = _scrollController.position.maxScrollExtent;
       final estimated = max == 0
@@ -887,6 +888,8 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
     final key = _messageKeys.putIfAbsent(targetId, () => GlobalKey());
 
     for (var attempt = 0; attempt < 6; attempt++) {
+      if (!_scrollController.hasClients) return;
+
       final targetContext = key.currentContext;
       if (targetContext != null) {
         return Scrollable.ensureVisible(
@@ -895,10 +898,9 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
           duration: const Duration(milliseconds: 280),
           curve: Curves.easeOutCubic,
         );
-        return;
       }
 
-      if (!_scrollController.hasClients) return;
+      if (!mounted) return;
 
       final max = _scrollController.position.maxScrollExtent;
       final estimated = max == 0
