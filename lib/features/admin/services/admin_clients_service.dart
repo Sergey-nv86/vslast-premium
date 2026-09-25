@@ -60,32 +60,67 @@ class AdminClientsService {
   SupabaseClient get supabase => _supabase;
 
   Future<Map<String, int>> fetchClientStats() async {
-    final response = await _supabase.from('profiles').select('*');
+    final weekAgoIso = DateTime.now()
+        .subtract(const Duration(days: 7))
+        .toUtc()
+        .toIso8601String();
 
-    final rows = List<Map<String, dynamic>>.from(response);
+    final totalResponse = await _supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'customer')
+        .count();
 
-    final customers = rows.where(_isCustomer).toList();
+    final newResponse = await _supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'customer')
+        .gte('created_at', weekAgoIso)
+        .count();
 
-    final now = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 7));
-
-    final newThisWeek = customers.where((profile) {
-      final createdAt = _dateFrom(profile['created_at']);
-
-      return createdAt != null && !createdAt.isBefore(weekAgo);
-    }).length;
-
-    return {'total': customers.length, 'new': newThisWeek};
+    return {
+      'total': totalResponse.count,
+      'new': newResponse.count,
+    };
   }
 
   Future<List<AdminClient>> fetchClients() async {
-    final profilesResponse = await _supabase.from('profiles').select('*');
+    final profilesResponse = await _supabase
+        .from('profiles')
+        .select('id, first_name, last_name, display_name, phone, created_at, updated_at, role')
+        .eq('role', 'customer');
 
     final profiles = List<Map<String, dynamic>>.from(profilesResponse);
 
     final customers = profiles.where(_isCustomer).toList();
 
-    final ordersResponse = await _supabase.from('orders').select('*');
+    final customerIds = customers
+        .map((profile) => profile['id']?.toString())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toList();
+
+    final bonusByUserId = <String, double>{};
+
+    if (customerIds.isNotEmpty) {
+      final loyaltyResponse = await _supabase
+          .from('loyalty_accounts')
+          .select('user_id, bonus_balance')
+          .inFilter('user_id', customerIds);
+
+      for (final account in loyaltyResponse) {
+        final row = Map<String, dynamic>.from(account as Map);
+        final userId = row['user_id']?.toString();
+        if (userId == null || userId.isEmpty) continue;
+
+        bonusByUserId[userId] = _number(row['bonus_balance']) ?? 0;
+      }
+    }
+
+    // Только поля, необходимые для определения последнего действия.
+    final ordersResponse = await _supabase
+        .from('orders')
+        .select('user_id, client_id, created_at, updated_at');
 
     final orders = List<Map<String, dynamic>>.from(ordersResponse);
 
@@ -139,7 +174,7 @@ class AdminClientsService {
           phone: _profilePhone(profile),
           registeredAt: registeredAt,
           lastActionAt: lastActionAt,
-          bonusBalance: _bonusBalance(profile),
+          bonusBalance: bonusByUserId[id] ?? 0,
         ),
       );
     }
@@ -161,7 +196,7 @@ class AdminClientsService {
   Future<AdminClientDetails> fetchClientDetails(String clientId) async {
     final profileResponse = await _supabase
         .from('profiles')
-        .select('*')
+        .select('id, first_name, last_name, display_name, phone, email, city, birth_date, role, is_active, created_at, updated_at')
         .eq('id', clientId)
         .maybeSingle();
 
@@ -171,13 +206,27 @@ class AdminClientsService {
 
     final profile = Map<String, dynamic>.from(profileResponse);
 
-    final ordersResponse = await _supabase.from('orders').select('*');
+    final loyaltyResponse = await _supabase
+        .from('loyalty_accounts')
+        .select('bonus_balance')
+        .eq('user_id', clientId)
+        .maybeSingle();
 
-    final allOrders = List<Map<String, dynamic>>.from(ordersResponse);
+    final bonusBalance = loyaltyResponse == null
+        ? 0.0
+        : (_number(loyaltyResponse['bonus_balance']) ?? 0);
 
-    final clientOrders = allOrders.where((order) {
-      return _userIdFromOrder(order) == clientId;
-    }).toList();
+    // Загружаем только историю этого клиента, а не всю таблицу orders.
+    final ordersResponse = await _supabase
+        .from('orders')
+        .select(
+          'id, user_id, client_id, status, total, created_at, '
+          'order_number, pickup_date',
+        )
+        .or('user_id.eq.$clientId,client_id.eq.$clientId')
+        .order('created_at', ascending: false);
+
+    final clientOrders = List<Map<String, dynamic>>.from(ordersResponse);
 
     final parsedOrders = <AdminClientOrder>[];
 
@@ -238,7 +287,7 @@ class AdminClientsService {
       phone: _profilePhone(profile),
       registeredAt: registeredAt,
       lastActionAt: lastActionAt,
-      bonusBalance: _bonusBalance(profile),
+      bonusBalance: bonusBalance,
     );
 
     return AdminClientDetails(
@@ -338,27 +387,6 @@ class AdminClientsService {
       order['amount'],
       order['grand_total'],
       order['final_total'],
-    ];
-
-    for (final value in candidates) {
-      final parsed = _number(value);
-
-      if (parsed != null) {
-        return parsed;
-      }
-    }
-
-    return 0;
-  }
-
-  double _bonusBalance(Map<String, dynamic> profile) {
-    final candidates = [
-      profile['bonus_balance'],
-      profile['bonus_points'],
-      profile['loyalty_points'],
-      profile['points'],
-      profile['bonuses'],
-      profile['balance'],
     ];
 
     for (final value in candidates) {

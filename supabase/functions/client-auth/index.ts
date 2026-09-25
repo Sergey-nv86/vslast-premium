@@ -10,6 +10,7 @@ const corsHeaders = {
 
 const DUMMY_EMAIL = "invalid-client-id@auth.vslast.internal";
 const AUTH_DOMAIN = "auth.vslast.internal";
+const CONSENT_VERSION = "1.0";
 
 function json(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -100,10 +101,76 @@ async function signInByClientId(
   };
 }
 
+async function notifyAdminsOfClientEvent(
+  supabase: ReturnType<typeof createAdminClient>,
+  eventType: "client_registered_admin" | "client_login_admin",
+  clientId: string,
+  clientUserId: string,
+) {
+  try {
+    const { data: admins, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("is_active", true)
+      .in("role", ["owner", "admin", "manager", "seller"]);
+
+    if (error) {
+      console.error("[client-auth] admin notification lookup failed", error);
+      return;
+    }
+
+    for (const admin of admins ?? []) {
+      const adminId = String(admin.id ?? "").trim();
+      if (!adminId || adminId === clientUserId) continue;
+
+      const dedupKey = eventType === "client_registered_admin"
+        ? "client_registered_admin:" + clientId + ":" + adminId
+        : null;
+
+      const { error: pushError } = await supabase
+        .from("push_events")
+        .insert({
+          event_type: eventType,
+          recipient_user_id: adminId,
+          recipient_client_id: null,
+          order_id: null,
+          payload: {
+            type: eventType,
+            client_id: clientId,
+            client_user_id: clientUserId,
+          },
+          status: "pending",
+          attempts: 0,
+          push_dedup_key: dedupKey,
+        });
+
+      if (pushError) {
+        console.error(
+          "[client-auth] admin notification enqueue failed",
+          pushError,
+        );
+      }
+    }
+
+    console.log(
+      "[client-auth] admin client event queued: " + eventType + " " + clientId,
+    );
+  } catch (error) {
+    console.error("[client-auth] admin client notification error", error);
+  }
+}
+
 async function registerClient(
   supabase: ReturnType<typeof createAdminClient>,
   password: string,
+  consentPersonalData: boolean,
+  acceptTerms: boolean,
+  consentMarketing: boolean,
+  req: Request,
 ) {
+  if (!consentPersonalData || !acceptTerms) {
+    throw new Error("Необходимо подтвердить обязательные документы регистрации.");
+  }
   const { data: nextId, error: nextIdError } = await supabase.rpc(
     "next_client_id",
   );
@@ -156,6 +223,62 @@ async function registerClient(
     throw new Error("Не удалось создать авторизованную сессию.");
   }
 
+  const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ipAddress =
+    req.headers.get("cf-connecting-ip")?.trim() ||
+    forwardedFor ||
+    null;
+  const userAgent = req.headers.get("user-agent");
+
+  const consentRows = [
+    {
+      user_id: created.user.id,
+      consent_type: "personal_data_processing",
+      document_version: CONSENT_VERSION,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+      source: "registration",
+    },
+    {
+      user_id: created.user.id,
+      consent_type: "terms_acceptance",
+      document_version: CONSENT_VERSION,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+      source: "registration",
+    },
+    ...(consentMarketing
+      ? [{
+          user_id: created.user.id,
+          consent_type: "marketing",
+          document_version: CONSENT_VERSION,
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          source: "registration",
+        }]
+      : []),
+  ];
+
+  const { error: consentError } = await supabase
+    .from("consents")
+    .insert(consentRows);
+
+  if (consentError) {
+    await supabase
+      .from("client_accounts")
+      .delete()
+      .eq("legacy_user_id", created.user.id);
+    await supabase.auth.admin.deleteUser(created.user.id);
+    throw new Error("Не удалось зафиксировать согласия пользователя.");
+  }
+
+  await notifyAdminsOfClientEvent(
+    supabase,
+    "client_registered_admin",
+    clientId,
+    created.user.id,
+  );
+
   return {
     ...session,
     client_id: clientId,
@@ -195,6 +318,13 @@ Deno.serve(async (req) => {
         return json({ error: "Неверный ID клиента или пароль." }, 401);
       }
 
+      await notifyAdminsOfClientEvent(
+        supabase,
+        "client_login_admin",
+        clientId,
+        session.user.id,
+      );
+
       return json({
         client_id: clientId,
         ...session,
@@ -202,7 +332,14 @@ Deno.serve(async (req) => {
     }
 
     if (action === "register") {
-      const session = await registerClient(supabase, password);
+      const session = await registerClient(
+        supabase,
+        password,
+        Boolean(body?.consent_personal_data),
+        Boolean(body?.accept_terms),
+        Boolean(body?.consent_marketing),
+        req,
+      );
 
       return json(session, 201);
     }

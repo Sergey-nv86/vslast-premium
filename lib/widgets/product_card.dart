@@ -42,14 +42,18 @@ class ProductCard extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
             child: AspectRatio(
-              aspectRatio: 1.28,
+              aspectRatio: 1.0,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  ProductImage(
-                    imageUrl: product.imageUrl,
-                    fit: BoxFit.cover,
-                    iconSize: 32,
+                  Container(
+                    color: AppColors.surfaceMuted,
+                    alignment: Alignment.center,
+                    child: ProductImage(
+                      imageUrl: product.imageUrl,
+                      fit: BoxFit.cover,
+                      iconSize: 32,
+                    ),
                   ),
                   Positioned(top: 8, left: 8, child: _Badge(product: product)),
                   Positioned(

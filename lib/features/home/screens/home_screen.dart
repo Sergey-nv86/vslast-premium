@@ -12,6 +12,7 @@ import '../models/home_filter_state.dart';
 import '../widgets/home_header.dart';
 import '../widgets/popular_section.dart';
 import '../../../widgets/category_chip.dart';
+import '../../../services/storefront_settings_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final List<Product> products;
@@ -31,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const double _horizontalPadding = 18;
   static const double _gridSpacing = 10;
   static const double _cardTextBlockHeight = 116;
-  static const double _cardImageRatio = 1.28;
+  static const double _cardImageRatio = 1.0;
   static const double _headerPhotoHeight = 160;
   static const double _pinnedBarHeight = 56;
   static const double _spyThreshold = _pinnedBarHeight + 12;
@@ -41,10 +42,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<ProductCategory, GlobalKey> _sectionKeys = {
     for (final c in ProductCategory.values) c: GlobalKey(),
   };
+  final StorefrontSettingsService _storefrontSettings =
+      StorefrontSettingsService.instance;
 
   HomeFilterState _filter = const HomeFilterState();
   late List<Product> _products;
   ProductCategory? _activeCategory;
+  bool _homeAvailabilityEnabled = true;
   bool _activeCategoryUpdateScheduled = false;
 
   @override
@@ -52,6 +56,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
 
     _products = List<Product>.of(widget.products);
+
+    _loadHomeAvailability();
 
     debugPrint('===== HOME INIT =====');
     debugPrint('HOME PRODUCTS COUNT: ${_products.length}');
@@ -67,6 +73,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final inStockCount = _products.where((p) => p.inStock).length;
     debugPrint('HOME IN STOCK COUNT: $inStockCount');
+    debugPrint(
+      'HOME AVAILABILITY ENABLED: $_homeAvailabilityEnabled',
+    );
 
     _scrollController.addListener(_scheduleActiveCategoryUpdate);
 
@@ -75,8 +84,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  List<Product> get _popularProducts => _products
-      .where((product) => product.inStock && product.badge == ProductBadge.hit)
+  List<Product> get _popularProducts => _visibleProducts
+      .where((product) => product.badge == ProductBadge.hit)
       .take(5)
       .toList();
 
@@ -109,8 +118,37 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  List<Product> get _visibleProducts =>
-      _products.where((p) => p.inStock && _filter.matches(p)).toList();
+  List<Product> get _visibleProducts {
+    // Главная всегда показывает только фактически доступные товары.
+    // Глобальный переключатель в Админке позволяет полностью отключить
+    // наличие на Главной, поэтому в этом режиме список намеренно пуст.
+    if (!_homeAvailabilityEnabled) {
+      return const <Product>[];
+    }
+
+    return _products
+        .where((product) => product.inStock && _filter.matches(product))
+        .toList();
+  }
+
+  Future<void> _loadHomeAvailability() async {
+    try {
+      final enabled =
+          await _storefrontSettings.getHomeAvailabilityEnabled();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (_homeAvailabilityEnabled != enabled) {
+        setState(() {
+          _homeAvailabilityEnabled = enabled;
+        });
+      }
+    } catch (error) {
+      debugPrint('HOME AVAILABILITY SETTING ERROR: $error');
+    }
+  }
 
   List<ProductCategory> get _categoriesShown {
     final present = _visibleProducts.map((p) => p.category).toSet();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'admin_demand_without_stock_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_orders_calendar_screen.dart';
@@ -9,6 +10,8 @@ import 'admin_promotions_screen.dart';
 import '../../../screens/main_screen.dart';
 import 'admin_loyalty_screen.dart';
 import 'admin_clients_screen.dart';
+import '../../../screens/chat_screen.dart';
+import '../../../services/chat_service.dart';
 import '../services/admin_clients_service.dart';
 import '../../../services/admin_orders_service.dart';
 
@@ -42,6 +45,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   int _demandProducts = 0;
   double _demandAmount = 0;
+  int _chatUnreadCount = 0;
+  RealtimeChannel? _chatChannel;
 
   @override
   void initState() {
@@ -49,6 +54,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _loadOrderStats();
     _loadClientStats();
     _loadRealDemandSummary();
+    _loadChatUnreadCount();
+    _chatChannel = Supabase.instance.client
+        .channel('admin-dashboard-chat')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'chat_messages',
+          callback: (_) => _loadChatUnreadCount(),
+        )
+        .subscribe();
   }
 
   Future<void> _loadClientStats() async {
@@ -95,154 +110,98 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  Future<void> _loadChatUnreadCount() async {
+    try {
+      final count = await ChatService.instance.adminUnreadCount();
+      if (!mounted) return;
+      setState(() => _chatUnreadCount = count);
+    } catch (e) {
+      debugPrint('ADMIN CHAT UNREAD ERROR: $e');
+    }
+  }
+
   Future<void> _loadRealDemandSummary() async {
     try {
       final supabase = AdminClientsService.instance.supabase;
 
-      // --------------------------------------------------
-      // 1. Находим активные товары, которых сейчас нет
-      //    в наличии.
-      // --------------------------------------------------
-
       final productsResponse = await supabase
           .from('products')
-          .select('id,price,in_stock,is_active');
+          .select('id')
+          .eq('is_active', true)
+          .eq('in_stock', false);
 
-      final unavailableIds = <String>{};
-
-      for (final raw in productsResponse) {
-        final product = Map<String, dynamic>.from(raw);
-
-        final id = product['id']?.toString();
-
-        if (id == null || id.isEmpty) continue;
-
-        final isActive = product['is_active'] != false;
-        final inStock = product['in_stock'] == true;
-
-        if (isActive && !inStock) {
-          unavailableIds.add(id);
-        }
-      }
+      final unavailableIds = productsResponse
+          .map((row) => row['id']?.toString())
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet();
 
       if (unavailableIds.isEmpty) {
         if (!mounted) return;
-
         setState(() {
           _demandProducts = 0;
           _demandAmount = 0;
         });
-
         return;
       }
 
-      // --------------------------------------------------
-      // 2. Реальный спрос берём из orders + order_items.
-      //
-      // Предзаказы тоже попадают сюда:
-      // create_preorders_from_bake_schedule()
-      // создаёт обычный order + order_items,
-      // после чего выставляет orders.is_preorder = true.
-      //
-      // cart_items намеренно НЕ используется.
-      // --------------------------------------------------
-
-      final ordersResponse = await supabase.from('orders').select('''
-            id,
-            status,
-            is_preorder,
-            order_items (
-              product_id,
-              quantity,
-              unit_price,
-              line_total
-            )
-          ''');
+      final orderItemsResponse = await supabase.from('order_items').select('''
+        product_id,
+        quantity,
+        unit_price,
+        line_total,
+        orders!inner(status)
+      ''').not(
+        'orders.status',
+        'in',
+        '("cancelled","canceled","rejected")',
+      );
 
       final demandByProduct = <String, int>{};
       double potentialRub = 0;
 
-      for (final raw in ordersResponse) {
-        final order = Map<String, dynamic>.from(raw);
+      for (final raw in orderItemsResponse) {
+        final item = Map<String, dynamic>.from(raw as Map);
+        final productId = item['product_id']?.toString();
 
-        final status = order['status']?.toString().toLowerCase();
-
-        // Отменённые и отклонённые заказы
-        // не являются спросом.
-        if (status == 'cancelled' ||
-            status == 'canceled' ||
-            status == 'rejected') {
+        if (productId == null || !unavailableIds.contains(productId)) {
           continue;
         }
 
-        final itemsRaw = order['order_items'];
+        final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+        if (quantity <= 0) continue;
 
-        if (itemsRaw is! List) continue;
+        demandByProduct[productId] =
+            (demandByProduct[productId] ?? 0) + quantity;
 
-        for (final rawItem in itemsRaw) {
-          if (rawItem is! Map) continue;
-
-          final item = Map<String, dynamic>.from(rawItem);
-
-          final productId = item['product_id']?.toString();
-
-          if (productId == null || !unavailableIds.contains(productId)) {
-            continue;
-          }
-
-          final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-
-          if (quantity <= 0) continue;
-
-          demandByProduct[productId] =
-              (demandByProduct[productId] ?? 0) + quantity;
-
-          // Сначала используем зафиксированную сумму позиции.
-          // Это важно: цена заказа могла отличаться
-          // от текущей цены товара.
-          final lineTotal = (item['line_total'] as num?)?.toDouble();
-
-          if (lineTotal != null && lineTotal > 0) {
-            potentialRub += lineTotal;
-          } else {
-            final unitPrice = (item['unit_price'] as num?)?.toDouble() ?? 0;
-
-            potentialRub += unitPrice * quantity;
-          }
+        final lineTotal = (item['line_total'] as num?)?.toDouble();
+        if (lineTotal != null && lineTotal > 0) {
+          potentialRub += lineTotal;
+        } else {
+          final unitPrice = (item['unit_price'] as num?)?.toDouble() ?? 0;
+          potentialRub += unitPrice * quantity;
         }
       }
-
-      // --------------------------------------------------
-      // 3. Считаем только товары, по которым действительно
-      //    есть спрос.
-      //
-      // Раньше здесь ошибочно показывались ВСЕ товары
-      // без наличия.
-      // --------------------------------------------------
-
-      final productsWithDemand = demandByProduct.keys.toSet();
 
       if (!mounted) return;
 
       setState(() {
-        _demandProducts = productsWithDemand.length;
+        _demandProducts = demandByProduct.length;
         _demandAmount = potentialRub;
       });
-
-      debugPrint(
-        'REAL DEMAND: '
-        'unavailable=${unavailableIds.length}, '
-        'productsWithDemand=${productsWithDemand.length}, '
-        'potential=${potentialRub.toStringAsFixed(2)} ₽',
-      );
     } catch (e, st) {
       debugPrint('REAL DEMAND ERROR: $e');
       debugPrintStack(stackTrace: st);
-
-      if (!mounted) return;
-
-      setState(() {});
     }
+  }
+
+  @override
+  void dispose() {
+    final channel = _chatChannel;
+    if (channel != null) {
+      Supabase.instance.client.removeChannel(channel);
+    }
+    super.dispose();
   }
 
   @override
@@ -503,6 +462,71 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AdminChatListScreen()),
+              );
+              _loadChatUnreadCount();
+            },
+            child: _Card(
+              child: Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF1E8E0),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.chat_bubble_outline_rounded, color: brown),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Чат с клиентами',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: dark,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Сообщения клиентов и ответы',
+                          style: TextStyle(fontSize: 12, color: muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_chatUnreadCount > 0)
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFB5423F),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _chatUnreadCount > 99 ? '99+' : '$_chatUnreadCount',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right_rounded, color: brown),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 20),
 

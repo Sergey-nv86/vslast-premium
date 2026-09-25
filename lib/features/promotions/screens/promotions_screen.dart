@@ -27,7 +27,12 @@ import '../../../services/product_service.dart';
 ///
 /// Клиент видит только доступные акции, находящиеся в периоде показа.
 class PromotionsScreen extends StatefulWidget {
-  const PromotionsScreen({super.key});
+  final String? targetPromotionId;
+
+  const PromotionsScreen({
+    super.key,
+    this.targetPromotionId,
+  });
 
   @override
   State<PromotionsScreen> createState() => _PromotionsScreenState();
@@ -90,7 +95,12 @@ class _PromotionsScreenState extends State<PromotionsScreen> {
         _loading = false;
         _loadError = null;
 
-        if (_activeIndex >= _store.available.length) {
+        if (widget.targetPromotionId != null) {
+          final targetIndex = _store.available.indexWhere(
+            (promotion) => promotion.id.toString() == widget.targetPromotionId,
+          );
+          _activeIndex = targetIndex >= 0 ? targetIndex : 0;
+        } else if (_activeIndex >= _store.available.length) {
           _activeIndex = 0;
         }
       });

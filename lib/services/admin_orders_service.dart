@@ -12,15 +12,9 @@ class AdminOrdersService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<List<AdminOrder>> fetchOrders() async {
-    final authUser = _supabase.auth.currentUser;
-    final session = _supabase.auth.currentSession;
-
-    debugPrint('ADMIN AUTH USER: ${authUser?.id}');
-    debugPrint('ADMIN AUTH EMAIL: ${authUser?.email}');
-    debugPrint('ADMIN AUTH SESSION: ${session != null}');
-
-    debugPrint('ADMIN ORDERS: начинаем загрузку заказов');
-
+    // Список заказов должен быть быстрым: изображения и данные products
+    // загружаются только при открытии конкретного заказа. Лёгкие позиции
+    // (название/количество/цена) загружаются отдельно для календаря товаров.
     final response = await _supabase
         .from('orders')
         .select('''
@@ -33,35 +27,25 @@ class AdminOrdersService {
           payment_method,
           pickup_date,
           pickup_time_slot,
-          delivery_address,
-          delivery_cost,
           comment,
-          items_total,
           pickup_discount,
           total,
-          created_at,
-          updated_at,
-          order_items (
-            id,
-            product_id,
-            product_name,
-            unit_price,
-            quantity,
-            weight_label,
-            line_total,
-            products:product_id (
-              id,
-              image_url,
-              gallery_images
-            )
-          )
+          created_at
         ''')
         .order('created_at', ascending: false);
 
-    debugPrint('ADMIN ORDERS: response = $response');
-
     final rows = List<Map<String, dynamic>>.from(response);
-    debugPrint('ADMIN ORDERS: получено строк = ${rows.length}');
+
+    // Для списка заказов нужны только лёгкие позиции: название, количество,
+    // цена и сумма. Изображения/товары products здесь намеренно НЕ загружаем.
+    // Это одновременно делает календарь товаров корректным и сохраняет
+    // быстрый список заказов.
+    final orderIds = rows
+        .map((row) => row['id']?.toString())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
 
     final userIds = rows
         .map((row) => row['user_id']?.toString())
@@ -71,16 +55,37 @@ class AdminOrdersService {
         .toList();
 
     final profilesById = <String, Map<String, dynamic>>{};
+    final itemsByOrderId = <String, List<Map<String, dynamic>>>{};
+
+    // Профили и позиции независимы — загружаем их параллельно,
+    // чтобы не удваивать время ожидания Supabase.
+    final results = await Future.wait<dynamic>([
+      if (userIds.isNotEmpty)
+        _supabase
+            .from('profiles')
+            .select('id, display_name, first_name, last_name, phone')
+            .inFilter('id', userIds),
+      if (orderIds.isNotEmpty)
+        _supabase
+            .from('order_items')
+            .select('''
+              id,
+              order_id,
+              product_id,
+              product_name,
+              unit_price,
+              quantity,
+              weight_label,
+              line_total
+            ''')
+            .inFilter('order_id', orderIds)
+            .order('id'),
+    ]);
+
+    var resultIndex = 0;
 
     if (userIds.isNotEmpty) {
-      debugPrint('ADMIN PROFILES: userIds = $userIds');
-      final profilesResponse = await _supabase
-          .from('profiles')
-          .select('id, display_name, first_name, last_name, phone, email')
-          .inFilter('id', userIds);
-
-      debugPrint('ADMIN PROFILES: response = $profilesResponse');
-
+      final profilesResponse = results[resultIndex++];
       for (final profile in profilesResponse) {
         final map = Map<String, dynamic>.from(profile as Map);
         final id = map['id']?.toString();
@@ -90,18 +95,25 @@ class AdminOrdersService {
       }
     }
 
-    final bakery = await BakeryService.instance.getActiveBakery();
-
-    debugPrint(
-      'ADMIN BAKERY: '
-      'name=${bakery?.name}, '
-      'city=${bakery?.city}, '
-      'address=${bakery?.address}',
-    );
+    if (orderIds.isNotEmpty) {
+      final itemsResponse = results[resultIndex++];
+      for (final item in itemsResponse) {
+        final map = Map<String, dynamic>.from(item as Map);
+        final orderId = map['order_id']?.toString();
+        if (orderId == null || orderId.isEmpty) continue;
+        (itemsByOrderId[orderId] ??= <Map<String, dynamic>>[]).add(map);
+      }
+    }
 
     return rows.map((row) {
       final userId = row['user_id']?.toString() ?? '';
-      return _mapOrder(row, profile: profilesById[userId], bakery: bakery);
+      final orderId = row['id']?.toString() ?? '';
+
+      if (itemsByOrderId.containsKey(orderId)) {
+        row['order_items'] = itemsByOrderId[orderId];
+      }
+
+      return _mapOrder(row, profile: profilesById[userId]);
     }).toList();
   }
 
@@ -156,6 +168,7 @@ class AdminOrdersService {
             line_total,
             products:product_id (
               id,
+              name,
               image_url,
               gallery_images
             )
@@ -173,6 +186,12 @@ class AdminOrdersService {
     }
 
     final row = Map<String, dynamic>.from(response);
+
+    // Надёжность: если PostgREST не вернул вложенный order_items,
+    // добираем позиции отдельным запросом. Сам заказ при этом не теряется.
+    if (row['order_items'] is! List || (row['order_items'] as List).isEmpty) {
+      row['order_items'] = await _fetchOrderItems(normalizedOrderId);
+    }
 
     final userId = row['user_id']?.toString().trim() ?? '';
 
@@ -349,6 +368,15 @@ class AdminOrdersService {
 
     final rows = List<Map<String, dynamic>>.from(response);
 
+    for (final row in rows) {
+      final orderId = row['id']?.toString().trim() ?? '';
+      final rawItems = row['order_items'];
+      if (orderId.isEmpty || (rawItems is List && rawItems.isNotEmpty)) {
+        continue;
+      }
+      row['order_items'] = await _fetchOrderItems(orderId);
+    }
+
     debugPrint('ADMIN QR ORDERS: заказов клиента = ${rows.length}');
 
     const finishedStatuses = {
@@ -395,49 +423,27 @@ class AdminOrdersService {
   /// total — незавершённые заказы, которые должны быть получены сегодня.
   /// newOrders — новые заказы на сегодня.
   Future<Map<String, int>> fetchOrderStats() async {
-    debugPrint('ADMIN DASHBOARD ORDERS: загрузка всех незавершённых заказов');
+    const finishedStatuses = ['completed', 'cancelled', 'canceled', 'rejected'];
+    const newStatuses = ['new', 'processing', 'pending', 'pending_confirmation',
+      'awaiting_confirmation', 'awaiting_payment', 'awaitingpayment'];
 
-    final response = await _supabase.from('orders').select('id, status');
+    final totalResponse = await _supabase
+        .from('orders')
+        .select('id')
+        .not('status', 'in', '(${finishedStatuses.join(',')})')
+        .count();
 
-    final finishedStatuses = {'completed', 'cancelled', 'canceled', 'rejected'};
+    final newResponse = await _supabase
+        .from('orders')
+        .select('id')
+        .inFilter('status', newStatuses)
+        .count();
 
-    const newStatuses = {
-      'new',
-      'processing',
-      'pending',
-      'pending_confirmation',
-      'awaiting_confirmation',
-      'awaiting_payment',
-      'awaitingpayment',
+    return {
+      'total': totalResponse.count,
+      'new': newResponse.count,
     };
-
-    final statusCounts = <String, int>{};
-    int total = 0;
-    int newOrders = 0;
-
-    for (final raw in response) {
-      final row = Map<String, dynamic>.from(raw as Map);
-      final status = row['status']?.toString().trim().toLowerCase() ?? '';
-
-      statusCounts[status] = (statusCounts[status] ?? 0) + 1;
-
-      if (finishedStatuses.contains(status)) {
-        continue;
-      }
-
-      total++;
-
-      if (newStatuses.contains(status)) {
-        newOrders++;
-      }
-    }
-
-    debugPrint('ADMIN DASHBOARD STATUS COUNTS: $statusCounts');
-    debugPrint('ADMIN DASHBOARD ORDERS: all unfinished=$total, new=$newOrders');
-
-    return {'total': total, 'new': newOrders};
   }
-
   AdminOrder _mapOrder(
     Map<String, dynamic> row, {
     Map<String, dynamic>? profile,
@@ -534,16 +540,57 @@ class AdminOrdersService {
     );
   }
 
+  Future<List<Map<String, dynamic>>> _fetchOrderItems(String orderId) async {
+    final response = await _supabase
+        .from('order_items')
+        .select('''
+          id,
+          order_id,
+          product_id,
+          product_name,
+          unit_price,
+          quantity,
+          weight_label,
+          line_total,
+          products:product_id (
+            id,
+            name,
+            image_url,
+            gallery_images
+          )
+        ''')
+        .eq('order_id', orderId)
+        .order('id');
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
   AdminOrderItem _mapItem(Map<String, dynamic> row) {
     final rawProduct = row['products'];
 
     final product = rawProduct is Map
         ? Map<String, dynamic>.from(rawProduct)
+        : (rawProduct is List &&
+              rawProduct.isNotEmpty &&
+              rawProduct.first is Map)
+        ? Map<String, dynamic>.from(rawProduct.first as Map)
         : <String, dynamic>{};
 
-    final imageUrl = product['image_url']?.toString().trim() ?? '';
+    var imageUrl = product['image_url']?.toString().trim() ?? '';
 
-    final name = row['product_name']?.toString().trim() ?? 'Товар';
+    if (imageUrl.isEmpty && product['gallery_images'] is List) {
+      final gallery = List<dynamic>.from(product['gallery_images'] as List);
+      final firstImage = gallery
+          .map((value) => value?.toString().trim() ?? '')
+          .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+      imageUrl = firstImage;
+    }
+
+    final storedName = row['product_name']?.toString().trim() ?? '';
+    final currentProductName = product['name']?.toString().trim() ?? '';
+    final name = storedName.isNotEmpty
+        ? storedName
+        : (currentProductName.isNotEmpty ? currentProductName : 'Товар');
 
     final weight = row['weight_label']?.toString().trim() ?? '';
 

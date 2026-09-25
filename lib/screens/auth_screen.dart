@@ -6,6 +6,8 @@ import '../providers/auth_provider.dart';
 import '../providers/location_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/labeled_text_field.dart';
+import '../legal/legal_config.dart';
+import '../legal/legal_documents_screen.dart';
 import 'main_screen.dart';
 
 enum AuthMode { login, register }
@@ -39,6 +41,9 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _obscurePassword = true;
   bool _obscurePasswordConfirm = true;
   bool _isSubmitting = false;
+  bool _agreedToPersonalData = false;
+  bool _agreedToTerms = false;
+  bool _agreedToMarketing = false;
 
   @override
   void dispose() {
@@ -98,6 +103,16 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _submitRegister() async {
     if (_isSubmitting) return;
 
+    if (!_agreedToPersonalData) {
+      _showMessage('Подтвердите отдельное согласие на обработку персональных данных.');
+      return;
+    }
+
+    if (!_agreedToTerms) {
+      _showMessage('Примите условия использования сервиса.');
+      return;
+    }
+
     final password = _passwordController.text;
     final confirmation = _passwordConfirmController.text;
 
@@ -117,7 +132,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
     final auth = context.read<AuthProvider>();
 
-    final success = await auth.signUp(password: password);
+    final success = await auth.signUp(
+      password: password,
+      consentPersonalData: _agreedToPersonalData,
+      acceptTerms: _agreedToTerms,
+      consentMarketing: _agreedToMarketing,
+    );
 
     if (!mounted) return;
 
@@ -215,6 +235,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
       );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -511,7 +532,44 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
+
+        _ConsentRow(
+          value: _agreedToPersonalData,
+          onChanged: (value) => setState(() => _agreedToPersonalData = value),
+          title: 'Согласие на обработку персональных данных',
+          requiredLabel: true,
+          onOpen: () => LegalDocumentsScreen.openDocument(
+            context,
+            LegalConfig.personalDataConsentTitle,
+            LegalConfig.personalDataConsentText,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _ConsentRow(
+          value: _agreedToTerms,
+          onChanged: (value) => setState(() => _agreedToTerms = value),
+          title: 'Условия использования сервиса',
+          requiredLabel: true,
+          onOpen: () => LegalDocumentsScreen.openDocument(
+            context,
+            LegalConfig.termsTitle,
+            LegalConfig.termsText,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _ConsentRow(
+          value: _agreedToMarketing,
+          onChanged: (value) => setState(() => _agreedToMarketing = value),
+          title: 'Получать новости, акции и специальные предложения',
+          requiredLabel: false,
+          onOpen: () => LegalDocumentsScreen.openDocument(
+            context,
+            LegalConfig.marketingConsentTitle,
+            LegalConfig.marketingConsentText,
+          ),
+        ),
+        const SizedBox(height: 22),
 
         _GradientButton(
           label: _isSubmitting ? 'Создаём аккаунт...' : 'Зарегистрироваться',
@@ -548,6 +606,61 @@ class _AuthScreenState extends State<AuthScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+class _ConsentRow extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final String title;
+  final bool requiredLabel;
+  final VoidCallback onOpen;
+
+  const _ConsentRow({
+    required this.value,
+    required this.onChanged,
+    required this.title,
+    required this.requiredLabel,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Checkbox(
+          value: value,
+          onChanged: (next) => onChanged(next ?? false),
+          activeColor: AppColors.primaryBrown,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 9),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  requiredLabel ? '$title *' : title,
+                  style: AppTextStyles.checkboxText,
+                ),
+                const SizedBox(height: 3),
+                GestureDetector(
+                  onTap: onOpen,
+                  behavior: HitTestBehavior.opaque,
+                  child: Text(
+                    'Читать текст',
+                    style: AppTextStyles.linkText.copyWith(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

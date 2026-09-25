@@ -456,14 +456,36 @@ class _OrderCard extends StatelessWidget {
     child: InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () async {
-        final changed = await Navigator.of(context).push<bool>(
-          MaterialPageRoute(
-            builder: (_) => AdminOrderDetailScreen(order: order),
-          ),
-        );
+        // Список заказов теперь лёгкий. Полный состав и изображения
+        // загружаем только для выбранного заказа.
+        try {
+          final fullOrder = await AdminOrdersService.instance.fetchOrderById(
+            order.id,
+          );
 
-        if (changed == true && context.mounted) {
-          await onChanged();
+          if (!context.mounted) return;
+
+          if (fullOrder == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Заказ не найден')),
+            );
+            return;
+          }
+
+          final changed = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (_) => AdminOrderDetailScreen(order: fullOrder),
+            ),
+          );
+
+          if (changed == true && context.mounted) {
+            await onChanged();
+          }
+        } catch (error) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Не удалось открыть заказ: $error')),
+          );
         }
       },
       child: Container(

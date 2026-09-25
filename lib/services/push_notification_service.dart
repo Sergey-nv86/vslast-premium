@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../screens/order_detail_screen.dart';
 import '../features/admin/screens/admin_order_detail_screen.dart';
 import '../services/admin_orders_service.dart';
+import 'push_navigation_router.dart';
 
 /// Firebase Cloud Messaging / Web Push.
 ///
@@ -79,6 +80,14 @@ class PushNotificationService with WidgetsBindingObserver {
         _handleForegroundMessage,
       );
 
+      if (!kIsWeb) {
+        await _messaging.setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
+
       // Web/PWA: получаем order_id от Service Worker
       // при нажатии на push в уже открытом PWA.
       if (kIsWeb) {
@@ -101,7 +110,7 @@ class PushNotificationService with WidgetsBindingObserver {
         debugPrint(
           '[Push] Initial message received: data=${initialMessage.data}',
         );
-        _queueOrderFromMessage(initialMessage);
+        await _handleOpenedPushData(initialMessage);
       }
 
       _authSubscription = _supabase.auth.onAuthStateChange.listen((data) async {
@@ -132,10 +141,9 @@ class PushNotificationService with WidgetsBindingObserver {
 
       debugPrint('FCM service initialized');
 
-      // Если разрешение Push уже было выдано ранее,
-      // автоматически регистрируем текущий FCM token.
-      // Новый системный запрос permission здесь НЕ выполняется.
-      await _registerExistingPermissionToken();
+      // Регистрацию уже выданного permission выполняем в фоне,
+      // чтобы не задерживать запуск приложения.
+      unawaited(_registerExistingPermissionToken());
 
       // Если push был получен до полной готовности Navigator,
       // пробуем открыть заказ после завершения initialize().
@@ -267,10 +275,10 @@ class PushNotificationService with WidgetsBindingObserver {
       debugPrint('FCM WEB TOKEN >>> $token <<<');
 
       _pendingToken = token;
-      await _savePendingToken();
+      unawaited(_savePendingToken());
 
       _lastPushDiagnostic =
-          'Уведомления разрешены. FCM token получен и сохранён.';
+          'Уведомления разрешены. FCM token получен.';
 
       debugPrint('WEB PUSH DIAGNOSTIC: $_lastPushDiagnostic');
 
@@ -322,7 +330,7 @@ class PushNotificationService with WidgetsBindingObserver {
     debugPrint('FCM native: token received');
 
     _pendingToken = token;
-    await _savePendingToken();
+    unawaited(_savePendingToken());
 
     return true;
   }
@@ -434,7 +442,10 @@ class PushNotificationService with WidgetsBindingObserver {
       'body=${message.notification?.body}',
     );
 
-    _queueOrderFromMessage(message);
+    final pushType = message.data['type']?.toString().trim().toLowerCase() ?? '';
+    if (!pushType.startsWith('chat_message')) {
+      _queueOrderFromMessage(message);
+    }
 
     if (kIsWeb) {
       try {
@@ -442,9 +453,8 @@ class PushNotificationService with WidgetsBindingObserver {
           title: message.notification?.title ?? 'Всласть',
           body: message.notification?.body ?? '',
           data: {
-            'type': message.data['type']?.toString() ?? '',
-            'order_id': message.data['order_id']?.toString() ?? '',
-            'product_id': message.data['product_id']?.toString() ?? '',
+            for (final entry in message.data.entries)
+              entry.key: entry.value.toString(),
           },
         );
       } catch (error, stackTrace) {
@@ -477,7 +487,7 @@ class PushNotificationService with WidgetsBindingObserver {
   void _handleMessageOpenedApp(RemoteMessage message) {
     debugPrint('[Push] Message opened app: data=${message.data}');
 
-    _queueOrderFromMessage(message);
+    unawaited(_handleOpenedPushData(message));
 
     final orderId = message.data['order_id']?.toString();
 
@@ -492,6 +502,19 @@ class PushNotificationService with WidgetsBindingObserver {
     );
 
     _schedulePendingOrderOpen();
+  }
+
+  Future<void> _handleOpenedPushData(RemoteMessage message) async {
+    final data = <String, String>{
+      for (final entry in message.data.entries)
+        entry.key: entry.value.toString(),
+    };
+    final type = data['type']?.trim().toLowerCase() ?? '';
+    if (type.startsWith('chat_message')) {
+      await PushNavigationRouter.instance.handleData(data);
+      return;
+    }
+    _queueOrderFromMessage(message);
   }
 
   /// Извлекает order_id из push и сохраняет его до готовности навигации.

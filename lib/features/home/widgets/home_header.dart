@@ -7,6 +7,7 @@ import '../../../providers/location_provider.dart';
 import '../../../screens/auth_screen.dart';
 import '../../../screens/about_screen.dart';
 import '../../../screens/cart_screen.dart';
+import '../../../screens/chat_screen.dart';
 import '../../../screens/favorite_screen.dart';
 import '../../../screens/orders_screen.dart';
 import '../../../screens/profile_screen.dart';
@@ -81,6 +82,26 @@ class HomeHeader extends StatelessWidget {
                   Navigator.pop(sheetContext);
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const OrdersScreen()),
+                  );
+                },
+              ),
+              _ProfileMenuTile(
+                icon: Icons.chat_bubble_outline_rounded,
+                label: 'Чат с «Всласть»',
+                trailing: const ChatUnreadBadge(),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  final auth = context.read<AuthProvider>();
+                  if (!auth.isLoggedIn) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AuthScreen(initialMode: AuthMode.login),
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ClientChatScreen()),
                   );
                 },
               ),
@@ -264,53 +285,12 @@ class HomeHeader extends StatelessWidget {
     );
   }
 
-  String _greeting(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final displayName = auth.displayName.trim();
-    final name = displayName.isNotEmpty && displayName != 'Пользователь'
-        ? displayName.split(' ').first
-        : '';
-    final hour = DateTime.now().hour;
-
-    String greeting;
-    if (hour >= 5 && hour < 12) {
-      greeting = 'Доброе утро';
-    } else if (hour >= 12 && hour < 18) {
-      greeting = 'Добрый день';
-    } else if (hour >= 18) {
-      greeting = 'Добрый вечер';
-    } else {
-      greeting = 'Доброй ночи';
-    }
-
-    return name.isEmpty
-        ? 'Вы в цифровой пекарне «Всласть» ❤️'
-        : '$greeting,\n$name!';
-  }
-
   Widget _buildGreeting(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final displayName = auth.displayName.trim();
-    final name = displayName.isNotEmpty && displayName != 'Пользователь'
-        ? displayName.split(' ').first
-        : '';
-
-    if (name.isEmpty) {
-      return Text(
-        'Добро пожаловать в пекарню Всласть',
-        style: AppTextStyles.screenTitleSmall.copyWith(
-          color: AppColors.primaryBrown,
-          fontSize: 14,
-          height: 1.05,
-        ),
-      );
-    }
-
     return Text(
-      _greeting(context),
+      'Добро пожаловать\nв пекарню Всласть',
       style: AppTextStyles.screenTitleSmall.copyWith(
         color: AppColors.primaryBrown,
-        fontSize: MediaQuery.sizeOf(context).width >= 1200 ? 30 : 22,
+        fontSize: MediaQuery.sizeOf(context).width >= 1200 ? 24 : 18,
         height: 1.05,
       ),
     );
@@ -360,15 +340,29 @@ class HomeHeader extends StatelessWidget {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(22),
                   onTap: () => _openProfileMenu(context),
-                  child: const SizedBox(
-                    width: 44,
-                    height: 44,
-                    child: Center(
-                      child: Icon(
-                        Icons.menu,
-                        size: 25,
-                        color: AppColors.primaryBrown,
-                      ),
+                  child: SizedBox(
+                    width: 52,
+                    height: 48,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: Icon(
+                              Icons.menu,
+                              size: 25,
+                              color: AppColors.primaryBrown,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: const ChatUnreadBadge(),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -390,6 +384,7 @@ class _ProfileMenuTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String? value;
+  final Widget? trailing;
   final VoidCallback onTap;
 
   const _ProfileMenuTile({
@@ -397,6 +392,7 @@ class _ProfileMenuTile extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.value,
+    this.trailing,
   });
 
   @override
@@ -435,6 +431,10 @@ class _ProfileMenuTile extends StatelessWidget {
             ),
             if (value != null) ...[
               Text(value!, style: AppTextStyles.rowLabelMuted),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+            if (trailing != null) ...[
+              trailing!,
               const SizedBox(width: AppSpacing.xs),
             ],
             const Icon(Icons.chevron_right, color: AppColors.textSecondary),
