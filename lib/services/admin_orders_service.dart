@@ -430,7 +430,7 @@ class AdminOrdersService {
     final totalResponse = await _supabase
         .from('orders')
         .select('id')
-        .not('status', 'in', '(' + finishedStatuses.join(',') + ')')
+        .not('status', 'in', '(${finishedStatuses.join(',')})')
         .count();
 
     final newResponse = await _supabase
@@ -440,8 +440,8 @@ class AdminOrdersService {
         .count();
 
     return {
-      'total': totalResponse.count ?? 0,
-      'new': newResponse.count ?? 0,
+      'total': totalResponse.count,
+      'new': newResponse.count,
     };
   }
   AdminOrder _mapOrder(
