@@ -79,8 +79,8 @@ class AdminClientsService {
         .count();
 
     return {
-      'total': totalResponse.count ?? 0,
-      'new': newResponse.count ?? 0,
+      'total': totalResponse.count,
+      'new': newResponse.count,
     };
   }
 
