@@ -23,14 +23,17 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _opacity;
+  late final Stopwatch _splashTimer;
 
   @override
   void initState() {
     super.initState();
 
+    _splashTimer = Stopwatch()..start();
+
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
     );
 
     _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
@@ -50,7 +53,9 @@ class _SplashScreenState extends State<SplashScreen>
     // Start independent initialization work together. The previous flow
     // waited for auth, then products, then an unconditional 3-second delay.
     final authFuture = auth.initialize();
-    final productsFuture = ProductService.instance.getCatalogProducts().catchError((error, stackTrace) {
+    final productsFuture = ProductService.instance
+        .getCatalogProducts()
+        .catchError((error, stackTrace) {
       debugPrint('SPLASH PRODUCT PRELOAD ERROR: $error');
       debugPrint('$stackTrace');
       return <Product>[];
@@ -73,9 +78,14 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
-    // Keep the branded splash transition, but never block the app for a fixed
-    // multi-second delay after data is ready.
-    await Future.delayed(const Duration(milliseconds: 650));
+    // Keep the splash on screen for a consistent branded presentation.
+    // The minimum total display time is 3.5 seconds, including initialization.
+    const minimumSplashDuration = Duration(milliseconds: 4000);
+    final remaining = minimumSplashDuration - _splashTimer.elapsed;
+
+    if (remaining > Duration.zero) {
+      await Future<void>.delayed(remaining);
+    }
 
     if (!mounted) return;
 
@@ -126,6 +136,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _splashTimer.stop();
     _controller.dispose();
     super.dispose();
   }

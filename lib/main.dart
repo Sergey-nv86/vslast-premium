@@ -39,11 +39,20 @@ Future<void> main() async {
     // Для уже открытого PWA Service Worker передаёт событие напрямую,
     // без перезагрузки приложения.
     listenServiceWorkerPushNavigation((data) {
-      unawaited(PushNavigationRouter.instance.handleData(data));
+      // Не открываем экран напрямую: сначала ставим navigation intent
+      // в очередь, чтобы клик не терялся, если Navigator ещё не готов.
+      PushNavigationRouter.instance.setPendingData(data);
+      unawaited(PushNavigationRouter.instance.handlePending());
     });
   }
 
   runApp(const VslastPremiumApp());
+
+  // Обрабатываем push, который открыл PWA в новой вкладке/окне.
+  // К этому моменту MaterialApp уже получил возможность построить Navigator.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(PushNavigationRouter.instance.handlePending());
+  });
 }
 
 class VslastPremiumApp extends StatelessWidget {

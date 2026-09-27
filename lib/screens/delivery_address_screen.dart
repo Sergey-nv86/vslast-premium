@@ -603,12 +603,9 @@ class _SmallField extends StatelessWidget {
 class _MapRoundButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
-  final bool loading;
-
   const _MapRoundButton({
     required this.icon,
     required this.onTap,
-    this.loading = false,
   });
 
   @override
@@ -630,15 +627,7 @@ class _MapRoundButton extends StatelessWidget {
             ),
           ],
         ),
-        child: loading
-            ? const Padding(
-                padding: EdgeInsets.all(13),
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primaryBrown,
-                ),
-              )
-            : Icon(icon, size: 20, color: AppColors.primaryBrown),
+        child: Icon(icon, size: 20, color: AppColors.primaryBrown),
       ),
     );
   }

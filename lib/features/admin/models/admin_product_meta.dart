@@ -109,7 +109,7 @@ class AdminProductMeta {
     return AdminProductMeta(
       article: '10${(index + 1).toString().padLeft(2, '0')}',
       subcategory: product.category.label,
-      active: true,
+      active: product.isActive,
       unit: product.isWeighed ? 'За кг' : 'За штуку',
       stockQuantity: 12 + (seed % 40),
       minStock: 5,

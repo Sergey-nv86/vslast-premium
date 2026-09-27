@@ -26,8 +26,24 @@ Future<void> showForegroundNotification({
     final pushType = navigationData['type']?.trim() ?? '';
     final orderId = navigationData['order_id']?.trim() ?? '';
     final productId = navigationData['product_id']?.trim() ?? '';
+    final threadId = navigationData['thread_id']?.trim() ?? '';
+    final messageId = navigationData['message_id']?.trim() ?? '';
+    final clientId = navigationData['client_id']?.trim() ?? '';
+    final clientUserId = navigationData['client_user_id']?.trim() ?? '';
+    final promotionId = navigationData['promotion_id']?.trim() ?? '';
+    final assortmentDate = navigationData['assortment_date']?.trim() ?? '';
+    final cartId = navigationData['cart_id']?.trim() ?? '';
 
-    if (pushType.isNotEmpty || orderId.isNotEmpty || productId.isNotEmpty) {
+    if (pushType.isNotEmpty ||
+        orderId.isNotEmpty ||
+        productId.isNotEmpty ||
+        threadId.isNotEmpty ||
+        messageId.isNotEmpty ||
+        clientId.isNotEmpty ||
+        clientUserId.isNotEmpty ||
+        promotionId.isNotEmpty ||
+        assortmentDate.isNotEmpty ||
+        cartId.isNotEmpty) {
       final query = <String, String>{};
 
       if (pushType.isNotEmpty) {
@@ -41,6 +57,14 @@ Future<void> showForegroundNotification({
       if (productId.isNotEmpty) {
         query['product_id'] = productId;
       }
+
+      if (threadId.isNotEmpty) query['thread_id'] = threadId;
+      if (messageId.isNotEmpty) query['message_id'] = messageId;
+      if (clientId.isNotEmpty) query['client_id'] = clientId;
+      if (clientUserId.isNotEmpty) query['client_user_id'] = clientUserId;
+      if (promotionId.isNotEmpty) query['promotion_id'] = promotionId;
+      if (assortmentDate.isNotEmpty) query['assortment_date'] = assortmentDate;
+      if (cartId.isNotEmpty) query['cart_id'] = cartId;
 
       final targetUrl = Uri(
         path: '/',
@@ -107,6 +131,13 @@ StreamSubscription<web.MessageEvent> listenServiceWorkerPushNavigation(
         'type': dartData['push_type']?.toString() ?? '',
         'order_id': dartData['order_id']?.toString() ?? '',
         'product_id': dartData['product_id']?.toString() ?? '',
+        'thread_id': dartData['thread_id']?.toString() ?? '',
+        'message_id': dartData['message_id']?.toString() ?? '',
+        'client_id': dartData['client_id']?.toString() ?? '',
+        'client_user_id': dartData['client_user_id']?.toString() ?? '',
+        'promotion_id': dartData['promotion_id']?.toString() ?? '',
+        'assortment_date': dartData['assortment_date']?.toString() ?? '',
+        'cart_id': dartData['cart_id']?.toString() ?? '',
       };
 
       debugPrint('[Push] Service Worker navigation: $navigation');

@@ -40,6 +40,9 @@ class Product {
   final ProductCategory category;
   final ProductBadge? badge;
 
+  /// Видимость товара в каталоге. Синхронизируется с products.is_active.
+  final bool isActive;
+
   /// Если false — вместо цены и кнопки "+" показывается кнопка "Предзаказ".
   final bool inStock;
 
@@ -77,6 +80,7 @@ class Product {
     required this.imageUrl,
     required this.category,
     this.badge,
+    this.isActive = true,
     this.inStock = true,
     this.isWeighed = false,
     this.rating,

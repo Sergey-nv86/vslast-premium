@@ -150,6 +150,20 @@ class ProductService {
     }).then(List<Product>.of);
   }
 
+  /// Загружает все товары для административной панели, включая скрытые.
+  Future<List<Product>> getAdminProducts() async {
+    final rows = await _supabase
+        .from('products')
+        .select('''
+          id, name, price, image_url, badge, in_stock, is_weighed,
+          weight_label, is_active, created_at, category_id, categories (slug)
+        ''')
+        .order('created_at');
+    return (rows as List)
+        .map((row) => _fromSupabase(Map<String, dynamic>.from(row)))
+        .toList();
+  }
+
   Future<List<Product>> _fetchProducts() async {
     final rows = await _supabase
         .from('products')
@@ -190,6 +204,34 @@ class ProductService {
 
     _cachedProducts = List<Product>.of(products);
     return products;
+  }
+
+  void _syncCaches(Product product) {
+    if (_cachedProducts != null) {
+      final index = _cachedProducts!.indexWhere((item) => item.id == product.id);
+      if (product.isActive) {
+        if (index >= 0) {
+          _cachedProducts![index] = product;
+        } else {
+          _cachedProducts!.add(product);
+        }
+      } else if (index >= 0) {
+        _cachedProducts!.removeAt(index);
+      }
+    }
+
+    if (_cachedCatalogProducts != null) {
+      final index = _cachedCatalogProducts!.indexWhere((item) => item.id == product.id);
+      if (product.isActive) {
+        if (index >= 0) {
+          _cachedCatalogProducts![index] = product;
+        } else {
+          _cachedCatalogProducts!.add(product);
+        }
+      } else if (index >= 0) {
+        _cachedCatalogProducts!.removeAt(index);
+      }
+    }
   }
 
   /// Загружает один товар по ID.
@@ -345,6 +387,7 @@ class ProductService {
       'fat_per_100g': product.fatPer100g,
       'carbs_per_100g': product.carbsPer100g,
       'composition': product.composition,
+      'is_active': product.isActive,
       'updated_at': DateTime.now().toIso8601String(),
     };
 
@@ -383,7 +426,9 @@ class ProductService {
           ''')
           .single();
 
-      return _fromSupabase(Map<String, dynamic>.from(row));
+      final updatedProduct = _fromSupabase(Map<String, dynamic>.from(row));
+      _syncCaches(updatedProduct);
+      return updatedProduct;
     } on PostgrestException catch (error) {
       throw ProductServiceException(
         'Не удалось обновить товар: ${error.message}',
@@ -557,6 +602,8 @@ class ProductService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', productId);
+      _cachedProducts?.removeWhere((item) => item.id == productId);
+      _cachedCatalogProducts?.removeWhere((item) => item.id == productId);
     } on PostgrestException catch (error) {
       throw ProductServiceException(
         'Не удалось скрыть товар: ${error.message}',
@@ -625,13 +672,10 @@ class ProductService {
   /// Активирует товар.
   Future<void> activateProduct(String productId) async {
     try {
-      await _supabase
-          .from('products')
-          .update({
-            'is_active': true,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', productId);
+      final product = await getProduct(productId);
+      if (product != null) {
+        _syncCaches(product);
+      }
     } on PostgrestException catch (error) {
       throw ProductServiceException(
         'Не удалось показать товар: ${error.message}',
@@ -790,6 +834,7 @@ class ProductService {
       galleryImages: _toStringList(row['gallery_images']),
       category: _parseCategory(category['slug']?.toString()),
       badge: _parseBadge(row['badge']?.toString()),
+      isActive: row['is_active'] != false,
       inStock: row['in_stock'] == true,
       isWeighed: row['is_weighed'] == true,
       weightLabel: row['weight_label']?.toString() ?? '1 шт',

@@ -317,6 +317,7 @@ class _AdminProductEditScreenState extends State<AdminProductEditScreen>
           : (widget.product?.imageUrl ?? ''),
       category: _category,
       badge: widget.product?.badge,
+      isActive: _active,
       inStock: _orderable,
       isWeighed: widget.product?.isWeighed ?? false,
       rating: widget.product?.rating,

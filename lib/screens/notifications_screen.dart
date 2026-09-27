@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/notification_service.dart';
-import '../screens/order_detail_screen.dart';
+import '../services/push_navigation_router.dart';
 import '../theme/app_theme.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -53,11 +53,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _open(AppNotification notification) async {
     await _markRead(notification);
     if (!mounted) return;
-    final orderId = notification.orderId;
-    if (orderId == null || orderId.isEmpty) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: orderId)),
-    );
+
+    final data = <String, String>{
+      'type': notification.type,
+      for (final entry in notification.data.entries)
+        if (entry.value != null) entry.key: entry.value.toString(),
+    };
+
+    final handled = await PushNavigationRouter.instance.handleData(data);
+    if (!handled && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Не удалось открыть объект уведомления')),
+        );
+    }
   }
 
   @override
