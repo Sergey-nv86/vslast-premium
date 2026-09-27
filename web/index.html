@@ -100,41 +100,30 @@
   </script>
 
   <script>
-    // Firebase Cloud Messaging Service Worker.
-    // Register it after the page is loaded and use the scope
-    // recommended by Firebase/FlutterFire.
+    // Root PWA Service Worker.
+    // This worker provides the root scope required for PWA installation.
+    // It intentionally does not intercept application/network requests.
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
         navigator.serviceWorker.register(
-          'firebase-messaging-sw.js',
-          {
-            scope: '/firebase-cloud-messaging-push-scope',
-          }
+          'pwa-service-worker.js',
+          { scope: '/' }
         ).then(function (registration) {
           console.log(
-            '[FCM] firebase-messaging-sw.js registered:',
-            registration.scope
-          );
-
-          return navigator.serviceWorker.ready;
-        }).then(function (registration) {
-          console.log(
-            '[FCM] Firebase Messaging Service Worker active:',
+            '[PWA] Root Service Worker registered:',
             registration.scope
           );
         }).catch(function (error) {
           console.error(
-            '[FCM] firebase-messaging-sw.js registration failed:',
+            '[PWA] Root Service Worker registration failed:',
             error
           );
         });
       });
-    } else {
-      console.error(
-        '[FCM] Service Worker API is not supported.'
-      );
     }
   </script>
+
+  
 
   <script src="vslast_yandex_map.js"></script>
   <script src="flutter_bootstrap.js" async></script>

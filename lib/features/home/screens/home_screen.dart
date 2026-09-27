@@ -128,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return _products
         .where((product) => product.inStock && _filter.matches(product))
-        .toList();
+        .toList(growable: false);
   }
 
   Future<void> _loadHomeAvailability() async {
@@ -156,7 +156,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Product> _productsFor(ProductCategory category) =>
-      _visibleProducts.where((p) => p.category == category).toList();
+      _visibleProducts
+          .where((product) => product.category == category)
+          .toList(growable: false);
 
   int _gridCrossAxisCount(double width) {
     if (width >= 1400) return 5;

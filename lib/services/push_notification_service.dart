@@ -184,7 +184,7 @@ class PushNotificationService with WidgetsBindingObserver {
       final token = kIsWeb
           ? await _messaging.getToken(
               vapidKey: _webVapidKey,
-              serviceWorkerScriptPath: 'firebase-messaging-sw.js',
+              serviceWorkerScriptPath: 'pwa-service-worker.js',
             )
           : await _messaging.getToken();
 
@@ -259,7 +259,7 @@ class PushNotificationService with WidgetsBindingObserver {
 
       final token = await _messaging.getToken(
         vapidKey: _webVapidKey,
-        serviceWorkerScriptPath: 'firebase-messaging-sw.js',
+        serviceWorkerScriptPath: 'pwa-service-worker.js',
       );
 
       if (token == null || token.isEmpty) {
@@ -762,7 +762,7 @@ class PushNotificationService with WidgetsBindingObserver {
       if (kIsWeb) {
         return await _messaging.getToken(
           vapidKey: _webVapidKey,
-          serviceWorkerScriptPath: 'firebase-messaging-sw.js',
+          serviceWorkerScriptPath: 'pwa-service-worker.js',
         );
       }
 
@@ -802,7 +802,7 @@ class PushNotificationService with WidgetsBindingObserver {
 
       final token = await _messaging.getToken(
         vapidKey: _webVapidKey,
-        serviceWorkerScriptPath: 'firebase-messaging-sw.js',
+        serviceWorkerScriptPath: 'pwa-service-worker.js',
       );
 
       if (token == null || token.isEmpty) {
@@ -853,7 +853,7 @@ class PushNotificationService with WidgetsBindingObserver {
     try {
       final token = await _messaging.getToken(
         vapidKey: kIsWeb ? _webVapidKey : null,
-        serviceWorkerScriptPath: kIsWeb ? 'firebase-messaging-sw.js' : null,
+        serviceWorkerScriptPath: kIsWeb ? 'pwa-service-worker.js' : null,
       );
 
       if (token == null || token.isEmpty) return;

@@ -179,7 +179,7 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
       if (!_scrollController.hasClients) return;
 
       final targetContext = key.currentContext;
-      if (targetContext != null) {
+      if (targetContext != null && targetContext.mounted) {
         return Scrollable.ensureVisible(
           targetContext,
           alignment: 0.35,
@@ -198,6 +198,7 @@ class _ClientChatScreenState extends State<ClientChatScreen> {
         estimated.clamp(0.0, max).toDouble(),
       );
       await Future<void>.delayed(const Duration(milliseconds: 60));
+      if (!mounted) return;
     }
   }
 
@@ -891,7 +892,7 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
       if (!_scrollController.hasClients) return;
 
       final targetContext = key.currentContext;
-      if (targetContext != null) {
+      if (targetContext != null && targetContext.mounted) {
         return Scrollable.ensureVisible(
           targetContext,
           alignment: 0.35,
@@ -910,6 +911,7 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
         estimated.clamp(0.0, max).toDouble(),
       );
       await Future<void>.delayed(const Duration(milliseconds: 60));
+      if (!mounted) return;
     }
   }
 
