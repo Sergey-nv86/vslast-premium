@@ -35,6 +35,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   List<Product> _products = [];
   bool _isLoading = true;
   Object? _loadError;
+  bool _activeCategoryUpdateScheduled = false;
 
   List<ProductCategory> get _shownCategories {
     final query = _searchController.text.trim().toLowerCase();
@@ -89,21 +90,40 @@ class _CatalogScreenState extends State<CatalogScreen> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_updateActiveCategory);
+    _scrollController.addListener(_scheduleActiveCategoryUpdate);
     _searchController.addListener(_onSearchChanged);
     _loadProducts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _updateActiveCategory();
+      if (mounted) _scheduleActiveCategoryUpdate();
     });
   }
 
-  Future<void> _loadProducts() async {
-    setState(() {
-      _isLoading = true;
+  Future<void> _loadProducts({bool forceRefresh = false}) async {
+    // Use the already loaded Splash/Main cache immediately. This removes the
+    // duplicate Supabase request that previously happened when Catalog was
+    // constructed inside IndexedStack.
+    final cached = ProductService.instance.cachedCatalogProducts;
+    if (!forceRefresh && cached != null && cached.isNotEmpty) {
+      _products = cached;
+      _isLoading = false;
       _loadError = null;
-    });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _updateActiveCategory();
+      });
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+      });
+    }
+
     try {
-      final products = await ProductService.instance.getProducts();
+      final products = await ProductService.instance.getCatalogProducts(
+        forceRefresh: forceRefresh,
+      );
       if (!mounted) return;
       setState(() {
         _products = products;
@@ -123,7 +143,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   @override
   void dispose() {
-    _scrollController.removeListener(_updateActiveCategory);
+    _scrollController.removeListener(_scheduleActiveCategoryUpdate);
     _searchController.removeListener(_onSearchChanged);
     _scrollController.dispose();
     _searchController.dispose();
@@ -134,6 +154,15 @@ class _CatalogScreenState extends State<CatalogScreen> {
     if (!mounted) return;
     setState(() => _activeCategory = null);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updateActiveCategory();
+    });
+  }
+
+  void _scheduleActiveCategoryUpdate() {
+    if (_activeCategoryUpdateScheduled || !mounted) return;
+    _activeCategoryUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _activeCategoryUpdateScheduled = false;
       if (mounted) _updateActiveCategory();
     });
   }

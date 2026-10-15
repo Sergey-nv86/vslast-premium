@@ -46,6 +46,28 @@ class ProductImage extends StatelessWidget {
     );
   }
 
+  String _optimizedNetworkUrl(String url, int width) {
+    // Supabase Storage can resize public images server-side. This reduces
+    // network transfer as well as decode memory; cacheWidth alone only limits
+    // the decoded bitmap and still downloads the original file.
+    try {
+      final uri = Uri.parse(url);
+      const marker = '/storage/v1/object/public/';
+      final path = uri.path;
+      final markerIndex = path.indexOf(marker);
+      if (markerIndex < 0) return url;
+
+      final renderPath = path.substring(0, markerIndex) +
+          '/storage/v1/render/image/public/' +
+          path.substring(markerIndex + marker.length);
+      final query = Map<String, String>.from(uri.queryParameters)
+        ..['width'] = width.toString();
+
+      return uri.replace(path: renderPath, queryParameters: query).toString();
+    } catch (_) {
+      return url;
+    }
+  }
   Widget _image() {
     final url = imageUrl.trim();
 
@@ -53,42 +75,55 @@ class ProductImage extends StatelessWidget {
       return _placeholder();
     }
 
-    if (_isNetworkImage) {
-      return Image.network(
-        url,
-        fit: fit,
-        filterQuality: FilterQuality.medium,
-        frameBuilder: (
-          context,
-          child,
-          frame,
-          wasSynchronouslyLoaded,
-        ) {
-          if (wasSynchronouslyLoaded || frame != null) {
-            return child;
-          }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.hasBoundedWidth && constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 600.0;
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final decodeWidth = (width * dpr).clamp(160.0, 1200.0).round();
 
-          return _placeholder();
-        },
-        errorBuilder: (
-          context,
-          error,
-          stackTrace,
-        ) {
-          return _placeholder();
-        },
-      );
-    }
+        if (_isNetworkImage) {
+          final optimizedUrl = _optimizedNetworkUrl(url, decodeWidth);
+          return Image.network(
+            optimizedUrl,
+            fit: fit,
+            cacheWidth: decodeWidth,
+            filterQuality: FilterQuality.medium,
+            frameBuilder: (
+              context,
+              child,
+              frame,
+              wasSynchronouslyLoaded,
+            ) {
+              if (wasSynchronouslyLoaded || frame != null) {
+                return child;
+              }
 
-    return Image.asset(
-      url,
-      fit: fit,
-      errorBuilder: (
-        context,
-        error,
-        stackTrace,
-      ) {
-        return _placeholder();
+              return _placeholder();
+            },
+            errorBuilder: (
+              context,
+              error,
+              stackTrace,
+            ) {
+              return _placeholder();
+            },
+          );
+        }
+
+        return Image.asset(
+          url,
+          fit: fit,
+          cacheWidth: decodeWidth,
+          errorBuilder: (
+            context,
+            error,
+            stackTrace,
+          ) {
+            return _placeholder();
+          },
+        );
       },
     );
   }

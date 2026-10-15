@@ -47,21 +47,35 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _initialize() async {
     final auth = context.read<AuthProvider>();
 
-    await auth.initialize();
+    // Start independent initialization work together. The previous flow
+    // waited for auth, then products, then an unconditional 3-second delay.
+    final authFuture = auth.initialize();
+    final productsFuture = ProductService.instance.getCatalogProducts().catchError((error, stackTrace) {
+      debugPrint('SPLASH PRODUCT PRELOAD ERROR: $error');
+      debugPrint('$stackTrace');
+      return <Product>[];
+    });
 
     List<Product> products = const [];
 
-    // Загружаем товары во время Splash, чтобы Главная открывалась
-    // уже с готовыми данными.
-    try {
-      products = await ProductService.instance.getProducts();
-      debugPrint('SPLASH PRODUCT PRELOAD SUCCESS: ${products.length}');
-    } catch (error, stackTrace) {
-      debugPrint('SPLASH PRODUCT PRELOAD ERROR: $error');
-      debugPrint('$stackTrace');
+    await authFuture;
+
+    // Admin/login screens do not need product data, but sharing the request
+    // with Main/Catalog keeps customer startup fast and avoids duplicate work.
+    if (auth.isLoggedIn && !auth.canAccessAdmin) {
+      try {
+        products = await productsFuture;
+      } catch (_) {
+        // The preload future already logs and converts failures to an empty
+        // list, allowing auth/navigation to continue normally.
+      }
     }
 
-    await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+
+    // Keep the branded splash transition, but never block the app for a fixed
+    // multi-second delay after data is ready.
+    await Future.delayed(const Duration(milliseconds: 650));
 
     if (!mounted) return;
 

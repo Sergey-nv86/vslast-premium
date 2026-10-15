@@ -23,10 +23,14 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cart = context.watch<CartProvider>();
-    final favorites = context.watch<FavoritesProvider>();
-    final quantity = cart.quantityOf(product);
-    final isFavorite = favorites.isFavorite(product);
+    final cart = context.read<CartProvider>();
+    final favorites = context.read<FavoritesProvider>();
+    final quantity = context.select<CartProvider, int>(
+      (provider) => provider.quantityOf(product),
+    );
+    final isFavorite = context.select<FavoritesProvider, bool>(
+      (provider) => provider.isFavorite(product),
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
