@@ -39,9 +39,9 @@ const schema = {
     notes: { type: "array", items: { type: "string" } },
     items: { type: "array", items: {
       type: "object", additionalProperties: false,
-      required: ["ingredient_name", "quantity", "unit", "notes"],
+      required: ["ingredient_name", "ingredient_id", "quantity", "unit", "notes"],
       properties: {
-        ingredient_name: { type: "string" }, quantity: { type: "number" },
+        ingredient_name: { type: "string" }, ingredient_id: { type: ["string", "null"] }, quantity: { type: "number" },
         unit: { type: "string" }, notes: { type: "string" }
       }
     }}
@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
 
     const content: any[] = [{
       type: "input_text",
-      text: "Ты — технолог пекарни-кондитерской. Считай только то, что видно на фото. Перепиши название, технологию, выход и ингредиенты с точными количествами и единицами. Не выдумывай пропущенные данные. Если текст неразборчив или единица сомнительна, укажи это в notes. Справочник ингредиентов для сопоставления: " + JSON.stringify(ingredients.map((x: any) => ({ id: x.id, name: x.name, base_unit: x.base_unit })))
+      text: "Ты — технолог пекарни-кондитерской. Считай только то, что видно на фото. Перепиши название, технологию, выход и ингредиенты с точными количествами и единицами. Не выдумывай пропущенные данные. Если текст неразборчив или единица сомнительна, укажи это в notes. Сопоставь ингредиент с точным id из справочника, если он подходит. Иначе ingredient_id = null. Справочник ингредиентов для сопоставления: " + JSON.stringify(ingredients.map((x: any) => ({ id: x.id, name: x.name, base_unit: x.base_unit })))
     }];
     for (const photo of photos) {
       if (typeof photo.data !== "string" || photo.data.length < 100) return reply({ error: "Некорректная фотография" }, 400);
@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
       const normalized = normalize(name);
       const quantity = Number(row.quantity);
       if (!name || !normalized || !Number.isFinite(quantity) || quantity < 0) continue;
-      let ingredient = ingredients.find((x: any) => x.normalized_name === normalized);
+      let ingredient = ingredients.find((x: any) => row.ingredient_id && x.id === row.ingredient_id) || ingredients.find((x: any) => x.normalized_name === normalized);
       if (!ingredient) {
         const unit = baseUnit(String(row.unit || ""));
         const { data, error } = await db.from("ingredients").upsert({
