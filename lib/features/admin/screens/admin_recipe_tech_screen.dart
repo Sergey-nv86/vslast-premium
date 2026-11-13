@@ -23,13 +23,21 @@ class _AdminRecipeTechScreenState extends State<AdminRecipeTechScreen> {
   List<Map<String, dynamic>> get items => ((result?['items'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
 
   Future<void> addPhoto(bool camera) async {
+    if (photos.length >= 8) {
+      showError('Можно добавить не более 8 фотографий');
+      return;
+    }
     try {
       if (camera) {
         final file = await picker.pickImage(source: ImageSource.camera, imageQuality: 82, maxWidth: 2200);
         if (file != null && mounted) setState(() => photos.add(file));
       } else {
         final files = await picker.pickMultiImage(imageQuality: 82, maxWidth: 2200);
-        if (mounted) setState(() => photos.addAll(files.take(8 - photos.length)));
+        if (mounted) {
+          final remaining = 8 - photos.length;
+          setState(() => photos.addAll(files.take(remaining)));
+          if (files.length > remaining) showError('Добавлены первые 8 фотографий');
+        }
       }
     } catch (e) { showError('Не удалось добавить фото: ' + e.toString()); }
   }
