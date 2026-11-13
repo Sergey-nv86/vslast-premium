@@ -18,5 +18,5 @@ entrypoint = "./functions/client-auth/index.ts"
 
 [functions.recipe-tech-card]
 enabled = true
-verify_jwt = false
+verify_jwt = true
 entrypoint = "./functions/recipe-tech-card/index.ts"
