@@ -6,6 +6,7 @@ import 'admin_orders_calendar_screen.dart';
 import 'admin_bake_schedule_screen.dart';
 import 'admin_products_screen.dart';
 import 'admin_promotions_screen.dart';
+import 'admin_recipe_tech_screen.dart';
 
 import '../../../screens/main_screen.dart';
 import 'admin_loyalty_screen.dart';
@@ -572,6 +573,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                   ),
                   Icon(Icons.chevron_right_rounded, color: brown),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdminRecipeTechScreen()),
+            ),
+            child: _Card(
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: const Color(0xFFF1E8E0),
+                    child: const Icon(Icons.document_scanner_outlined, color: brown),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Технологические карты',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: dark),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Фото рецепта · себестоимость · КБЖУ',
+                          style: TextStyle(fontSize: 12, color: muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: brown),
                 ],
               ),
             ),
