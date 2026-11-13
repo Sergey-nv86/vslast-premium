@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
         }
       });
     }
-    const missing = calculated.filter(x => x.price_missing).map(x => ({ id: x.ingredient_id, name: x.ingredient_name, unit: x.base_unit }));
+    const missing = calculated.filter(x => x.price_missing && !x.conversion_missing).map(x => ({ id: x.ingredient_id, name: x.ingredient_name, unit: x.base_unit }));
     const conversionIssues = calculated.filter(x => x.conversion_missing).map(x => ({ name: x.ingredient_name, unit: x.unit }));
     const total = calculated.some(x => x.line_cost == null) ? null : Math.round(calculated.reduce((s, x) => s + x.line_cost, 0) * 100) / 100;
 
