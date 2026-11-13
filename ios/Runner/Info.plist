@@ -27,7 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Разрешите выбрать изображение для баннера акции или спецпредложения.</string>
+	<string>Разрешите выбрать фотографию рецепта для составления технологической карты.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Камера используется для фотографирования рецептов и составления технологических карт.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -46,9 +48,6 @@
 					<key>UISceneStoryboardFile</key>
 					<string>Main</string>
 				
-	<key>NSCameraUsageDescription</key>
-	<string>Камера используется для сканирования карты лояльности «Всласть»</string>
-
 </dict>
 			</array>
 		</dict>
