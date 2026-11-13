@@ -32,16 +32,18 @@ const toBase = (q: number, u: string, b: string): number | null => {
 
 const schema = {
   type: "object", additionalProperties: false,
-  required: ["product_name", "technology", "yield_quantity", "yield_unit", "items", "notes"],
+  required: ["product_name", "technology", "yield_quantity", "yield_unit", "storage_conditions", "quality_description", "items", "notes"],
   properties: {
     product_name: { type: "string" }, technology: { type: "string" },
     yield_quantity: { type: ["number", "null"] }, yield_unit: { type: ["string", "null"] },
+    storage_conditions: { type: ["string", "null"] }, quality_description: { type: ["string", "null"] },
     notes: { type: "array", items: { type: "string" } },
     items: { type: "array", items: {
       type: "object", additionalProperties: false,
-      required: ["ingredient_name", "ingredient_id", "quantity", "unit", "notes"],
+      required: ["ingredient_name", "ingredient_id", "quantity", "net_quantity", "loss_percent", "unit", "notes"],
       properties: {
         ingredient_name: { type: "string" }, ingredient_id: { type: ["string", "null"] }, quantity: { type: "number" },
+        net_quantity: { type: ["number", "null"] }, loss_percent: { type: ["number", "null"] },
         unit: { type: "string" }, notes: { type: "string" }
       }
     }}
@@ -83,7 +85,7 @@ Deno.serve(async (req) => {
 
     const content: any[] = [{
       type: "input_text",
-      text: "Ты — технолог пекарни-кондитерской. Считай только то, что видно на фото. Перепиши название, технологию, выход и ингредиенты с точными количествами и единицами. Не выдумывай пропущенные данные. Если текст неразборчив или единица сомнительна, укажи это в notes. Сопоставь ингредиент с точным id из справочника, если он подходит. Иначе ingredient_id = null. Справочник ингредиентов для сопоставления: " + JSON.stringify(ingredients.map((x: any) => ({ id: x.id, name: x.name, base_unit: x.base_unit })))
+      text: "Ты — технолог пекарни-кондитерской. Считай только то, что видно на фото. Составь проект ТТК: название, технологию, выход, условия хранения, показатели качества и ингредиенты. Для ингредиентов укажи брутто (quantity), нетто (net_quantity) и потери (loss_percent), только если они явно указаны или однозначно рассчитываются из данных. Не выдумывай пропущенные данные; неизвестное значение — null. Если текст неразборчив или единица сомнительна, укажи это в notes. Сопоставь ингредиент с точным id из справочника, если он подходит. Иначе ingredient_id = null. Справочник ингредиентов для сопоставления: " + JSON.stringify(ingredients.map((x: any) => ({ id: x.id, name: x.name, base_unit: x.base_unit })))
     }];
     for (const photo of photos) {
       if (typeof photo.data !== "string" || photo.data.length < 100) return reply({ error: "Некорректная фотография" }, 400);
@@ -131,7 +133,9 @@ Deno.serve(async (req) => {
       const lineCost = qtyBase != null && perUnit != null ? Math.round(qtyBase * perUnit * 100) / 100 : null;
       calculated.push({
         ingredient_id: ingredient.id, ingredient_name: ingredient.name,
-        quantity, unit: row.unit, base_unit: ingredient.base_unit,
+        quantity, net_quantity: row.net_quantity == null ? null : Number(row.net_quantity),
+        loss_percent: row.loss_percent == null ? null : Number(row.loss_percent),
+        unit: row.unit, base_unit: ingredient.base_unit,
         base_quantity: qtyBase, line_cost: lineCost,
         price_missing: lineCost == null, needs_review: ingredient.needs_review === true, notes: row.notes || "",
         nutrition: {
