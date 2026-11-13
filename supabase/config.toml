@@ -15,3 +15,8 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/client-auth/deno.json"
 entrypoint = "./functions/client-auth/index.ts"
+
+[functions.recipe-tech-card]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/recipe-tech-card/index.ts"
