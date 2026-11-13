@@ -154,8 +154,8 @@ Deno.serve(async (req) => {
     const nutritionComplete = calculated.length > 0 && calculated.every(x =>
       x.base_unit === "g" && x.base_quantity !== null && Object.values(x.nutrition).every(v => v !== null));
     const yieldQty = Number(parsed.yield_quantity);
-    const yieldUnit = String(parsed.yield_unit || "").toLowerCase();
-    const yieldGrams = yieldUnit === "kg" ? yieldQty * 1000 : yieldUnit === "g" ? yieldQty : null;
+    const yieldUnit = String(parsed.yield_unit || "").toLowerCase().trim();
+    const yieldGrams = ["kg", "кг", "килограмм", "килограмма"].includes(yieldUnit) ? yieldQty * 1000 : ["g", "г", "гр", "грамм", "грамма"].includes(yieldUnit) ? yieldQty : null;
     if (nutritionComplete && yieldGrams && yieldGrams > 0) {
       const totals = { calories: 0, protein: 0, fat: 0, carbs: 0 };
       for (const x of calculated) {
