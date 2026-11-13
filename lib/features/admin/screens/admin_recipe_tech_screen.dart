@@ -162,6 +162,8 @@ class _AdminRecipeTechScreenState extends State<AdminRecipeTechScreen> {
       final nutrition = result!['nutrition_per_100'] is Map ? Map<String, dynamic>.from(result!['nutrition_per_100'] as Map) : null;
       await RecipeTechService.instance.saveCard(
         name: productName, technology: analysis['technology']?.toString() ?? '',
+        storageConditions: analysis['storage_conditions']?.toString(),
+        qualityDescription: analysis['quality_description']?.toString(),
         yieldQuantity: yieldQty, yieldUnit: yieldUnit, items: items,
         totalCost: result!['total_cost'] as num?, nutritionPer100: nutrition,
         nutritionStatus: result!['nutrition_status']?.toString() ?? 'incomplete',
@@ -223,6 +225,16 @@ class _AdminRecipeTechScreenState extends State<AdminRecipeTechScreen> {
             const Text('Технология приготовления', style: TextStyle(fontWeight: FontWeight.w700, color: dark)),
             const SizedBox(height: 6),
             Text(analysis['technology']?.toString() ?? 'Не указана', style: const TextStyle(color: muted, height: 1.4)),
+            if (analysis['storage_conditions'] != null && analysis['storage_conditions'].toString().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Условия хранения', style: TextStyle(fontWeight: FontWeight.w700, color: dark)),
+              Text(analysis['storage_conditions'].toString(), style: const TextStyle(color: muted)),
+            ],
+            if (analysis['quality_description'] != null && analysis['quality_description'].toString().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Показатели качества', style: TextStyle(fontWeight: FontWeight.w700, color: dark)),
+              Text(analysis['quality_description'].toString(), style: const TextStyle(color: muted)),
+            ],
             if ((analysis['notes'] as List? ?? []).isNotEmpty) ...[
               const SizedBox(height: 12),
               const Text('Требует проверки', style: TextStyle(color: brown, fontWeight: FontWeight.w700)),
