@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
     if (bytes > 22_000_000) return reply({ error: "Фотографии слишком большие. Уменьшите их размер." }, 413);
 
     const { data: catalog, error: catalogError } = await db.from("ingredients")
-      .select("id,name,normalized_name,base_unit,calories_per_100,protein_per_100,fat_per_100,carbs_per_100,ingredient_prices(purchase_quantity,purchase_unit,purchase_price,price_per_base_unit)")
+      .select("id,name,normalized_name,base_unit,calories_per_100,protein_per_100,fat_per_100,carbs_per_100,needs_review,ingredient_prices(purchase_quantity,purchase_unit,purchase_price,price_per_base_unit)")
       .order("name");
     if (catalogError) throw catalogError;
     const ingredients = catalog ?? [];
@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
         const unit = baseUnit(String(row.unit || ""));
         const { data, error } = await db.from("ingredients").upsert({
           name, normalized_name: normalized, base_unit: unit, needs_review: true
-        }, { onConflict: "normalized_name" }).select("id,name,normalized_name,base_unit,calories_per_100,protein_per_100,fat_per_100,carbs_per_100").single();
+        }, { onConflict: "normalized_name" }).select("id,name,normalized_name,base_unit,calories_per_100,protein_per_100,fat_per_100,carbs_per_100,needs_review").single();
         if (error) throw error;
         ingredient = { ...data, ingredient_prices: [] };
         ingredients.push(ingredient);
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
         ingredient_id: ingredient.id, ingredient_name: ingredient.name,
         quantity, unit: row.unit, base_unit: ingredient.base_unit,
         base_quantity: qtyBase, line_cost: lineCost,
-        price_missing: lineCost == null, notes: row.notes || "",
+        price_missing: lineCost == null, needs_review: ingredient.needs_review === true, notes: row.notes || "",
         nutrition: {
           calories: ingredient.calories_per_100 == null ? null : Number(ingredient.calories_per_100),
           protein: ingredient.protein_per_100 == null ? null : Number(ingredient.protein_per_100),
@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
 
     let nutrition = null;
     const nutritionComplete = calculated.length > 0 && calculated.every(x =>
-      x.base_unit === "g" && Object.values(x.nutrition).every(v => v !== null));
+      x.base_unit === "g" && x.base_quantity !== null && Object.values(x.nutrition).every(v => v !== null));
     const yieldQty = Number(parsed.yield_quantity);
     const yieldUnit = String(parsed.yield_unit || "").toLowerCase();
     const yieldGrams = yieldUnit === "kg" ? yieldQty * 1000 : yieldUnit === "g" ? yieldQty : null;
@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
     }
     return reply({
       analysis: parsed, items: calculated, total_cost: total, missing_prices: missing,
-      nutrition_per_100: nutrition, nutrition_status: nutrition ? "calculated" : "incomplete",
+      nutrition_per_100: nutrition, nutrition_status: nutrition ? (calculated.some(x => x.needs_review) ? "estimated" : "calculated") : "incomplete",
       calculation_status: missing.length ? "needs_prices" : "ready"
     });
   } catch (error) {
