@@ -50,6 +50,26 @@ const schema = {
   }
 };
 
+// Gemini's JSON Schema endpoint accepts JSON Schema unions through anyOf.
+// Convert OpenAI-style type arrays (for nullable fields) to that portable form.
+const toGeminiJsonSchema = (value: any): any => {
+  if (Array.isArray(value)) return value.map(toGeminiJsonSchema);
+  if (!value || typeof value !== "object") return value;
+  const result: Record<string, any> = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "type" && Array.isArray(child)) {
+      result.anyOf = child.map((type) => ({ type }));
+    } else if (key === "properties" && child && typeof child === "object") {
+      result.properties = Object.fromEntries(
+        Object.entries(child as Record<string, any>).map(([name, field]) => [name, toGeminiJsonSchema(field)])
+      );
+    } else {
+      result[key] = toGeminiJsonSchema(child);
+    }
+  }
+  return result;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers });
   if (req.method !== "POST") return reply({ error: "Method not allowed" }, 405);
@@ -97,7 +117,7 @@ Deno.serve(async (req) => {
       headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts }],
-        generationConfig: { responseMimeType: "application/json", responseJsonSchema: schema }
+        generationConfig: { responseMimeType: "application/json", responseJsonSchema: toGeminiJsonSchema(schema) }
       })
     });
     if (!response.ok) {
