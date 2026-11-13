@@ -58,8 +58,8 @@ Deno.serve(async (req) => {
     if (!auth.startsWith("Bearer ")) return reply({ error: "Требуется вход в приложение" }, 401);
     const url = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!url || !serviceKey || !openaiKey) return reply({ error: "Сервер не настроен: проверьте секреты Supabase" }, 500);
+    const geminiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!url || !serviceKey || !geminiKey) return reply({ error: "Сервер не настроен: добавьте GEMINI_API_KEY в секреты Supabase" }, 500);
 
     const db = createClient(url, serviceKey, { auth: { persistSession: false } });
     const token = auth.slice(7);
@@ -83,32 +83,30 @@ Deno.serve(async (req) => {
     if (catalogError) throw catalogError;
     const ingredients = catalog ?? [];
 
-    const content: any[] = [{
-      type: "input_text",
-      text: "Ты — технолог пекарни-кондитерской. Считай только то, что видно на фото. Составь проект ТТК: название, технологию, выход, условия хранения, показатели качества и ингредиенты. Для ингредиентов укажи брутто (quantity), нетто (net_quantity) и потери (loss_percent), только если они явно указаны или однозначно рассчитываются из данных. Не выдумывай пропущенные данные; неизвестное значение — null. Если текст неразборчив или единица сомнительна, укажи это в notes. Сопоставь ингредиент с точным id из справочника, если он подходит. Иначе ingredient_id = null. Справочник ингредиентов для сопоставления: " + JSON.stringify(ingredients.map((x: any) => ({ id: x.id, name: x.name, base_unit: x.base_unit })))
-    }];
+    const prompt = "Ты — технолог пекарни-кондитерской. Считай только то, что видно на фото. Составь проект ТТК: название, технологию, выход, условия хранения, показатели качества и ингредиенты. Для ингредиентов укажи брутто (quantity), нетто (net_quantity) и потери (loss_percent), только если они явно указаны или однозначно рассчитываются из данных. Не выдумывай пропущенные данные; неизвестное значение — null. Если текст неразборчив или единица сомнительна, укажи это в notes. Сопоставь ингредиент с точным id из справочника, если он подходит. Иначе ingredient_id = null. Верни только JSON по заданной схеме. Справочник ингредиентов для сопоставления: " + JSON.stringify(ingredients.map((x: any) => ({ id: x.id, name: x.name, base_unit: x.base_unit })));
+    const parts: any[] = [{ text: prompt }];
     for (const photo of photos) {
       if (typeof photo.data !== "string" || photo.data.length < 100) return reply({ error: "Некорректная фотография" }, 400);
       const mime = ["image/jpeg", "image/png", "image/webp"].includes(photo.mime_type) ? photo.mime_type : "image/jpeg";
-      content.push({ type: "input_image", image_url: "data:" + mime + ";base64," + photo.data, detail: "high" });
+      parts.push({ inline_data: { mime_type: mime, data: photo.data } });
     }
 
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" +
+      encodeURIComponent(Deno.env.get("GEMINI_MODEL") || "gemini-3.8-flash") + ":generateContent", {
       method: "POST",
-      headers: { Authorization: "Bearer " + openaiKey, "Content-Type": "application/json" },
+      headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: Deno.env.get("OPENAI_MODEL") || "gpt-4.1-mini",
-        input: [{ role: "user", content }],
-        text: { format: { type: "json_schema", name: "recipe_tech_card", strict: true, schema } }
+        contents: [{ role: "user", parts }],
+        generationConfig: { responseMimeType: "application/json", responseJsonSchema: schema }
       })
     });
     if (!response.ok) {
-      console.error("OpenAI error", response.status, await response.text());
-      return reply({ error: "Не удалось распознать рецепт. Проверьте качество фотографий и повторите." }, 502);
+      console.error("Gemini error", response.status, await response.text());
+      return reply({ error: "Gemini не смог распознать рецепт. Проверьте фотографии и лимит бесплатного тарифа." }, 502);
     }
     const ai = await response.json();
-    const text = ai.output_text || ai.output?.flatMap((x: any) => x.content || []).find((x: any) => x.type === "output_text")?.text;
-    if (!text) throw new Error("OpenAI returned empty output");
+    const text = ai.candidates?.[0]?.content?.parts?.map((x: any) => x.text || "").join("").trim();
+    if (!text) throw new Error("Gemini returned empty output");
     const parsed = JSON.parse(text);
 
     const calculated = [];
