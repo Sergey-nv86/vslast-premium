@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/supabase_config.dart';
+import 'features/admin/screens/recipe_preview_login_screen.dart';
 import 'features/splash/screens/splash_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/cart_provider.dart';
@@ -19,17 +20,23 @@ import 'services/push_navigation_router.dart';
 import 'services/web_notification_helper.dart';
 import 'firebase_options.dart';
 
+const bool isRecipePreview = bool.fromEnvironment('RECIPE_PREVIEW', defaultValue: false);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (!isRecipePreview) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  }
 
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
   );
 
-  await PushNotificationService.instance.initialize();
+  if (!isRecipePreview) {
+    await PushNotificationService.instance.initialize();
+  }
 
   if (kIsWeb) {
     // Для background/terminated push Service Worker открывает приложение
@@ -73,7 +80,7 @@ class VslastPremiumApp extends StatelessWidget {
         navigatorKey: PushNotificationService.navigatorKey,
         title: 'Всласть Premium',
         theme: VslastDesignSystem.theme,
-        home: const SplashScreen(),
+        home: isRecipePreview ? const RecipePreviewLoginScreen() : const SplashScreen(),
       ),
     );
   }
