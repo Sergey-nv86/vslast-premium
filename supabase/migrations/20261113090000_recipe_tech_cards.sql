@@ -77,31 +77,31 @@ alter table public.recipe_tech_card_items enable row level security;
 
 drop policy if exists "admin manage ingredients" on public.ingredients;
 create policy "admin manage ingredients" on public.ingredients
-  for all to authenticated using (public.is_admin_user())
-  with check (public.is_admin_user());
+  for all to authenticated using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef')))
+  with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef')));
 
 drop policy if exists "admin manage ingredient prices" on public.ingredient_prices;
 create policy "admin manage ingredient prices" on public.ingredient_prices
-  for all to authenticated using (public.is_admin_user())
-  with check (public.is_admin_user());
+  for all to authenticated using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef')))
+  with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef')));
 
 drop policy if exists "admin manage recipe tech cards" on public.recipe_tech_cards;
 create policy "admin manage recipe tech cards" on public.recipe_tech_cards
-  for all to authenticated using (public.is_admin_user())
-  with check (public.is_admin_user());
+  for all to authenticated using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef')))
+  with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef')));
 
 drop policy if exists "admin manage recipe tech card items" on public.recipe_tech_card_items;
 create policy "admin manage recipe tech card items" on public.recipe_tech_card_items
   for all to authenticated using (
     exists (
       select 1 from public.recipe_tech_cards r
-      where r.id = recipe_id and public.is_admin_user()
+      where r.id = recipe_id and exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef'))
     )
   )
   with check (
     exists (
       select 1 from public.recipe_tech_cards r
-      where r.id = recipe_id and public.is_admin_user()
+      where r.id = recipe_id and exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef'))
     )
   );
 
