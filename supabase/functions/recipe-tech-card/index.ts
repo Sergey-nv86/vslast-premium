@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
         loss_percent: row.loss_percent == null ? null : Number(row.loss_percent),
         unit: row.unit, base_unit: ingredient.base_unit,
         base_quantity: qtyBase, line_cost: lineCost,
-        price_missing: lineCost == null, needs_review: ingredient.needs_review === true, notes: row.notes || "",
+        price_missing: perUnit == null, conversion_missing: qtyBase == null, needs_review: ingredient.needs_review === true, notes: row.notes || "",
         nutrition: {
           calories: ingredient.calories_per_100 == null ? null : Number(ingredient.calories_per_100),
           protein: ingredient.protein_per_100 == null ? null : Number(ingredient.protein_per_100),
@@ -147,7 +147,8 @@ Deno.serve(async (req) => {
       });
     }
     const missing = calculated.filter(x => x.price_missing).map(x => ({ id: x.ingredient_id, name: x.ingredient_name, unit: x.base_unit }));
-    const total = missing.length ? null : Math.round(calculated.reduce((s, x) => s + (x.line_cost || 0), 0) * 100) / 100;
+    const conversionIssues = calculated.filter(x => x.conversion_missing).map(x => ({ name: x.ingredient_name, unit: x.unit }));
+    const total = calculated.some(x => x.line_cost == null) ? null : Math.round(calculated.reduce((s, x) => s + x.line_cost, 0) * 100) / 100;
 
     let nutrition = null;
     const nutritionComplete = calculated.length > 0 && calculated.every(x =>
@@ -166,9 +167,9 @@ Deno.serve(async (req) => {
       nutrition = Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, Math.round(v / yieldGrams * 10000) / 100]));
     }
     return reply({
-      analysis: parsed, items: calculated, total_cost: total, missing_prices: missing,
+      analysis: parsed, items: calculated, total_cost: total, missing_prices: missing, conversion_issues: conversionIssues,
       nutrition_per_100: nutrition, nutrition_status: nutrition ? (calculated.some(x => x.needs_review) ? "estimated" : "calculated") : "incomplete",
-      calculation_status: missing.length ? "needs_prices" : "ready"
+      calculation_status: missing.length || conversionIssues.length ? "needs_prices" : "ready"
     });
   } catch (error) {
     console.error("recipe-tech-card failure", error);
