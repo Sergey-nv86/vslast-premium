@@ -87,8 +87,12 @@ create policy "admin manage ingredient prices" on public.ingredient_prices
 
 drop policy if exists "admin manage recipe tech cards" on public.recipe_tech_cards;
 create policy "admin manage recipe tech cards" on public.recipe_tech_cards
-  for all to authenticated using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef')))
-  with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef')));
+  for all to authenticated
+  using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef')))
+  with check (
+    created_by = auth.uid()
+    and exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef'))
+  );
 
 drop policy if exists "admin manage recipe tech card items" on public.recipe_tech_card_items;
 create policy "admin manage recipe tech card items" on public.recipe_tech_card_items
@@ -104,6 +108,12 @@ create policy "admin manage recipe tech card items" on public.recipe_tech_card_i
       where r.id = recipe_id and exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','admin','manager','baker','pastry_chef'))
     )
   );
+
+
+grant select, insert, update, delete on public.ingredients to authenticated;
+grant select, insert, update, delete on public.ingredient_prices to authenticated;
+grant select, insert, update, delete on public.recipe_tech_cards to authenticated;
+grant select, insert, update, delete on public.recipe_tech_card_items to authenticated;
 
 comment on table public.ingredients is 'Ингредиенты технологических карт Всласть';
 comment on table public.ingredient_prices is 'Актуальная закупочная цена ингредиента';
