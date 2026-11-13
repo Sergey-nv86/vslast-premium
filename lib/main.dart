@@ -38,7 +38,7 @@ Future<void> main() async {
     await PushNotificationService.instance.initialize();
   }
 
-  if (kIsWeb) {
+  if (!isRecipePreview && kIsWeb) {
     // Для background/terminated push Service Worker открывает приложение
     // с push_type/order_id/product_id в query string.
     PushNavigationRouter.instance.setPendingFromUri(Uri.base);
@@ -57,9 +57,11 @@ Future<void> main() async {
 
   // Обрабатываем push, который открыл PWA в новой вкладке/окне.
   // К этому моменту MaterialApp уже получил возможность построить Navigator.
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(PushNavigationRouter.instance.handlePending());
-  });
+  if (!isRecipePreview) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(PushNavigationRouter.instance.handlePending());
+    });
+  }
 }
 
 class VslastPremiumApp extends StatelessWidget {
@@ -67,6 +69,16 @@ class VslastPremiumApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final app = MaterialApp(
+      debugShowCheckedModeBanner: false,
+      navigatorKey: PushNotificationService.navigatorKey,
+      title: 'Всласть Premium',
+      theme: VslastDesignSystem.theme,
+      home: isRecipePreview ? const RecipePreviewLoginScreen() : const SplashScreen(),
+    );
+
+    if (isRecipePreview) return app;
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CartProvider()),
@@ -75,13 +87,7 @@ class VslastPremiumApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TabNavigationController()),
         ChangeNotifierProvider(create: (_) => LocationProvider()),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        navigatorKey: PushNotificationService.navigatorKey,
-        title: 'Всласть Premium',
-        theme: VslastDesignSystem.theme,
-        home: isRecipePreview ? const RecipePreviewLoginScreen() : const SplashScreen(),
-      ),
+      child: app,
     );
   }
 }
