@@ -38,3 +38,40 @@ Do not apply this migration or deploy the function to vslast-production until th
 - Missing purchase prices leave the total cost incomplete.
 - Nutrition is calculated only when ingredient nutrition data, compatible gram quantities and a known finished yield are available. Generic starter nutrition values are marked as estimates and should be checked against supplier labels.
 - This is a draft TTK assistant; the technologist must confirm ambiguous handwriting, yields, losses, storage conditions and nutrition before operational use.
+
+## Isolated mobile preview project
+
+The preview Supabase project is already provisioned separately from production:
+
+- Project: `vslast-recipe-tech-preview`
+- Project ref: `lpuzgzgyxqfwnwpfbefw`
+- Region: `eu-central-1`
+- Project URL: `https://lpuzgzgyxqfwnwpfbefw.supabase.co`
+- Organization: `snocwyuqqemdvxwkywxf`
+- Project creation estimate: USD 0/month
+
+The preview app has a dedicated email/password entry screen enabled only with `RECIPE_PREVIEW=true`. Production remains the default when no Dart defines are supplied. The first account registered in this isolated preview project receives the owner role; later accounts receive customer role. This first-account rule is specific to this unshared test project and must never be copied to production.
+
+Active publishable key for the preview app (safe for client-side use):
+`sb_publishable_VSsRlb6ITGZrWa6oz70HsQ_mQkfJfJi`
+
+From the repository root, build/run the preview variant:
+
+```bash
+flutter pub get
+flutter run \
+  --dart-define=RECIPE_PREVIEW=true \
+  --dart-define=SUPABASE_URL=https://lpuzgzgyxqfwnwpfbefw.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_VSsRlb6ITGZrWa6oz70HsQ_mQkfJfJi
+```
+
+For iPhone installation, open `ios/Runner.xcworkspace` in Xcode, select the iPhone and a valid Apple development signing team, then run the same preview build. A signed iOS build requires the user's Apple signing identity.
+
+The first registration may require email confirmation depending on the Auth email settings. After confirmation, sign in with the same test email/password. No production users or data are present in this project.
+
+## Remaining before first real AI request
+
+1. Add `GEMINI_API_KEY` as an Edge Function secret in this preview project. Do not add it to GitHub or Flutter.
+2. Register the first preview user and sign in.
+3. Build the preview app on the Mac and install it on the iPhone.
+4. Test several photographed recipes, verify extraction, unit conversions, ingredient prices, TTK saving and cost per entered quantity.
