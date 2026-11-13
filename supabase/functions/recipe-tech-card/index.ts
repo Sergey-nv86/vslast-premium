@@ -79,10 +79,11 @@ Deno.serve(async (req) => {
       .select("id,name,normalized_name,base_unit,calories_per_100,protein_per_100,fat_per_100,carbs_per_100,ingredient_prices(purchase_quantity,purchase_unit,purchase_price,price_per_base_unit)")
       .order("name");
     if (catalogError) throw catalogError;
+    const ingredients = catalog ?? [];
 
     const content: any[] = [{
       type: "input_text",
-      text: "Ты — технолог пекарни-кондитерской. Считай только то, что видно на фото. Перепиши название, технологию, выход и ингредиенты с точными количествами и единицами. Не выдумывай пропущенные данные. Если текст неразборчив или единица сомнительна, укажи это в notes. Справочник ингредиентов для сопоставления: " + JSON.stringify((catalog || []).map((x: any) => ({ id: x.id, name: x.name, base_unit: x.base_unit })))
+      text: "Ты — технолог пекарни-кондитерской. Считай только то, что видно на фото. Перепиши название, технологию, выход и ингредиенты с точными количествами и единицами. Не выдумывай пропущенные данные. Если текст неразборчив или единица сомнительна, укажи это в notes. Справочник ингредиентов для сопоставления: " + JSON.stringify(ingredients.map((x: any) => ({ id: x.id, name: x.name, base_unit: x.base_unit })))
     }];
     for (const photo of photos) {
       if (typeof photo.data !== "string" || photo.data.length < 100) return reply({ error: "Некорректная фотография" }, 400);
@@ -114,7 +115,7 @@ Deno.serve(async (req) => {
       const normalized = normalize(name);
       const quantity = Number(row.quantity);
       if (!name || !normalized || !Number.isFinite(quantity) || quantity < 0) continue;
-      let ingredient = (catalog || []).find((x: any) => x.normalized_name === normalized);
+      let ingredient = ingredients.find((x: any) => x.normalized_name === normalized);
       if (!ingredient) {
         const unit = baseUnit(String(row.unit || ""));
         const { data, error } = await db.from("ingredients").upsert({
@@ -122,7 +123,7 @@ Deno.serve(async (req) => {
         }, { onConflict: "normalized_name" }).select("id,name,normalized_name,base_unit,calories_per_100,protein_per_100,fat_per_100,carbs_per_100").single();
         if (error) throw error;
         ingredient = { ...data, ingredient_prices: [] };
-        catalog.push(ingredient);
+        ingredients.push(ingredient);
       }
       const price = Array.isArray(ingredient.ingredient_prices) ? ingredient.ingredient_prices[0] : null;
       const qtyBase = toBase(quantity, String(row.unit || ""), ingredient.base_unit);
