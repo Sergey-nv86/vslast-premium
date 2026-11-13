@@ -36,6 +36,7 @@ class _AdminRecipeTechScreenState extends State<AdminRecipeTechScreen> {
 
   Future<void> calculate() async {
     if (photos.isEmpty || busy) return;
+    if (photos.length > 8) { showError('Можно добавить не более 8 фотографий'); return; }
     setState(() { busy = true; error = null; result = null; });
     try {
       final images = <Map<String, dynamic>>[];
@@ -82,16 +83,19 @@ class _AdminRecipeTechScreenState extends State<AdminRecipeTechScreen> {
         final qty = toBase(item['quantity'] as num, item['unit'].toString(), item['base_unit'].toString());
         final per = row?['price_per_base_unit'] as num?;
         item['line_cost'] = qty != null && per != null ? double.parse((qty * per).toStringAsFixed(2)) : null;
-        item['price_missing'] = item['line_cost'] == null;
+        item['price_missing'] = per == null;
+        item['conversion_missing'] = qty == null;
       } catch (_) {}
     }
     final absent = updated.where((x) => x['price_missing'] == true).length;
+    final conversionIssues = updated.where((x) => x['conversion_missing'] == true).length;
+    final incomplete = updated.any((x) => x['line_cost'] == null);
     if (!mounted) return;
     setState(() {
       result!['items'] = updated;
       result!['missing_prices'] = updated.where((x) => x['price_missing'] == true).toList();
-      result!['total_cost'] = absent == 0 ? updated.fold<double>(0, (s, x) => s + ((x['line_cost'] as num?)?.toDouble() ?? 0)) : null;
-      result!['calculation_status'] = absent == 0 ? 'ready' : 'needs_prices';
+      result!['total_cost'] = !incomplete ? updated.fold<double>(0, (s, x) => s + ((x['line_cost'] as num?)?.toDouble() ?? 0)) : null;
+      result!['calculation_status'] = absent == 0 && conversionIssues == 0 ? 'ready' : 'needs_prices';
     });
   }
 
@@ -219,7 +223,7 @@ class _AdminRecipeTechScreenState extends State<AdminRecipeTechScreen> {
               Expanded(child: Text(x['ingredient_name'].toString())),
               Text(x['quantity'].toString() + ' ' + x['unit'].toString()),
               const SizedBox(width: 8),
-              Text(x['line_cost'] == null ? 'нет цены' : money(x['line_cost'] as num) + ' ₽', style: TextStyle(color: x['line_cost'] == null ? Colors.red : muted, fontSize: 12)),
+              Text(x['line_cost'] == null ? (x['conversion_missing'] == true ? 'проверьте единицу' : 'нет цены') : money(x['line_cost'] as num) + ' ₽', style: TextStyle(color: x['line_cost'] == null ? Colors.red : muted, fontSize: 12)),
             ]))),
             const Divider(height: 24),
             const Text('Технология приготовления', style: TextStyle(fontWeight: FontWeight.w700, color: dark)),
