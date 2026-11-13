@@ -231,7 +231,7 @@ class _AdminRecipeTechScreenState extends State<AdminRecipeTechScreen> {
             const Divider(height: 24),
             summary('Выход по рецептуре', analysis['yield_quantity'] == null ? 'Не указан' : analysis['yield_quantity'].toString() + ' ' + (analysis['yield_unit']?.toString() ?? '')),
             summary('Себестоимость рецептуры', result!['total_cost'] == null ? 'Не рассчитана — нет цены' : money(result!['total_cost'] as num) + ' ₽'),
-            summary('КБЖУ на 100 г', nutrition == null ? 'Недостаточно данных' : 'К ' + nutrition['calories'].toString() + ' · Б ' + nutrition['protein'].toString() + ' · Ж ' + nutrition['fat'].toString() + ' · У ' + nutrition['carbs'].toString()),
+            summary(result!['nutrition_status'] == 'estimated' ? 'КБЖУ на 100 г (оценка)' : 'КБЖУ на 100 г', nutrition == null ? 'Недостаточно данных' : 'К ' + nutrition['calories'].toString() + ' · Б ' + nutrition['protein'].toString() + ' · Ж ' + nutrition['fat'].toString() + ' · У ' + nutrition['carbs'].toString()),
             if (result!['requested_cost'] != null) summary('Стоимость введённого количества', money(result!['requested_cost'] as num) + ' ₽'),
           ]))),
         ],
