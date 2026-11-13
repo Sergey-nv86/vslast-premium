@@ -98,8 +98,9 @@ class _AdminRecipeTechScreenState extends State<AdminRecipeTechScreen> {
   Future<void> priceDialog(Map<String, dynamic> ingredient) async {
     final price = TextEditingController();
     final quantity = TextEditingController(text: '1');
-    String unit = ingredient['unit']?.toString() ?? 'kg';
-    const units = ['kg','g','l','ml','pcs'];
+    final base = ingredient['unit']?.toString() ?? 'g';
+    String unit = base == 'ml' ? 'l' : base == 'pcs' ? 'pcs' : 'kg';
+    final units = base == 'ml' ? ['l', 'ml'] : base == 'pcs' ? ['pcs'] : ['kg', 'g'];
     await showDialog<void>(context: context, barrierDismissible: false, builder: (ctx) => StatefulBuilder(builder: (ctx, refresh) => AlertDialog(
       title: const Text('Добавить цену ингредиента'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -109,9 +110,9 @@ class _AdminRecipeTechScreenState extends State<AdminRecipeTechScreen> {
         const SizedBox(height: 10),
         TextField(controller: quantity, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Количество в упаковке', border: OutlineInputBorder())),
         const SizedBox(height: 10),
-        DropdownButtonFormField<String>(value: units.contains(unit) ? unit : 'kg', decoration: const InputDecoration(labelText: 'Единица измерения', border: OutlineInputBorder()), items: units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(), onChanged: (v) => refresh(() => unit = v ?? unit)),
+        DropdownButtonFormField<String>(value: units.contains(unit) ? unit : units.first, decoration: const InputDecoration(labelText: 'Единица измерения', border: OutlineInputBorder()), items: units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(), onChanged: (v) => refresh(() => unit = v ?? unit)),
         const SizedBox(height: 6),
-        const Text('Например: 750 ₽ за 1 kg', style: TextStyle(fontSize: 12, color: muted)),
+        const Text('Введите цену и размер упаковки', style: TextStyle(fontSize: 12, color: muted)),
       ]),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Пропустить')),
