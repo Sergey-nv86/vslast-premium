@@ -14,19 +14,19 @@ This feature is isolated on branch feature/recipe-tech-card-ai-20261113.
 
 ## Required server secret
 
-Create a Gemini API key in Google AI Studio (https://aistudio.google.com/) and set GEMINI_API_KEY as an Edge Function secret in the development Supabase branch only. Never put it in Flutter source, app configuration, GitHub, or a client-side environment file.
+Create a Gemini API key in Google AI Studio (https://aistudio.google.com/) and set GEMINI_API_KEY as an Edge Function secret in the separate preview Supabase project only. Never put it in Flutter source, app configuration, GitHub, or a client-side environment file.
 
-Optional: GEMINI_MODEL — defaults to gemini-3.8-flash. The Gemini API currently lists a free tier for this model, subject to rate limits and Google AI Studio terms. Free-tier prompts/responses may be used by Google to improve its products; do not upload confidential recipes or customer data without reviewing those terms.
+Optional: GEMINI_MODEL — defaults to gemini-3.8-flash. The official Gemini pricing page lists free standard input and output for this model, subject to rate limits. Do not link a paid billing account or enable paid usage for this prototype. Free-tier prompts/responses may be used by Google to improve its products; use non-confidential sample recipes until you have reviewed the data terms. Free-tier prompts/responses may be used by Google to improve its products; do not upload confidential recipes or customer data without reviewing those terms.
 
 The function performs its own auth.getUser(token) check because platform JWT verification is disabled for compatibility with asymmetric Supabase signing keys. Requests without a valid user session or an allowed production role are rejected.
 
 ## Database and deployment
 
-1. Apply supabase/migrations/20261113090000_recipe_tech_cards.sql to the development database.
-2. Add the GEMINI_API_KEY secret to that development project.
-3. Deploy supabase/functions/recipe-tech-card/index.ts as recipe-tech-card.
-4. Run database security advisors and verify the Data API grants/RLS.
-5. Build the Flutter app and test with sample recipes before merging anything to production.
+1. The isolated preview project has already received the profile bootstrap and recipe TTK migrations.
+2. The recipe-tech-card Edge Function has already been deployed to the preview project.
+3. Add GEMINI_API_KEY to the preview project's Edge Function secrets when the key is generated.
+4. Security advisors have been checked; no security lints remain. Performance output currently contains only unused-index informational notices before workload.
+5. Build the Flutter preview app on the Mac and test with sample recipes before considering any production merge.
 
 Do not apply this migration or deploy the function to vslast-production until the preview has been accepted.
 
@@ -67,7 +67,7 @@ flutter run \
 
 For iPhone installation, open `ios/Runner.xcworkspace` in Xcode, select the iPhone and a valid Apple development signing team, then run the same preview build. A signed iOS build requires the user's Apple signing identity.
 
-The first registration may require email confirmation depending on the Auth email settings. After confirmation, sign in with the same test email/password. No production users or data are present in this project.
+The first registration may require email confirmation depending on the Auth email settings. The profile trigger assigns owner only to the first account in this isolated preview project; the function is not executable through the public Data API. After confirmation, sign in with the same test email/password. No production users or data are present in this project.
 
 ## Remaining before first real AI request
 
