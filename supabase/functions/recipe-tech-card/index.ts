@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     if (authError || !authData.user) return reply({ error: "Сессия истекла. Войдите повторно." }, 401);
 
     const { data: profile, error: profileError } = await db.from("profiles").select("role").eq("id", authData.user.id).maybeSingle();
-    if (profileError || !profile || !["owner", "admin", "manager", "baker", "pastry_chef"].includes(String(profile.role))) {
+    if (profileError || !profile || !["owner", "admin", "manager", "baker", "pastry_chef", "pastryChef"].includes(String(profile.role))) {
       return reply({ error: "Нет доступа к технологическим картам" }, 403);
     }
 
@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
     return reply({
       analysis: parsed, items: calculated, total_cost: total, missing_prices: missing, conversion_issues: conversionIssues,
       nutrition_per_100: nutrition, nutrition_status: nutrition ? (calculated.some(x => x.needs_review) ? "estimated" : "calculated") : "incomplete",
-      calculation_status: missing.length || conversionIssues.length ? "needs_prices" : "ready"
+      calculation_status: missing.length || conversionIssues.length || calculated.length === 0 ? "needs_prices" : "ready"
     });
   } catch (error) {
     console.error("recipe-tech-card failure", error);
